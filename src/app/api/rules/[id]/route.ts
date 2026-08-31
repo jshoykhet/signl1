@@ -1,0 +1,34 @@
+import { NextResponse } from "next/server";
+import { deleteRule, getRule, updateRule } from "@/lib/db";
+import { jsonError, parseRuleBody } from "@/lib/api";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+type Ctx = { params: Promise<{ id: string }> };
+
+export async function GET(_request: Request, context: Ctx) {
+  const { id } = await context.params;
+  const rule = getRule(id);
+  if (!rule) return jsonError("Rule not found", 404);
+  return NextResponse.json({ rule });
+}
+
+export async function PATCH(request: Request, context: Ctx) {
+  const { id } = await context.params;
+  try {
+    const body = await request.json();
+    const input = parseRuleBody(body, true);
+    const rule = updateRule(id, input);
+    return NextResponse.json({ rule });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not update rule";
+    return jsonError(message, message === "Rule not found" ? 404 : 400);
+  }
+}
+
+export async function DELETE(_request: Request, context: Ctx) {
+  const { id } = await context.params;
+  if (!deleteRule(id)) return jsonError("Rule not found", 404);
+  return NextResponse.json({ ok: true });
+}

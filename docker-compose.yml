@@ -1,0 +1,29 @@
+services:
+  web:
+    build: .
+    command: npm run start
+    ports:
+      - "3847:3847"
+    environment:
+      DATABASE_PATH: /data/signal.db
+      PORT: "3847"
+      HOSTNAME: 0.0.0.0
+      X_BEARER_TOKEN: ${X_BEARER_TOKEN:-}
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+    volumes:
+      - signal-data:/data
+    restart: unless-stopped
+
+  poller:
+    build: .
+    command: npm run poller
+    environment:
+      DATABASE_PATH: /data/signal.db
+      X_BEARER_TOKEN: ${X_BEARER_TOKEN:-}
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+    volumes:
+      - signal-data:/data
+    restart: unless-stopped
+
+volumes:
+  signal-data:
