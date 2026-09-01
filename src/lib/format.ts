@@ -23,6 +23,16 @@ export function formatInterval(ms: number): string {
   return `${(ms / 1000).toFixed(0)}s`;
 }
 
+export function formatCompact(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return "—";
+  const abs = Math.abs(n);
+  if (abs < 1000) return String(Math.round(n));
+  if (abs < 10_000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k`;
+  if (abs < 1_000_000) return `${Math.round(n / 1000)}k`;
+  if (abs < 10_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}m`;
+  return `${Math.round(n / 1_000_000)}m`;
+}
+
 export function formatClock(iso: string | null | undefined): string {
   if (!iso) return "—";
   const d = new Date(iso);

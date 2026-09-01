@@ -4,7 +4,7 @@ export const DEMO_INJECT_INTERVAL_MS = 10_000;
 export const POLLER_TICK_MS = 2_000;
 export const POLLER_STALE_MS = 30_000;
 export const X_MIN_REQUEST_GAP_MS = 400;
-export const X_MAX_RESULTS = 10;
+export const X_MAX_RESULTS = 25;
 export const X_SEARCH_URL = "https://api.x.com/2/tweets/search/recent";
 export const X_SEARCH_URL_FALLBACK = "https://api.twitter.com/2/tweets/search/recent";
 

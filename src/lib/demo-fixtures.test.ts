@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { compileQuery } from "./query";
-import { DEMO_FIXTURES } from "./demo-fixtures";
-import { matchesQuery } from "./query";
+import { compileQuery, matchesQuery } from "./query";
+import { DEMO_FIXTURES, fixtureToTweet } from "./demo-fixtures";
+import { passesSignalFilter } from "./signal-filter";
 
 const SEED_QUERIES = [
   compileQuery({
@@ -34,6 +34,15 @@ describe("demo fixtures", () => {
     for (const query of SEED_QUERIES) {
       const hits = DEMO_FIXTURES.filter((fixture) => matchesQuery(fixture, query));
       expect(hits.length, `expected hits for ${query}`).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it("assigns high-signal desk metrics so fixtures pass the quality filter", () => {
+    for (const fixture of DEMO_FIXTURES) {
+      const tweet = fixtureToTweet(fixture, fixture.id, fixture.createdAt);
+      expect(passesSignalFilter(tweet).pass, fixture.authorHandle).toBe(true);
+      expect(tweet.followersCount).toBeGreaterThanOrEqual(50);
+      expect(tweet.likeCount).toBeGreaterThanOrEqual(5);
     }
   });
 });

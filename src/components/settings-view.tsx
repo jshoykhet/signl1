@@ -104,6 +104,21 @@ export function SettingsView() {
             </section>
             <section className="overflow-hidden rounded-lg border border-border/80">
               <div className="border-b border-border/80 bg-muted/30 px-4 py-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                Quality filter
+              </div>
+              <Row label="Min followers">{status.qualityFilter.minFollowers}</Row>
+              <Row label="Min likes">{status.qualityFilter.minLikes}</Row>
+              <Row label="Min score">{status.qualityFilter.minScore} / 100</Row>
+              <Row label="How it works">
+                <p className="text-[13px] leading-relaxed text-muted-foreground">
+                  Matches need ≥{status.qualityFilter.minFollowers} followers and ≥{status.qualityFilter.minLikes} likes,
+                  plus a signal score that favors desks which typically draw engagement. A fresh post from an account
+                  with 10k+ followers can land before likes accrue.
+                </p>
+              </Row>
+            </section>
+            <section className="overflow-hidden rounded-lg border border-border/80">
+              <div className="border-b border-border/80 bg-muted/30 px-4 py-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
                 Store
               </div>
               <Row label="Rules">{status.counts.rules} ({status.counts.enabledRules} enabled)</Row>

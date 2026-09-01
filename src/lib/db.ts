@@ -3,6 +3,7 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import { clampPollIntervalMs, databasePath, DEFAULT_POLL_INTERVAL_MS } from "./config";
 import { compileQuery, normalizeAccounts } from "./query";
+import { MIN_FOLLOWERS, MIN_LIKES, MIN_SIGNAL_SCORE, passesSignalFilter } from "./signal-filter";
 import type { Match, NormalizedTweet, Rule, RuleInput, StatusSnapshot } from "./types";
 
 type RuleRow = {
@@ -35,6 +36,10 @@ type MatchRow = {
   raw_json: string;
   read: number;
   matched_at: string;
+  author_followers: number | null;
+  like_count: number | null;
+  signal_score: number | null;
+  signal_pass: number | null;
 };
 
 const globalForDb = globalThis as unknown as { signalDb?: Database.Database };
@@ -85,6 +90,9 @@ function mapMatch(row: MatchRow): Match {
     rawJson: row.raw_json,
     read: Boolean(row.read),
     matchedAt: row.matched_at,
+    followersCount: row.author_followers,
+    likeCount: row.like_count,
+    signalScore: row.signal_score,
   };
 }
 
@@ -136,6 +144,91 @@ function migrate(db: Database.Database) {
       value TEXT NOT NULL
     );
   `);
+
+  ensureColumn(db, "matches", "author_followers", "INTEGER");
+  ensureColumn(db, "matches", "like_count", "INTEGER");
+  ensureColumn(db, "matches", "signal_score", "REAL");
+  ensureColumn(db, "matches", "signal_pass", "INTEGER");
+  backfillMatchQuality(db);
+}
+
+function ensureColumn(db: Database.Database, table: string, column: string, spec: string) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+  if (cols.some((col) => col.name === column)) return;
+  db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${spec}`);
+}
+
+function metricsFromRaw(rawJson: string): {
+  followersCount: number | null;
+  likeCount: number | null;
+  retweetCount: number;
+  replyCount: number;
+  quoteCount: number;
+  verified: boolean;
+} {
+  try {
+    const raw = JSON.parse(rawJson) as {
+      public_metrics?: { like_count?: number; retweet_count?: number; reply_count?: number; quote_count?: number };
+      tweet?: { public_metrics?: { like_count?: number; retweet_count?: number; reply_count?: number; quote_count?: number } };
+      author?: { verified?: boolean; public_metrics?: { followers_count?: number } };
+    };
+    const tweetMetrics = raw.tweet?.public_metrics ?? raw.public_metrics;
+    const followers = raw.author?.public_metrics?.followers_count;
+    return {
+      followersCount: typeof followers === "number" ? followers : null,
+      likeCount: typeof tweetMetrics?.like_count === "number" ? tweetMetrics.like_count : null,
+      retweetCount: tweetMetrics?.retweet_count ?? 0,
+      replyCount: tweetMetrics?.reply_count ?? 0,
+      quoteCount: tweetMetrics?.quote_count ?? 0,
+      verified: Boolean(raw.author?.verified),
+    };
+  } catch {
+    return { followersCount: null, likeCount: null, retweetCount: 0, replyCount: 0, quoteCount: 0, verified: false };
+  }
+}
+
+function backfillMatchQuality(db: Database.Database) {
+  const rows = db.prepare(
+    "SELECT id, raw_json, tweet_created_at, author_followers, like_count, signal_pass FROM matches",
+  ).all() as Array<{
+    id: string;
+    raw_json: string;
+    tweet_created_at: string;
+    author_followers: number | null;
+    like_count: number | null;
+    signal_pass: number | null;
+  }>;
+  const update = db.prepare(
+    "UPDATE matches SET author_followers = ?, like_count = ?, signal_score = ?, signal_pass = ? WHERE id = ?",
+  );
+  for (const row of rows) {
+    if (row.signal_pass != null && row.author_followers != null && row.like_count != null) continue;
+    const metrics = metricsFromRaw(row.raw_json);
+    const followers = row.author_followers ?? metrics.followersCount;
+    const likes = row.like_count ?? metrics.likeCount;
+    if (followers == null && likes == null) continue;
+    const quality = {
+      followersCount: followers ?? 0,
+      likeCount: likes ?? 0,
+      retweetCount: metrics.retweetCount,
+      replyCount: metrics.replyCount,
+      quoteCount: metrics.quoteCount,
+      verified: metrics.verified,
+      createdAt: row.tweet_created_at,
+    };
+    const verdict = passesSignalFilter(quality);
+    const pass =
+      followers == null
+        ? likes != null && likes >= MIN_LIKES
+          ? 1
+          : likes != null
+            ? 0
+            : null
+        : verdict.pass
+          ? 1
+          : 0;
+    update.run(followers, likes, verdict.score, pass, row.id);
+  }
 }
 
 const SEED_RULES: RuleInput[] = [
@@ -318,12 +411,14 @@ export function tryInsertMatch(
   db = getDb(),
 ): { inserted: boolean; matchId: string | null } {
   const id = crypto.randomUUID();
+  const verdict = passesSignalFilter(tweet);
   try {
     db.prepare(`
       INSERT INTO matches (
         id, tweet_id, rule_id, author_handle, author_name, text,
-        tweet_created_at, permalink, raw_json, read, matched_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+        tweet_created_at, permalink, raw_json, read, matched_at,
+        author_followers, like_count, signal_score, signal_pass
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
     `).run(
       id,
       tweet.id,
@@ -335,6 +430,10 @@ export function tryInsertMatch(
       tweet.permalink,
       JSON.stringify(tweet.raw ?? tweet),
       nowIso(),
+      tweet.followersCount,
+      tweet.likeCount,
+      verdict.score,
+      verdict.pass ? 1 : 0,
     );
     return { inserted: true, matchId: id };
   } catch (error) {
@@ -347,7 +446,7 @@ export function tryInsertMatch(
 }
 
 export function listMatches(
-  opts: { ruleId?: string; unread?: boolean; limit?: number } = {},
+  opts: { ruleId?: string; unread?: boolean; limit?: number; quality?: boolean } = {},
   db = getDb(),
 ): Match[] {
   const limit = Math.min(Math.max(opts.limit ?? 200, 1), 500);
@@ -359,6 +458,9 @@ export function listMatches(
   }
   if (opts.unread) {
     clauses.push("m.read = 0");
+  }
+  if (opts.quality !== false) {
+    clauses.push("(m.signal_pass IS NULL OR m.signal_pass = 1)");
   }
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
   const rows = db.prepare(`
@@ -416,8 +518,8 @@ export function getStatus(opts: { demoMode: boolean; bearerPresent: boolean }, d
     SELECT
       (SELECT COUNT(*) FROM rules) AS rules,
       (SELECT COUNT(*) FROM rules WHERE enabled = 1) AS enabled_rules,
-      (SELECT COUNT(*) FROM matches) AS matches,
-      (SELECT COUNT(*) FROM matches WHERE read = 0) AS unread
+      (SELECT COUNT(*) FROM matches WHERE signal_pass IS NULL OR signal_pass = 1) AS matches,
+      (SELECT COUNT(*) FROM matches WHERE read = 0 AND (signal_pass IS NULL OR signal_pass = 1)) AS unread
   `).get() as { rules: number; enabled_rules: number; matches: number; unread: number };
 
   return {
@@ -431,6 +533,11 @@ export function getStatus(opts: { demoMode: boolean; bearerPresent: boolean }, d
       lastError,
       lastErrorAt,
       mode,
+    },
+    qualityFilter: {
+      minFollowers: MIN_FOLLOWERS,
+      minLikes: MIN_LIKES,
+      minScore: MIN_SIGNAL_SCORE,
     },
     counts: {
       rules: counts.rules,

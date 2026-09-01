@@ -141,6 +141,16 @@ npm run build && npm start
 npm run poller
 ```
 
+## Quality filter
+
+Live matches are dropped unless they look like a real desk, not a zero-engagement account:
+
+- **≥ 50 followers**
+- **≥ 5 likes** on the tweet
+- A **signal score** (0–100) from follower scale, likes, retweets/quotes, replies, and verified status. Tiny accounts that rarely draw engagement stay out even if they scrape past the floors.
+
+A post from an account with **10k+ followers** that is less than 10 minutes old can still alert before likes accrue. Settings lists the current thresholds. The inbox shows follower and like counts on each row.
+
 ## Rate-limit troubleshooting
 
 The poller honors `x-rate-limit-remaining`, `x-rate-limit-reset`, and `Retry-After`. On `429` it backs off exponentially (capped at 15 minutes) and records the error on **Settings**.

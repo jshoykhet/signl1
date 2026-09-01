@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatClock, formatRelative } from "@/lib/format";
+import { formatClock, formatCompact, formatRelative } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Match, Rule } from "@/lib/types";
 
@@ -119,7 +119,7 @@ export function InboxView() {
       <header className="flex items-center gap-3 border-b border-border/80 px-5 py-3">
         <div className="min-w-0 flex-1">
           <h1 className="text-sm font-semibold tracking-tight">Inbox</h1>
-          <p className="text-xs text-muted-foreground">Newest matches first. Poller writes here as posts land.</p>
+          <p className="text-xs text-muted-foreground">Newest matches first. Low-signal accounts are filtered out.</p>
         </div>
         <div className="flex items-center gap-3">
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -159,7 +159,7 @@ export function InboxView() {
             <div className="px-5 py-10 text-sm text-muted-foreground">Loading matches…</div>
           ) : matches.length === 0 ? (
             <div className="px-5 py-10 text-sm text-muted-foreground">
-              No matches yet. Leave demo mode running, or wait for the next live poll.
+              No quality matches yet. Noise below 50 followers or 5 likes is dropped. Wait for the next live poll.
             </div>
           ) : (
             <ul>
@@ -193,10 +193,20 @@ export function InboxView() {
                           </span>
                         </div>
                         <p className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-foreground/90">{match.text}</p>
-                        <div className="mt-1">
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
                           <Badge variant="outline" className="h-4 rounded-sm px-1.5 text-[10px] font-normal">
                             {match.ruleName}
                           </Badge>
+                          {match.followersCount != null ? (
+                            <span className="font-mono text-[10px] text-muted-foreground">
+                              {formatCompact(match.followersCount)} fol
+                            </span>
+                          ) : null}
+                          {match.likeCount != null ? (
+                            <span className="font-mono text-[10px] text-muted-foreground">
+                              {formatCompact(match.likeCount)} likes
+                            </span>
+                          ) : null}
                         </div>
                       </div>
                     </button>
@@ -237,6 +247,12 @@ export function InboxView() {
                 <dd>{formatClock(selected.tweetCreatedAt)}</dd>
                 <dt>Matched</dt>
                 <dd>{formatClock(selected.matchedAt)}</dd>
+                <dt>Followers</dt>
+                <dd>{formatCompact(selected.followersCount)}</dd>
+                <dt>Likes</dt>
+                <dd>{formatCompact(selected.likeCount)}</dd>
+                <dt>Signal</dt>
+                <dd>{selected.signalScore != null ? selected.signalScore : "—"}</dd>
                 <dt>ID</dt>
                 <dd>{selected.tweetId}</dd>
               </dl>

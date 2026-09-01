@@ -28,6 +28,9 @@ export type Match = {
   rawJson: string;
   read: boolean;
   matchedAt: string;
+  followersCount: number | null;
+  likeCount: number | null;
+  signalScore: number | null;
 };
 
 export type NormalizedTweet = {
@@ -41,6 +44,12 @@ export type NormalizedTweet = {
   isReply: boolean;
   permalink: string;
   raw: unknown;
+  followersCount: number;
+  likeCount: number;
+  retweetCount: number;
+  replyCount: number;
+  quoteCount: number;
+  verified: boolean;
 };
 
 export type RuleInput = {
@@ -56,7 +65,7 @@ export type RuleInput = {
 export type StatusSnapshot = {
   demoMode: boolean;
   bearerToken: "present" | "missing";
-  poller: {
+    poller: {
     healthy: boolean;
     startedAt: string | null;
     lastHeartbeatAt: string | null;
@@ -64,6 +73,11 @@ export type StatusSnapshot = {
     lastError: string | null;
     lastErrorAt: string | null;
     mode: "demo" | "live" | "unknown";
+  };
+  qualityFilter: {
+    minFollowers: number;
+    minLikes: number;
+    minScore: number;
   };
   counts: {
     rules: number;

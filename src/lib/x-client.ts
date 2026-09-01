@@ -76,14 +76,29 @@ function parseSearchPayload(payload: unknown): { tweets: NormalizedTweet[]; newe
       author_id?: string;
       created_at?: string;
       lang?: string;
+      public_metrics?: {
+        like_count?: number;
+        retweet_count?: number;
+        reply_count?: number;
+        quote_count?: number;
+      };
     }>;
-    includes?: { users?: Array<{ id: string; username: string; name?: string }> };
+    includes?: {
+      users?: Array<{
+        id: string;
+        username: string;
+        name?: string;
+        verified?: boolean;
+        public_metrics?: { followers_count?: number };
+      }>;
+    };
     meta?: { newest_id?: string; result_count?: number };
   };
   const users = new Map((body.includes?.users ?? []).map((u) => [u.id, u]));
   const tweets: NormalizedTweet[] = (body.data ?? []).map((tweet) => {
     const user = tweet.author_id ? users.get(tweet.author_id) : undefined;
     const handle = user?.username ?? "unknown";
+    const metrics = tweet.public_metrics ?? {};
     return {
       id: tweet.id,
       authorHandle: handle,
@@ -94,7 +109,16 @@ function parseSearchPayload(payload: unknown): { tweets: NormalizedTweet[]; newe
       isRetweet: tweet.text.startsWith("RT @"),
       isReply: false,
       permalink: `https://x.com/${handle}/status/${tweet.id}`,
-      raw: tweet,
+      raw: {
+        tweet,
+        author: user ?? null,
+      },
+      followersCount: user?.public_metrics?.followers_count ?? 0,
+      likeCount: metrics.like_count ?? 0,
+      retweetCount: metrics.retweet_count ?? 0,
+      replyCount: metrics.reply_count ?? 0,
+      quoteCount: metrics.quote_count ?? 0,
+      verified: Boolean(user?.verified),
     };
   });
   return {
@@ -118,7 +142,7 @@ export async function recentSearch(opts: {
     max_results: String(X_MAX_RESULTS),
     "tweet.fields": "created_at,author_id,lang,public_metrics",
     expansions: "author_id",
-    "user.fields": "username,name,verified",
+    "user.fields": "username,name,verified,public_metrics",
   });
   if (opts.sinceId) params.set("since_id", opts.sinceId);
   else if (opts.startTime) params.set("start_time", opts.startTime);

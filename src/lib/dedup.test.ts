@@ -26,6 +26,12 @@ function tweet(id: string): NormalizedTweet {
     isReply: false,
     permalink: `https://x.com/reuters/status/${id}`,
     raw: { id, text: "FOMC holds the interest rate." },
+    followersCount: 25_000_000,
+    likeCount: 420,
+    retweetCount: 80,
+    replyCount: 40,
+    quoteCount: 12,
+    verified: true,
   };
 }
 
