@@ -189,9 +189,10 @@ function metricsFromRaw(rawJson: string): {
 
 function backfillMatchQuality(db: Database.Database) {
   const rows = db.prepare(
-    "SELECT id, raw_json, tweet_created_at, author_followers, like_count, signal_pass FROM matches",
+    "SELECT id, tweet_id, raw_json, tweet_created_at, author_followers, like_count, signal_pass FROM matches",
   ).all() as Array<{
     id: string;
+    tweet_id: string;
     raw_json: string;
     tweet_created_at: string;
     author_followers: number | null;
@@ -206,7 +207,11 @@ function backfillMatchQuality(db: Database.Database) {
     const metrics = metricsFromRaw(row.raw_json);
     const followers = row.author_followers ?? metrics.followersCount;
     const likes = row.like_count ?? metrics.likeCount;
-    if (followers == null && likes == null) continue;
+    if (followers == null && likes == null) {
+      const pass = row.tweet_id.startsWith("demo-") ? 1 : 0;
+      update.run(null, null, null, pass, row.id);
+      continue;
+    }
     const quality = {
       followersCount: followers ?? 0,
       likeCount: likes ?? 0,
