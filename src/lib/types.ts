@@ -83,6 +83,12 @@ export type StatusSnapshot = {
     lastError: string | null;
     lastErrorAt: string | null;
     mode: "demo" | "live" | "unknown";
+    searchRequests: number;
+    lastPackedQueries: number;
+    rateLimitRemaining: number | null;
+    rateLimitLimit: number | null;
+    rateLimitResetAt: string | null;
+    idleBackoffMs: number;
   };
   qualityFilter: {
     minFollowers: number;

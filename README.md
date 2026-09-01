@@ -88,7 +88,7 @@ The **accounts helper** compiles `nvidia, apple` into `(from:nvidia OR from:appl
 
 Long lists are split into multiple Watchlist rules so each query stays under the X 512-character limit. Matches land in the inbox like any other rule, named **Watchlist**. Pause screening or change the poll interval on that page without deleting the names.
 
-Poll interval defaults to **2 minutes**. The UI allows **15 seconds** so demos and local tests are usable. Live accounts should stay at 2 minutes or slower — recent search is rate-limited per app.
+Poll interval defaults to **2 minutes**. Live mode **packs every enabled rule** (including Watchlist) into as few `recent search` requests as possible — typically one call per cycle instead of one per rule — and will not poll faster than **60 seconds**, even if a rule is set to 15s. Empty cycles back off further (capped at +4 minutes) so quiet tape does not keep spending credits. Each search asks for up to **100** tweets (`max_results`).
 
 ## Notifications
 
@@ -167,18 +167,18 @@ A post from an account with **10k+ followers** that is less than 10 minutes old 
 
 ## Rate-limit troubleshooting
 
-The poller honors `x-rate-limit-remaining`, `x-rate-limit-reset`, and `Retry-After`. On `429` it backs off exponentially (capped at 15 minutes) and records the error on **Settings**.
+The poller honors `x-rate-limit-remaining`, `x-rate-limit-reset`, and `Retry-After`. On `429` it backs off exponentially (capped at 15 minutes) and records the error on **Settings**. Settings also shows search-call count, remaining quota, and how many packed queries ran last cycle.
 
 | Symptom | What to do |
 | --- | --- |
-| Settings → last error `429` | Disable unused rules, raise poll intervals, wait for the window to reset. |
+| Settings → last error `429` | Disable unused rules, wait for the window to reset. Packing already avoids one request per rule. |
 | `401` / `403` | Token is wrong, revoked, or the project does not include recent search. |
 | `402` / product errors | Upgrade the X API plan. Stay on demo mode until then. |
 | Poller "No recent heartbeat" | The `poller` container is not running. Check `docker compose logs poller`. |
 | Duplicate alerts | Should not happen. Dedup is `UNIQUE(rule_id, tweet_id)`. The same tweet can still match two different rules. |
 | Empty live inbox | Rule `start_time` is the created-at of the rule. Wait for a new matching post, or tighten the query. |
 
-Do not lower every interval to 15s on a live token. Recent search budgets are small; Signal1 spaces requests at least 400ms apart and will still 429 if you run too many enabled rules.
+Do not lower every interval to 15s on a live token. Signal1 floors live polls at 60s and packs rules together; the 15s UI value is for demo mode.
 
 ## Tests
 
@@ -186,7 +186,7 @@ Do not lower every interval to 15s on a live token. Recent search budgets are sm
 npm test
 ```
 
-Covers query compilation (including the accounts helper), tweet/rule dedup against SQLite, demo fixture coverage of the sample rules, webhook payload shape, +/− training labels that boost or suppress authors, and watchlist cashtag compilation.
+Covers query compilation (including the accounts helper), tweet/rule dedup against SQLite, demo fixture coverage of the sample rules, webhook payload shape, +/− training labels, watchlist cashtags, and packed live-search query budgets.
 
 ## Layout
 

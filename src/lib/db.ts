@@ -372,7 +372,7 @@ const SEED_RULES: RuleInput[] = [
     enabled: true,
     queryInput: '(FOMC OR "interest rate" OR "fed funds" OR Powell) lang:en -is:retweet',
     accounts: [],
-    pollIntervalMs: 15_000,
+    pollIntervalMs: DEFAULT_POLL_INTERVAL_MS,
     slackWebhookUrl: null,
     genericWebhookUrl: null,
   },
@@ -381,7 +381,7 @@ const SEED_RULES: RuleInput[] = [
     enabled: true,
     queryInput: "(earnings OR guidance OR GPU OR AI) lang:en -is:retweet",
     accounts: ["nvidia", "apple", "meta", "microsoft"],
-    pollIntervalMs: 15_000,
+    pollIntervalMs: DEFAULT_POLL_INTERVAL_MS,
     slackWebhookUrl: null,
     genericWebhookUrl: null,
   },
@@ -390,7 +390,7 @@ const SEED_RULES: RuleInput[] = [
     enabled: true,
     queryInput: '(OPEC OR "crude oil" OR WTI OR Brent) lang:en -is:retweet',
     accounts: [],
-    pollIntervalMs: 15_000,
+    pollIntervalMs: DEFAULT_POLL_INTERVAL_MS,
     slackWebhookUrl: null,
     genericWebhookUrl: null,
   },
@@ -688,6 +688,13 @@ export function getStatus(opts: { demoMode: boolean; bearerPresent: boolean }, d
     FROM matches
   `).get() as { high: number; low: number };
 
+  const searchRequests = Number(getMeta("x_search_requests", db) ?? "0") || 0;
+  const lastPackedQueries = Number(getMeta("x_last_packed_queries", db) ?? "0") || 0;
+  const remainingRaw = getMeta("x_rate_limit_remaining", db);
+  const limitRaw = getMeta("x_rate_limit_limit", db);
+  const resetRaw = getMeta("x_rate_limit_reset_at", db);
+  const idleBackoffMs = Number(getMeta("poller_idle_backoff_ms", db) ?? "0") || 0;
+
   return {
     demoMode: opts.demoMode,
     bearerToken: opts.bearerPresent ? "present" : "missing",
@@ -699,6 +706,12 @@ export function getStatus(opts: { demoMode: boolean; bearerPresent: boolean }, d
       lastError,
       lastErrorAt,
       mode,
+      searchRequests,
+      lastPackedQueries,
+      rateLimitRemaining: remainingRaw != null && remainingRaw !== "" ? Number(remainingRaw) : null,
+      rateLimitLimit: limitRaw != null && limitRaw !== "" ? Number(limitRaw) : null,
+      rateLimitResetAt: resetRaw,
+      idleBackoffMs,
     },
     qualityFilter: {
       minFollowers: MIN_FOLLOWERS,

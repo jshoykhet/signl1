@@ -1,6 +1,7 @@
 import {
   DEMO_INJECT_INTERVAL_MS,
   isDemoMode,
+  LIVE_IDLE_BACKOFF_CAP_MS,
   POLLER_TICK_MS,
   xBearerToken,
 } from "../lib/config";
@@ -16,6 +17,13 @@ import {
 import { DEMO_FIXTURES, fixtureToTweet } from "../lib/demo-fixtures";
 import { notifyMatch } from "../lib/notify";
 import { matchesQuery } from "../lib/query";
+import {
+  batchCursor,
+  combineRuleQueries,
+  isLivePackDue,
+  nextIdleBackoffMs,
+  packRules,
+} from "../lib/query-pack";
 import type { NormalizedTweet, Rule } from "../lib/types";
 import { recentSearch, XRateLimiter } from "../lib/x-client";
 
@@ -38,6 +46,17 @@ function recordPoll(error?: string) {
   }
 }
 
+function bumpSearchRequests() {
+  const current = Number(getMeta("x_search_requests") ?? "0") || 0;
+  setMeta("x_search_requests", String(current + 1));
+}
+
+function noteRateLimit(info: { remaining: number | null; limit: number | null; resetAt: number | null }) {
+  if (info.remaining != null) setMeta("x_rate_limit_remaining", String(info.remaining));
+  if (info.limit != null) setMeta("x_rate_limit_limit", String(info.limit));
+  if (info.resetAt != null) setMeta("x_rate_limit_reset_at", new Date(info.resetAt).toISOString());
+}
+
 async function ingestTweet(rule: Rule, tweet: NormalizedTweet): Promise<boolean> {
   const verdict = evaluateTweetSignal(tweet);
   if (!verdict.pass) return false;
@@ -50,32 +69,46 @@ async function ingestTweet(rule: Rule, tweet: NormalizedTweet): Promise<boolean>
   return true;
 }
 
-async function pollLiveRule(rule: Rule, token: string, limiter: XRateLimiter) {
-  const startTime = rule.lastSinceId ? null : rule.createdAt;
+async function pollLiveBatch(rules: Rule[], token: string, limiter: XRateLimiter): Promise<number> {
+  const query = combineRuleQueries(rules);
+  if (!query) return 0;
+  const cursor = batchCursor(rules);
+  bumpSearchRequests();
   try {
     const result = await recentSearch({
       bearerToken: token,
-      query: rule.query,
-      sinceId: rule.lastSinceId,
-      startTime,
+      query,
+      sinceId: cursor.sinceId,
+      startTime: cursor.startTime,
       limiter,
     });
-    let newest = rule.lastSinceId;
+    noteRateLimit(result.rateLimit);
+    let newest = cursor.sinceId;
     for (const tweet of result.tweets) {
-      await ingestTweet(rule, tweet);
+      for (const rule of rules) {
+        if (!matchesQuery(tweet, rule.query)) continue;
+        await ingestTweet(rule, tweet);
+      }
       if (!newest || BigInt(tweet.id) > BigInt(newest)) newest = tweet.id;
     }
     if (result.newestId && (!newest || BigInt(result.newestId) > BigInt(newest))) {
       newest = result.newestId;
     }
-    markRulePolled(rule.id, {
-      lastPolledAt: isoNow(),
-      lastSinceId: newest,
-      lastError: null,
-    });
+    const polledAt = isoNow();
+    for (const rule of rules) {
+      markRulePolled(rule.id, {
+        lastPolledAt: polledAt,
+        lastSinceId: newest,
+        lastError: null,
+      });
+    }
+    return result.tweets.length;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    markRulePolled(rule.id, { lastPolledAt: isoNow(), lastError: message });
+    const polledAt = isoNow();
+    for (const rule of rules) {
+      markRulePolled(rule.id, { lastPolledAt: polledAt, lastError: message });
+    }
     throw error;
   }
 }
@@ -139,14 +172,23 @@ export async function runPollerLoop() {
         const token = xBearerToken();
         if (!token) throw new Error("X_BEARER_TOKEN missing");
         const rules = listEnabledRules();
-        const due = rules.filter((rule) => {
-          if (!rule.lastPolledAt) return true;
-          return Date.now() - new Date(rule.lastPolledAt).getTime() >= rule.pollIntervalMs;
-        });
-        for (const rule of due) {
-          await pollLiveRule(rule, token, limiter);
+        const idleBackoffMs = Number(getMeta("poller_idle_backoff_ms") ?? "0") || 0;
+        if (isLivePackDue(rules, Date.now(), idleBackoffMs)) {
+          const batches = packRules(rules);
+          setMeta("x_last_packed_queries", String(batches.length));
+          let tweets = 0;
+          for (const batch of batches) {
+            tweets += await pollLiveBatch(batch, token, limiter);
+          }
+          const nextBackoff = nextIdleBackoffMs(idleBackoffMs, tweets, LIVE_IDLE_BACKOFF_CAP_MS);
+          setMeta("poller_idle_backoff_ms", String(nextBackoff));
+          if (batches.length) {
+            console.log(
+              `[poller] packed ${rules.length} rules into ${batches.length} search${batches.length === 1 ? "" : "es"}; ${tweets} tweet${tweets === 1 ? "" : "s"}`,
+            );
+          }
+          recordPoll();
         }
-        if (due.length) recordPoll();
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

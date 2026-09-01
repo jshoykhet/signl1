@@ -131,7 +131,11 @@ export function RuleForm({
           }
         />
         <p className="text-[11px] text-muted-foreground">
-          Default 120s. Minimum {formatInterval(MIN_POLL_INTERVAL_MS)} for demos. Live X access is rate-limited — prefer 2 minutes+.
+        <p className="text-[11px] text-muted-foreground">
+          Default 120s. Minimum {formatInterval(MIN_POLL_INTERVAL_MS)} for demos. Live mode packs every enabled rule
+          into as few X recent-search calls as possible and will not poll faster than 60s, so a 15s interval does not
+          burn extra credits.
+        </p>
         </p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">

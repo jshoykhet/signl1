@@ -259,8 +259,8 @@ export function WatchlistView() {
               </Button>
             </div>
             <p className="text-[11px] text-muted-foreground">
-              Default {formatInterval(DEFAULT_POLL_INTERVAL_MS)}. Minimum {formatInterval(MIN_POLL_INTERVAL_MS)}. Live
-              accounts should stay at 2 minutes or slower.
+              Default {formatInterval(DEFAULT_POLL_INTERVAL_MS)}. Live mode packs the watchlist with your other rules
+              when they fit in one query, and never polls faster than 60s.
             </p>
           </div>
           {watchlist?.rules[0] ? (

@@ -1,10 +1,13 @@
 export const MIN_POLL_INTERVAL_MS = 15_000;
 export const DEFAULT_POLL_INTERVAL_MS = 120_000;
+/** Live X recent-search is billed per request. Never poll faster than this in live mode. */
+export const LIVE_MIN_POLL_INTERVAL_MS = 60_000;
+export const LIVE_IDLE_BACKOFF_CAP_MS = 4 * 60_000;
 export const DEMO_INJECT_INTERVAL_MS = 10_000;
 export const POLLER_TICK_MS = 2_000;
 export const POLLER_STALE_MS = 30_000;
 export const X_MIN_REQUEST_GAP_MS = 400;
-export const X_MAX_RESULTS = 25;
+export const X_MAX_RESULTS = 100;
 export const X_MAX_QUERY_CHARS = 512;
 export const WATCHLIST_QUERY_BUDGET = 480;
 export const MAX_WATCHLIST_TICKERS = 400;

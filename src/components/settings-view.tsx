@@ -105,6 +105,23 @@ export function SettingsView() {
               <Row label="Started">{formatClock(status.poller.startedAt)}</Row>
               <Row label="Last heartbeat">{formatRelative(status.poller.lastHeartbeatAt)}</Row>
               <Row label="Last poll">{formatClock(status.poller.lastPollAt)}</Row>
+              <Row label="Search calls">{status.poller.searchRequests} since poller start</Row>
+              <Row label="Queries / cycle">
+                {status.poller.lastPackedQueries
+                  ? `${status.poller.lastPackedQueries} packed recent-search request${status.poller.lastPackedQueries === 1 ? "" : "s"}`
+                  : "—"}
+              </Row>
+              <Row label="X remaining">
+                {status.poller.rateLimitRemaining != null
+                  ? `${status.poller.rateLimitRemaining}${status.poller.rateLimitLimit != null ? ` / ${status.poller.rateLimitLimit}` : ""}`
+                  : "—"}
+              </Row>
+              <Row label="Window reset">{formatClock(status.poller.rateLimitResetAt)}</Row>
+              <Row label="Quiet backoff">
+                {status.poller.idleBackoffMs
+                  ? `+${Math.round(status.poller.idleBackoffMs / 1000)}s after empty polls`
+                  : "None"}
+              </Row>
               <Row label="Last error">
                 {status.poller.lastError ? (
                   <div>
