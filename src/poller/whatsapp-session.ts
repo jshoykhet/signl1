@@ -23,6 +23,7 @@ let lastQr: string | null = null;
 /** Phone we already minted a pairing code for on this socket. QR refresh must not mint another. */
 let pairingIssuedForPhone: string | null = null;
 let pairingInFlight = false;
+let logoutStrikes = 0;
 
 function isoNow(): string {
   return new Date().toISOString();
@@ -127,6 +128,7 @@ function handleConnectionUpdate(
     pairingIssuedForPhone = null;
     lastQr = null;
     next.authState.creds.registered = true;
+    logoutStrikes = 0;
     void saveCreds();
     const linkedAs = next.user?.id ?? next.authState.creds.me?.id ?? "";
     writeStatus("connected", { qr: "", pairingCode: "", linkedAs, error: "" });
@@ -144,6 +146,17 @@ function handleConnectionUpdate(
       lastDisconnect?.error instanceof Error ? lastDisconnect.error.message : "disconnected";
 
     if (statusCode === WA_LOGGED_OUT) {
+      const paired = hasCompletedPairHandshake(next.authState.creds);
+      logoutStrikes += 1;
+      if (paired && logoutStrikes < 2) {
+        console.warn(
+          `[whatsapp] logged-out signal on a paired session (try ${logoutStrikes}); retrying before wiping auth`,
+        );
+        writeStatus("connecting", { error: "" });
+        scheduleReconnect(2_000);
+        return;
+      }
+      logoutStrikes = 0;
       pairingIssuedForPhone = null;
       wipeAuthDir();
       writeStatus("idle", {
@@ -155,6 +168,9 @@ function handleConnectionUpdate(
       scheduleReconnect(2_000);
       return;
     }
+
+    logoutStrikes = 0;
+    console.log(`[whatsapp] connection closed (${statusCode ?? "unknown"}): ${rawMessage}`);
 
     const paired = hasCompletedPairHandshake(next.authState.creds);
     const keepPairingUi = Boolean(getMeta("whatsapp_pairing_code")) && !paired;
