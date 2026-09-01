@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
-import { clampPollIntervalMs, databasePath, DEFAULT_POLL_INTERVAL_MS } from "./config";
+import { clampPollIntervalMs, databasePath, DEFAULT_POLL_INTERVAL_MS, isDemoMode } from "./config";
 import { compileQuery, normalizeAccounts } from "./query";
 import { MIN_FOLLOWERS, MIN_LIKES, MIN_SIGNAL_SCORE, passesSignalFilter } from "./signal-filter";
 import type { Match, NormalizedTweet, Rule, RuleInput, StatusSnapshot } from "./types";
@@ -465,6 +465,9 @@ export function listMatches(
   }
   if (opts.quality !== false) {
     clauses.push("(m.signal_pass IS NULL OR m.signal_pass = 1)");
+    if (!isDemoMode()) {
+      clauses.push("m.tweet_id NOT LIKE 'demo-%'");
+    }
   }
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
   const rows = db.prepare(`
@@ -522,8 +525,8 @@ export function getStatus(opts: { demoMode: boolean; bearerPresent: boolean }, d
     SELECT
       (SELECT COUNT(*) FROM rules) AS rules,
       (SELECT COUNT(*) FROM rules WHERE enabled = 1) AS enabled_rules,
-      (SELECT COUNT(*) FROM matches WHERE signal_pass IS NULL OR signal_pass = 1) AS matches,
-      (SELECT COUNT(*) FROM matches WHERE read = 0 AND (signal_pass IS NULL OR signal_pass = 1)) AS unread
+      (SELECT COUNT(*) FROM matches WHERE (signal_pass IS NULL OR signal_pass = 1) ${opts.demoMode ? "" : "AND tweet_id NOT LIKE 'demo-%'"}) AS matches,
+      (SELECT COUNT(*) FROM matches WHERE read = 0 AND (signal_pass IS NULL OR signal_pass = 1) ${opts.demoMode ? "" : "AND tweet_id NOT LIKE 'demo-%'"}) AS unread
   `).get() as { rules: number; enabled_rules: number; matches: number; unread: number };
 
   return {
