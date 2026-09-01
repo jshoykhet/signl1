@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ExternalLink, Filter, Minus, Plus, RefreshCw, Search } from "lucide-react";
+import { ExternalLink, Filter, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -21,16 +21,13 @@ import type { Match, Rule, UserLabel } from "@/lib/types";
 function SignalVote({
   match,
   onVote,
-  size = "compact",
 }: {
   match: Match;
   onVote: (match: Match, label: UserLabel) => void;
-  size?: "compact" | "full";
 }) {
-  const full = size === "full";
   return (
     <div
-      className={cn("flex shrink-0", full ? "gap-1" : "flex-col gap-1")}
+      className="flex shrink-0 flex-col gap-1"
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
     >
@@ -40,15 +37,14 @@ function SignalVote({
         aria-label="Mark high signal"
         aria-pressed={match.userLabel === "high"}
         className={cn(
-          buttonVariants({ variant: "outline", size: full ? "sm" : "xs" }),
+          buttonVariants({ variant: "outline", size: "xs" }),
           "font-mono",
           match.userLabel === "high" &&
             "border-emerald-500/50 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 hover:text-emerald-200",
         )}
         onClick={() => onVote(match, "high")}
       >
-        <Plus className="size-3.5" />
-        {full ? "High" : "+"}
+        +
       </button>
       <button
         type="button"
@@ -56,15 +52,14 @@ function SignalVote({
         aria-label="Mark low signal"
         aria-pressed={match.userLabel === "low"}
         className={cn(
-          buttonVariants({ variant: "outline", size: full ? "sm" : "xs" }),
+          buttonVariants({ variant: "outline", size: "xs" }),
           "font-mono",
           match.userLabel === "low" &&
             "border-destructive/50 bg-destructive/15 text-destructive hover:bg-destructive/25",
         )}
         onClick={() => onVote(match, "low")}
       >
-        <Minus className="size-3.5" />
-        {full ? "Low" : "−"}
+        −
       </button>
     </div>
   );
@@ -426,12 +421,6 @@ export function InboxView() {
                   <div className="text-xs text-muted-foreground">{selected.authorName}</div>
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2">
-                  <div className="flex items-center gap-2 rounded-md border border-border/80 bg-muted/30 px-2 py-1">
-                    <span className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
-                      Train
-                    </span>
-                    <SignalVote match={selected} onVote={vote} size="full" />
-                  </div>
                   <Button variant="outline" size="sm" onClick={() => mark(selected.id, !selected.read)}>
                     {selected.read ? "Mark unread" : "Mark read"}
                   </Button>
