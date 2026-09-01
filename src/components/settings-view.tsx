@@ -69,6 +69,20 @@ export function SettingsView() {
             ) : null}
             <section className="overflow-hidden rounded-lg border border-border/80">
               <div className="border-b border-border/80 bg-muted/30 px-4 py-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                Brand
+              </div>
+              <Row label="Logo">
+                <a
+                  href="/signal1-logo.png"
+                  download="signal1_logo.png"
+                  className="text-amber-300 underline-offset-4 hover:underline"
+                >
+                  Download Signal1 logo (PNG, 1024×1024)
+                </a>
+              </Row>
+            </section>
+            <section className="overflow-hidden rounded-lg border border-border/80">
+              <div className="border-b border-border/80 bg-muted/30 px-4 py-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
                 X API
               </div>
               <Row label="Bearer token">

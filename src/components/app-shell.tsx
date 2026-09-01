@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Activity, Inbox, Radio, Settings2, SlidersHorizontal } from "lucide-react";
+import { Activity, Inbox, Settings2, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { StatusSnapshot } from "@/lib/types";
 
@@ -41,9 +41,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-full bg-background text-foreground">
       <aside className="flex w-56 shrink-0 flex-col border-r border-border/80 bg-sidebar">
         <div className="flex items-center gap-2.5 px-4 py-4">
-          <span className="flex size-7 items-center justify-center rounded-md bg-amber-500/15 text-amber-400 ring-1 ring-amber-500/30">
-            <Radio className="size-3.5" />
-          </span>
+          <img
+            src="/signal1-logo-256.png"
+            alt="Signal1"
+            width={28}
+            height={28}
+            className="size-7 rounded-md ring-1 ring-amber-500/30"
+          />
           <div className="leading-tight">
             <div className="font-heading text-sm font-semibold tracking-wide">Signal1</div>
             <div className="font-mono text-[10px] text-muted-foreground">X alerts · self-hosted</div>
