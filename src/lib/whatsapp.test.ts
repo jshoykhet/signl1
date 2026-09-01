@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildWhatsAppText, normalizeWhatsAppNumber, toWhatsAppJid } from "./whatsapp";
+import { buildWhatsAppText, formatPairingCode, normalizeWhatsAppNumber, toWhatsAppJid } from "./whatsapp";
 
 describe("WhatsApp JIDs", () => {
   it("strips punctuation and builds a PN JID with country code", () => {
@@ -14,6 +14,18 @@ describe("WhatsApp JIDs", () => {
 
   it("rejects a number without a country code", () => {
     expect(() => toWhatsAppJid("5551234")).toThrow(/country code/);
+  });
+});
+
+describe("pairing code display", () => {
+  it("formats an 8-character code as two groups", () => {
+    expect(formatPairingCode("1esc35x1")).toBe("1ESC-35X1");
+    expect(formatPairingCode("TFWB6MWJ")).toBe("TFWB-6MWJ");
+  });
+
+  it("returns null for empty input", () => {
+    expect(formatPairingCode("")).toBeNull();
+    expect(formatPairingCode(null)).toBeNull();
   });
 });
 

@@ -34,6 +34,15 @@ export function normalizeWhatsAppNumber(input: string): string {
   return digits;
 }
 
+/** WhatsApp shows pairing codes as XXXX-XXXX. */
+export function formatPairingCode(code: string | null | undefined): string | null {
+  if (!code) return null;
+  const compact = code.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+  if (!compact) return null;
+  if (compact.length === 8) return `${compact.slice(0, 4)}-${compact.slice(4)}`;
+  return compact;
+}
+
 /**
  * Build a Baileys JID from a phone number or an already-qualified JID
  * (user @s.whatsapp.net, group @g.us, or LID @lid).

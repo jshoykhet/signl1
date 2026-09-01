@@ -99,7 +99,7 @@ Poll interval defaults to **2 minutes**. Live mode **packs every enabled rule** 
 Every match lands in the in-app inbox.
 
 - **Slack:** rule-level incoming webhook, else `SLACK_WEBHOOK_URL`.
-- **WhatsApp:** link a phone on **Settings** with a QR or pairing code ([Baileys](https://baileys.wiki/) WhatsApp Web API). Set the destination number (`WHATSAPP_TO` or the Settings field). New inbox matches are sent as text. Session files live on the data volume so you do not scan again after restart.
+- **WhatsApp:** link a phone on **Settings** with a QR or pairing code ([Baileys](https://baileys.wiki/) WhatsApp Web API). Set the destination number (`WHATSAPP_TO` or the Settings field). Alerts send only after status is **Linked** — the poller will not attempt WhatsApp while a QR/pairing handshake is still open. Request a pairing code once and enter it on the phone; Signal1 keeps that code across QR refreshes until you request another. Session files live on the data volume so you do not scan again after restart.
 - **Generic webhook:** `POST` JSON:
 
 ```json

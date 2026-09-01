@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     );
   }
   setMeta("whatsapp_pair_phone", digits);
-  setMeta("whatsapp_pairing_code", "");
+  setMeta("whatsapp_pair_refresh", "1");
   setMeta("whatsapp_error", "");
   return NextResponse.json({
     ok: true,

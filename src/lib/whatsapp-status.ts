@@ -1,6 +1,6 @@
 import QRCode from "qrcode";
 import { getMeta, getWhatsAppTo, isWhatsAppEnabled } from "./db";
-import type { WhatsAppLinkStatus, WhatsAppSnapshot } from "./whatsapp";
+import { formatPairingCode, type WhatsAppLinkStatus, type WhatsAppSnapshot } from "./whatsapp";
 
 export type WhatsAppPublicStatus = WhatsAppSnapshot & {
   qrDataUrl: string | null;
@@ -33,7 +33,7 @@ export async function getWhatsAppPublicStatus(): Promise<WhatsAppPublicStatus> {
     status: parseStatus(getMeta("whatsapp_status")),
     qr: qr,
     qrDataUrl,
-    pairingCode: getMeta("whatsapp_pairing_code"),
+    pairingCode: formatPairingCode(getMeta("whatsapp_pairing_code")),
     linkedAs: getMeta("whatsapp_linked_as"),
     to: getWhatsAppTo(),
     enabled: isWhatsAppEnabled(),

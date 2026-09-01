@@ -3,18 +3,30 @@ import type { WASocket } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
 import pino from "pino";
 import { getMeta, getWhatsAppTo, isWhatsAppEnabled, setMeta, takeMetaValue } from "../lib/db";
-import { toWhatsAppJid, whatsappAuthDir } from "../lib/whatsapp";
+import { formatPairingCode, toWhatsAppJid, whatsappAuthDir } from "../lib/whatsapp";
 
-const log = pino({ level: "silent" });
+const log = pino({ level: process.env.WHATSAPP_DEBUG === "1" ? "debug" : "warn" });
 const LOGGED_OUT = 401;
 
 let sock: WASocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let connecting = false;
-let pairingRequested = false;
+let socketGen = 0;
+let lastQr: string | null = null;
+/** Phone we already minted a pairing code for on this socket. QR refresh must not mint another. */
+let pairingIssuedForPhone: string | null = null;
+let pairingInFlight = false;
 
 function isoNow(): string {
   return new Date().toISOString();
+}
+
+function pairPhoneDigits(): string {
+  return (getMeta("whatsapp_pair_phone") ?? "").replace(/\D/g, "");
+}
+
+function sessionLinked(target: WASocket | null = sock): boolean {
+  return Boolean(target?.authState.creds.registered && target.user?.id);
 }
 
 function writeStatus(
@@ -32,6 +44,15 @@ function wipeAuthDir() {
   fs.rmSync(whatsappAuthDir(), { recursive: true, force: true });
 }
 
+function endSocket(target: WASocket | null) {
+  if (!target) return;
+  try {
+    target.end(undefined);
+  } catch {
+    /* already closed */
+  }
+}
+
 function scheduleReconnect(delayMs: number) {
   if (reconnectTimer) return;
   reconnectTimer = setTimeout(() => {
@@ -40,10 +61,37 @@ function scheduleReconnect(delayMs: number) {
   }, delayMs);
 }
 
+async function issuePairingCode(target: WASocket): Promise<void> {
+  const phone = pairPhoneDigits();
+  if (!phone || target.authState.creds.registered || pairingInFlight) return;
+  if (pairingIssuedForPhone === phone && getMeta("whatsapp_pairing_code")) return;
+  pairingInFlight = true;
+  pairingIssuedForPhone = phone;
+  try {
+    const code = await target.requestPairingCode(phone);
+    writeStatus("pairing", { pairingCode: code, error: "" });
+    console.log(`[whatsapp] pairing code ${formatPairingCode(code) ?? code}`);
+  } catch (error) {
+    pairingIssuedForPhone = null;
+    const message = error instanceof Error ? error.message : String(error);
+    writeStatus("error", { error: message });
+    console.error(`[whatsapp] pairing failed: ${message}`);
+  } finally {
+    pairingInFlight = false;
+  }
+}
+
 async function connectWhatsApp() {
   if (connecting) return;
   connecting = true;
-  pairingRequested = false;
+  const gen = ++socketGen;
+  lastQr = null;
+  pairingIssuedForPhone = null;
+  if (sock) {
+    const previous = sock;
+    sock = null;
+    endSocket(previous);
+  }
   try {
     const {
       default: makeWASocket,
@@ -53,6 +101,13 @@ async function connectWhatsApp() {
     } = await import("@whiskeysockets/baileys");
     fs.mkdirSync(whatsappAuthDir(), { recursive: true });
     const { state, saveCreds } = await useMultiFileAuthState(whatsappAuthDir());
+    if (!state.creds.registered && state.creds.me) {
+      // requestPairingCode writes a synthetic `me` before the phone confirms.
+      // Leaving it in creds makes the next handshake a login instead of a
+      // companion registration, which immediately drops the socket.
+      delete state.creds.me;
+      await saveCreds();
+    }
     let version: [number, number, number] | undefined;
     try {
       const latest = await fetchLatestBaileysVersion();
@@ -62,51 +117,51 @@ async function connectWhatsApp() {
         `[whatsapp] could not fetch WA version, using library default: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
-    writeStatus("connecting", { qr: "", pairingCode: "", error: "" });
+    writeStatus("connecting", { qr: "", error: "" });
 
     const next = makeWASocket({
       ...(version ? { version } : {}),
       auth: state,
       logger: log,
-      browser: Browsers.ubuntu("Chrome"),
+      browser: Browsers.macOS("Chrome"),
       markOnlineOnConnect: false,
       syncFullHistory: false,
     });
     sock = next;
 
     next.ev.on("creds.update", saveCreds);
-    next.ev.on("connection.update", async (update) => {
+    next.ev.on("connection.update", (update) => {
+      if (gen !== socketGen) return;
       const { connection, lastDisconnect, qr } = update;
       if (qr) {
-        const pairPhone = getMeta("whatsapp_pair_phone");
-        if (pairPhone && !next.authState.creds.registered && !pairingRequested) {
-          pairingRequested = true;
-          try {
-            const code = await next.requestPairingCode(pairPhone.replace(/\D/g, ""));
-            writeStatus("pairing", { qr: "", pairingCode: code, error: "" });
-            console.log(`[whatsapp] pairing code ${code}`);
-          } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            writeStatus("error", { error: message });
-            console.error(`[whatsapp] pairing failed: ${message}`);
-          }
+        lastQr = qr;
+        if (pairPhoneDigits() && !next.authState.creds.registered) {
+          void issuePairingCode(next);
+          writeStatus("pairing", { qr, error: "" });
         } else if (!next.authState.creds.registered) {
-          writeStatus("qr", { qr, pairingCode: "", error: "" });
+          writeStatus("qr", { qr, error: "" });
         }
       }
 
       if (connection === "open") {
-        const linked = next.user?.id ?? "";
-        writeStatus("connected", { qr: "", pairingCode: "", linkedAs: linked, error: "" });
+        connecting = false;
+        pairingIssuedForPhone = null;
+        lastQr = null;
+        const linkedAs = next.user?.id ?? "";
+        writeStatus("connected", { qr: "", pairingCode: "", linkedAs, error: "" });
         setMeta("whatsapp_pair_phone", "");
-        console.log(`[whatsapp] linked as ${linked || "unknown"}`);
+        console.log(`[whatsapp] linked as ${linkedAs || "unknown"}`);
       }
 
       if (connection === "close") {
-        sock = null;
-        const statusCode = lastDisconnect?.error instanceof Boom ? lastDisconnect.error.output.statusCode : undefined;
+        connecting = false;
+        if (sock === next) sock = null;
+        lastQr = null;
+        const statusCode =
+          lastDisconnect?.error instanceof Boom ? lastDisconnect.error.output.statusCode : undefined;
         const loggedOut = statusCode === LOGGED_OUT;
         if (loggedOut) {
+          pairingIssuedForPhone = null;
           wipeAuthDir();
           writeStatus("idle", {
             qr: "",
@@ -120,17 +175,17 @@ async function connectWhatsApp() {
         const message =
           lastDisconnect?.error instanceof Error ? lastDisconnect.error.message : "disconnected";
         writeStatus("connecting", { error: message });
-        scheduleReconnect(4_000);
+        const pairingWait = Boolean(pairPhoneDigits() && getMeta("whatsapp_pairing_code"));
+        scheduleReconnect(pairingWait ? 12_000 : 4_000);
       }
     });
   } catch (error) {
+    connecting = false;
     sock = null;
     const message = error instanceof Error ? error.message : String(error);
     writeStatus("error", { error: message });
     console.error(`[whatsapp] ${message}`);
     scheduleReconnect(8_000);
-  } finally {
-    connecting = false;
   }
 }
 
@@ -141,7 +196,7 @@ async function resolveDestinationJid(raw: string): Promise<string> {
     return jid;
   }
   try {
-    const results = await sock.onWhatsApp(jid);
+    const results = await sock.onWhatsApp(jid.replace(/@.+$/, ""));
     const hit = results?.[0];
     if (hit?.exists && hit.jid) return hit.jid;
   } catch {
@@ -150,13 +205,27 @@ async function resolveDestinationJid(raw: string): Promise<string> {
   return jid;
 }
 
-export async function sendWhatsAppText(text: string): Promise<void> {
-  if (!isWhatsAppEnabled()) return;
-  if (!sock) throw new Error("WhatsApp is not linked");
+export async function sendWhatsAppText(
+  text: string,
+  options: { mustBeLinked?: boolean } = {},
+): Promise<void> {
+  if (!isWhatsAppEnabled()) {
+    if (options.mustBeLinked) throw new Error("WhatsApp alerts are turned off");
+    return;
+  }
+  if (!sessionLinked()) {
+    if (options.mustBeLinked) {
+      throw new Error("WhatsApp is not linked yet. Scan the QR or enter the pairing code first.");
+    }
+    return;
+  }
   const to = getWhatsAppTo();
-  if (!to) throw new Error("Set a WhatsApp destination number on Settings");
+  if (!to) {
+    if (options.mustBeLinked) throw new Error("Set a WhatsApp destination number on Settings");
+    return;
+  }
   const jid = await resolveDestinationJid(to);
-  await sock.sendMessage(jid, { text });
+  await sock!.sendMessage(jid, { text });
   setMeta("whatsapp_last_sent_at", isoNow());
   setMeta("whatsapp_error", "");
 }
@@ -164,6 +233,8 @@ export async function sendWhatsAppText(text: string): Promise<void> {
 async function pumpCommands() {
   const logout = takeMetaValue("whatsapp_logout");
   if (logout) {
+    pairingIssuedForPhone = null;
+    lastQr = null;
     try {
       if (sock) await sock.logout();
     } catch {
@@ -172,27 +243,26 @@ async function pumpCommands() {
     sock = null;
     wipeAuthDir();
     writeStatus("idle", { qr: "", pairingCode: "", linkedAs: "", error: "" });
-    pairingRequested = false;
     scheduleReconnect(1_000);
   }
 
-  const pairPhone = getMeta("whatsapp_pair_phone");
-  if (pairPhone && sock && !sock.authState.creds.registered && !pairingRequested) {
-    pairingRequested = true;
-    try {
-      const code = await sock.requestPairingCode(pairPhone.replace(/\D/g, ""));
-      writeStatus("pairing", { qr: "", pairingCode: code, error: "" });
-    } catch (error) {
-      pairingRequested = false;
-      const message = error instanceof Error ? error.message : String(error);
-      writeStatus("error", { error: message });
+  const refresh = takeMetaValue("whatsapp_pair_refresh");
+  if (refresh) {
+    pairingIssuedForPhone = null;
+    setMeta("whatsapp_pairing_code", "");
+    if (sock && !sock.authState.creds.registered) {
+      void issuePairingCode(sock);
     }
+  } else if (sock && pairPhoneDigits() && !sock.authState.creds.registered && lastQr) {
+    void issuePairingCode(sock);
   }
 
   const test = takeMetaValue("whatsapp_test");
   if (test) {
     try {
-      await sendWhatsAppText(test === "1" ? "Signal1 WhatsApp alerts are linked." : test);
+      await sendWhatsAppText(test === "1" ? "Signal1 WhatsApp alerts are linked." : test, {
+        mustBeLinked: true,
+      });
       console.log("[whatsapp] test message sent");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -203,6 +273,18 @@ async function pumpCommands() {
 }
 
 export async function startWhatsAppBridge() {
+  process.on("unhandledRejection", (reason) => {
+    const message = reason instanceof Error ? reason.message : String(reason);
+    const stack = reason instanceof Error ? reason.stack ?? "" : "";
+    if (
+      message.includes("Cannot read properties of undefined (reading 'id')") &&
+      /baileys/i.test(stack)
+    ) {
+      console.warn("[whatsapp] ignored Baileys pre-login frame (session not linked yet)");
+      return;
+    }
+    console.error("[poller] unhandledRejection", reason);
+  });
   console.log(`[whatsapp] Baileys session dir ${whatsappAuthDir()}`);
   await connectWhatsApp();
   setInterval(() => {

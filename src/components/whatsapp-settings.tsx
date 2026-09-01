@@ -200,7 +200,9 @@ export function WhatsAppSettings() {
               baileys.wiki
             </a>
             . On your phone: WhatsApp → Settings → Linked devices. Scan the QR, or choose Link with phone number and
-            enter the pairing code.
+            enter the pairing code. Status must read <span className="text-foreground">Linked</span> before alerts or
+            a test message will send. Request a pairing code once and wait; Signal1 keeps that code until you request
+            another or the phone finishes linking.
           </p>
           {wa?.qrDataUrl ? (
             <img
@@ -214,7 +216,7 @@ export function WhatsAppSettings() {
           {wa?.pairingCode ? (
             <div>
               <div className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Pairing code</div>
-              <div className="mt-1 font-mono text-2xl tracking-[0.35em] text-amber-200">{wa.pairingCode}</div>
+              <div className="mt-1 font-mono text-2xl tracking-[0.2em] text-amber-200">{wa.pairingCode}</div>
             </div>
           ) : null}
           <div className="grid gap-1.5">
