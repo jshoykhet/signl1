@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_KOL_HANDLES, isKolHandle, listKolRows, loadKolHandleSet, normalizeHandle } from "./kol";
+import { DEFAULT_KOL_HANDLES, isKolHandle, kolProfileUrl, listKolRows, loadKolHandleSet, normalizeHandle } from "./kol";
 
 describe("KOL list", () => {
   it("seeds wires, squawk, All-In, and official desks", () => {
@@ -53,5 +53,10 @@ describe("KOL list", () => {
       active: false,
     });
     expect(rows.find((row) => row.handle === "elonmusk")?.active).toBe(true);
+  });
+
+  it("builds X profile URLs", () => {
+    expect(kolProfileUrl("@WSJ")).toBe("https://x.com/wsj");
+    expect(kolProfileUrl("DeItaone")).toBe("https://x.com/deitaone");
   });
 });

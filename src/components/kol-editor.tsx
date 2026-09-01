@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, ArrowUpDown, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ExternalLink, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatCompact } from "@/lib/format";
 import type { KolSource } from "@/lib/kol";
 
 type KolItem = {
@@ -13,6 +14,8 @@ type KolItem = {
   custom: boolean;
   source: KolSource;
   active: boolean;
+  followers: number | null;
+  profileUrl: string;
 };
 
 type KolSnapshot = {
@@ -25,7 +28,7 @@ type KolSnapshot = {
 };
 
 type SourceFilter = "all" | "seed" | "added" | "removed";
-type SortKey = "handle" | "source" | "status";
+type SortKey = "handle" | "followers" | "source" | "status";
 type SortDir = "asc" | "desc";
 
 function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
@@ -93,6 +96,12 @@ export function KolEditor() {
     });
     const dir = sortDir === "asc" ? 1 : -1;
     return [...filtered].sort((a, b) => {
+      if (sortKey === "followers") {
+        if (a.followers == null && b.followers == null) return a.handle.localeCompare(b.handle) * dir;
+        if (a.followers == null) return 1;
+        if (b.followers == null) return -1;
+        return (a.followers - b.followers) * dir || a.handle.localeCompare(b.handle);
+      }
       if (sortKey === "source") {
         const cmp = a.source.localeCompare(b.source) || a.handle.localeCompare(b.handle);
         return cmp * dir;
@@ -126,9 +135,8 @@ export function KolEditor() {
       ) : (
         <div className="grid gap-3 px-4 py-3">
           <p className="text-[12px] leading-relaxed text-muted-foreground">
-            Seeded with {kol.seedCount} markets-desk handles. Each row is one account. Remove keeps the seed handle in
-            the table so you can restore it; Reset restores the original list (env{" "}
-            <code className="font-mono text-[11px]">KOL_HANDLES</code> extras stay).
+            Seeded with {kol.seedCount} markets-desk handles. Click a handle to open the X profile. Follower counts come
+            from posts Signal1 has already ingested — accounts with no match yet show —.
           </p>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
@@ -193,10 +201,10 @@ export function KolEditor() {
           </div>
           <div className="overflow-hidden rounded-md border border-white/20 bg-background">
             <div className="max-h-[28rem] overflow-auto">
-              <table className="w-full min-w-[36rem] table-fixed border-collapse text-[13px]">
+              <table className="w-full min-w-[44rem] table-fixed border-collapse text-[13px]">
                 <thead className="sticky top-0 z-10">
                   <tr className="bg-muted text-left text-[11px] font-medium normal-case text-muted-foreground">
-                    <th className="w-[44%] border-b border-r border-white/20">
+                    <th className="w-[32%] border-b border-r border-white/20">
                       <button
                         type="button"
                         className="flex w-full items-center gap-1.5 px-3 py-2 text-left hover:text-foreground"
@@ -207,6 +215,16 @@ export function KolEditor() {
                       </button>
                     </th>
                     <th className="w-28 border-b border-r border-white/20">
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-1.5 px-3 py-2 text-left hover:text-foreground"
+                        onClick={() => toggleSort("followers")}
+                      >
+                        Followers
+                        <SortIcon active={sortKey === "followers"} dir={sortDir} />
+                      </button>
+                    </th>
+                    <th className="w-24 border-b border-r border-white/20">
                       <button
                         type="button"
                         className="flex w-full items-center gap-1.5 px-3 py-2 text-left hover:text-foreground"
@@ -232,7 +250,7 @@ export function KolEditor() {
                 <tbody>
                   {rows.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-3 py-8 text-center text-sm text-muted-foreground">
+                      <td colSpan={5} className="px-3 py-8 text-center text-sm text-muted-foreground">
                         {query.trim() || sourceFilter !== "all"
                           ? "No handles match that filter."
                           : "No handles yet. Add a row to start the list."}
@@ -245,7 +263,19 @@ export function KolEditor() {
                         className={item.active ? "hover:bg-muted/50" : "bg-muted/10 text-muted-foreground hover:bg-muted/30"}
                       >
                         <td className="border-r border-b border-white/20 px-3 py-1.5 font-mono text-[13px] leading-6">
-                          @{item.handle}
+                          <a
+                            href={item.profileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex max-w-full items-center gap-1 text-amber-300 hover:underline"
+                            aria-label={`Open @${item.handle} on X`}
+                          >
+                            <span className="truncate">@{item.handle}</span>
+                            <ExternalLink className="size-3 shrink-0 opacity-70" />
+                          </a>
+                        </td>
+                        <td className="border-r border-b border-white/20 px-3 py-1.5 font-mono leading-6 tabular-nums">
+                          {formatCompact(item.followers)}
                         </td>
                         <td className="border-r border-b border-white/20 px-3 py-1.5 leading-6">
                           <Badge variant={item.source === "added" ? "default" : "outline"} className="font-normal">

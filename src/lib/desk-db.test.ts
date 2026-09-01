@@ -4,13 +4,16 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   addKolHandle,
+  createRule,
   evaluateTweetSignal,
   getDeskFilterSettings,
   getKolSpec,
+  listAuthorFollowerCounts,
   openDatabase,
   removeKolHandle,
   resetKolHandles,
   setDeskFilterSettings,
+  tryInsertMatch,
 } from "./db";
 import { isKolHandle } from "./kol";
 import type { NormalizedTweet } from "./types";
@@ -136,5 +139,33 @@ describe("desk filters and KOL list persist in SQLite", () => {
     expect(evaluateTweetSignal(weak, db).pass).toBe(false);
     setDeskFilterSettings({ minLikes: 5 }, db);
     expect(evaluateTweetSignal(weak, db).pass).toBe(true);
+  });
+
+  it("reads follower counts from ingested matches", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-"));
+    tmpDirs.push(dir);
+    const db = openDatabase(path.join(dir, "test.db"));
+    const rule = createRule(
+      {
+        name: "A",
+        enabled: true,
+        queryInput: "FOMC",
+        accounts: [],
+        pollIntervalMs: 15_000,
+        slackWebhookUrl: null,
+        genericWebhookUrl: null,
+      },
+      db,
+    );
+    tryInsertMatch(
+      rule,
+      catalyst("reuters", {
+        followersCount: 25_000_000,
+        likeCount: 40,
+        text: "FOMC holds the interest rate.",
+      }),
+      db,
+    );
+    expect(listAuthorFollowerCounts(db).get("reuters")).toBe(25_000_000);
   });
 });

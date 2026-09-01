@@ -128,6 +128,11 @@ export function normalizeHandle(handle: string): string {
   return handle.replace(/^@/, "").trim().toLowerCase();
 }
 
+export function kolProfileUrl(handle: string): string {
+  const key = normalizeHandle(handle);
+  return key ? `https://x.com/${key}` : "https://x.com";
+}
+
 export type KolEnv = {
   KOL_HANDLES?: string;
   KOL_HANDLES_MODE?: string;

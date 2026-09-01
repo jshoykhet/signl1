@@ -332,6 +332,21 @@ export function getKolSpec(db = getDb()): KolSpec {
   };
 }
 
+export function listAuthorFollowerCounts(db = getDb()): Map<string, number> {
+  const rows = db.prepare(`
+    SELECT lower(author_handle) AS handle, MAX(author_followers) AS followers
+    FROM matches
+    WHERE author_followers IS NOT NULL
+    GROUP BY lower(author_handle)
+  `).all() as Array<{ handle: string; followers: number }>;
+  const map = new Map<string, number>();
+  for (const row of rows) {
+    if (!row.handle) continue;
+    map.set(row.handle, Number(row.followers));
+  }
+  return map;
+}
+
 export function getDeskFilterSettings(db = getDb()): DeskFilterSettings {
   return {
     kolOnly: parseBoolMeta(getMeta("desk_kol_only", db), false),
