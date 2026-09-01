@@ -267,7 +267,7 @@ export function InboxView() {
   };
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <header className="flex flex-col gap-3 border-b border-white/[0.06] px-4 py-4 sm:px-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">

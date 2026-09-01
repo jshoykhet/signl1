@@ -48,8 +48,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (bare) return <>{children}</>;
 
   return (
-    <div className="flex min-h-full bg-background text-foreground">
-      <aside className="hidden w-[232px] shrink-0 flex-col bg-sidebar md:flex">
+    <div className="flex h-dvh overflow-hidden bg-background text-foreground">
+      <aside className="hidden h-full w-[232px] shrink-0 flex-col bg-sidebar md:flex">
         <div className="flex items-center gap-2.5 px-4 pt-5 pb-4">
           <img
             src="/signal1-logo-256.png"
@@ -92,7 +92,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-        <div className="space-y-3 px-3 pb-4">
+        <div className="mt-auto space-y-3 border-t border-white/[0.06] px-3 pt-3 pb-4">
           {status?.demoMode ? (
             <div className="rounded-2xl bg-amber-400/10 px-3 py-2.5">
               <div className="text-[13px] font-medium text-amber-200">Demo mode</div>
@@ -110,7 +110,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-between gap-3 border-b border-white/[0.06] px-4 py-2.5 md:hidden">
           <div className="flex items-center gap-2.5">
             <img
@@ -124,7 +124,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
           <UserMenu compact />
         </header>
-        <main className="flex min-w-0 flex-1 flex-col pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:pb-0">
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:pb-0">
           {children}
         </main>
       </div>
