@@ -162,6 +162,7 @@ export function RuleForm({
       </div>
       <p className="text-[11px] text-muted-foreground">
         Inbox always receives matches. Slack can also fall back to the global <code>SLACK_WEBHOOK_URL</code> env var.
+        WhatsApp is linked once on Settings (Baileys) and fans out every new match.
       </p>
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onCancel}>

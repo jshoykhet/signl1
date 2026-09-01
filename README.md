@@ -24,6 +24,8 @@ Leave `X_BEARER_TOKEN` empty for **demo mode**. Signal1 injects fixture markets 
 | `DATABASE_PATH` | No | SQLite file path. Defaults to `./data/signal.db`. Compose sets `/data/signal.db` on a named volume. |
 | `KOL_HANDLES` | No | Extra key-opinion-leader handles (comma, space, or newline; `@` optional). Unioned with the seeded markets-desk list. |
 | `KOL_HANDLES_MODE` | No | `append` (default) keeps the seed and adds `KOL_HANDLES`. `replace` uses only the env list. |
+| `WHATSAPP_TO` | No | Default WhatsApp destination (country code + digits, or a group JID). Editable on Settings. |
+| `WHATSAPP_AUTH_DIR` | No | Baileys session folder. Defaults next to the SQLite file; Compose uses `/data/whatsapp-auth`. |
 
 Copy `.env.example` to `.env` and fill in what you need. Compose interpolates those values; an empty token is demo mode.
 
@@ -97,6 +99,7 @@ Poll interval defaults to **2 minutes**. Live mode **packs every enabled rule** 
 Every match lands in the in-app inbox.
 
 - **Slack:** rule-level incoming webhook, else `SLACK_WEBHOOK_URL`.
+- **WhatsApp:** link a phone on **Settings** with a QR or pairing code ([Baileys](https://baileys.wiki/) WhatsApp Web API). Set the destination number (`WHATSAPP_TO` or the Settings field). New inbox matches are sent as text. Session files live on the data volume so you do not scan again after restart.
 - **Generic webhook:** `POST` JSON:
 
 ```json
@@ -114,7 +117,7 @@ Every match lands in the in-app inbox.
 }
 ```
 
-Webhook failures are logged on the poller; they do not drop the inbox row.
+Webhook failures are logged on the poller; they do not drop the inbox row. WhatsApp send failures are the same.
 
 The inbox and rules pages are searchable. In the inbox, `/` or Ctrl/Cmd+K focuses search; tokens match tweet text, @handle, display name, rule name, and tweet id. **Re-poll** asks the worker to run the next packed search immediately (still rate-limited); in demo mode it injects the next fixture.
 
@@ -193,7 +196,7 @@ Do not lower every interval to 15s on a live token. Signal1 floors live polls at
 npm test
 ```
 
-Covers query compilation (including the accounts helper), tweet/rule dedup against SQLite, demo fixture coverage of the sample rules, webhook payload shape, +/− training labels, watchlist cashtags, packed live-search query budgets, desk-relevance scoring, and the KOL seed list.
+Covers query compilation (including the accounts helper), tweet/rule dedup against SQLite, demo fixture coverage of the sample rules, webhook payload shape, +/− training labels, watchlist cashtags, packed live-search query budgets, desk-relevance scoring, the KOL seed list, and WhatsApp JID formatting.
 
 ## Layout
 

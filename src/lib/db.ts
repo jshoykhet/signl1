@@ -686,6 +686,25 @@ export function takeManualPollRequest(db = getDb()): boolean {
   return true;
 }
 
+export function takeMetaValue(key: string, db = getDb()): string | null {
+  const raw = getMeta(key, db);
+  if (!raw) return null;
+  setMeta(key, "", db);
+  return raw;
+}
+
+export function getWhatsAppTo(db = getDb()): string | null {
+  const stored = getMeta("whatsapp_to", db)?.trim();
+  if (stored) return stored;
+  const fromEnv = process.env.WHATSAPP_TO?.trim();
+  return fromEnv || null;
+}
+
+export function isWhatsAppEnabled(db = getDb()): boolean {
+  const raw = getMeta("whatsapp_enabled", db);
+  return raw !== "0" && raw !== "false";
+}
+
 export function getStatus(opts: { demoMode: boolean; bearerPresent: boolean }, db = getDb()): StatusSnapshot {
   const lastHeartbeatAt = getMeta("poller_heartbeat_at", db);
   const startedAt = getMeta("poller_started_at", db);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { WhatsAppSettings } from "@/components/whatsapp-settings";
 import { formatClock, formatRelative } from "@/lib/format";
 import type { StatusSnapshot } from "@/lib/types";
 
@@ -92,6 +93,7 @@ export function SettingsView() {
               </Row>
               <Row label="Mode">{status.demoMode ? "Demo (fixtures)" : "Live (X API v2 recent search)"}</Row>
             </section>
+            <WhatsAppSettings />
             <section className="overflow-hidden rounded-lg border border-border/80">
               <div className="border-b border-border/80 bg-muted/30 px-4 py-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
                 Poller

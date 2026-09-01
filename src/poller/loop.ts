@@ -16,7 +16,8 @@ import {
   evaluateTweetSignal,
 } from "../lib/db";
 import { DEMO_FIXTURES, fixtureToTweet } from "../lib/demo-fixtures";
-import { notifyMatch } from "../lib/notify";
+import { notifyMatch, registerWhatsAppSender } from "../lib/notify";
+import { sendWhatsAppText, startWhatsAppBridge } from "./whatsapp-session";
 import { matchesQuery } from "../lib/query";
 import {
   batchCursor,
@@ -156,6 +157,8 @@ export async function runPollerLoop() {
   setMeta("poller_started_at", isoNow());
   heartbeat(demo ? "demo" : "live");
   console.log(`[poller] starting in ${demo ? "DEMO" : "LIVE"} mode`);
+  registerWhatsAppSender(sendWhatsAppText);
+  void startWhatsAppBridge();
 
   const limiter = new XRateLimiter();
   let lastDemoInject = 0;

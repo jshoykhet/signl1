@@ -12,6 +12,8 @@ services:
       SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
       KOL_HANDLES: ${KOL_HANDLES:-}
       KOL_HANDLES_MODE: ${KOL_HANDLES_MODE:-append}
+      WHATSAPP_TO: ${WHATSAPP_TO:-}
+      WHATSAPP_AUTH_DIR: /data/whatsapp-auth
     volumes:
       - signal-data:/data
     restart: unless-stopped
@@ -25,6 +27,8 @@ services:
       SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
       KOL_HANDLES: ${KOL_HANDLES:-}
       KOL_HANDLES_MODE: ${KOL_HANDLES_MODE:-append}
+      WHATSAPP_TO: ${WHATSAPP_TO:-}
+      WHATSAPP_AUTH_DIR: /data/whatsapp-auth
     volumes:
       - signal-data:/data
     restart: unless-stopped
