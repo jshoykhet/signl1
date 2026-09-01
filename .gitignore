@@ -40,6 +40,9 @@ yarn-error.log*
 *.db-wal
 *.db-shm
 
+# local compose overrides (e.g. host networking)
+docker-compose.override.yml
+
 # vercel
 .vercel
 
