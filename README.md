@@ -1,4 +1,4 @@
-# Signal
+# Signal1
 
 Self-hosted X (Twitter) alerts for investment and research operators. You define watch rules in a web UI; a background poller hits the official X API v2 recent-search endpoint and writes matches into an inbox. Optional Slack and generic webhooks fire on each new tweet.
 
@@ -13,7 +13,7 @@ docker compose up --build
 
 Open [http://localhost:3847](http://localhost:3847).
 
-Leave `X_BEARER_TOKEN` empty for **demo mode**. Signal injects fixture markets posts on a timer so the inbox, rules, and settings work without paid X API access. The UI labels this clearly.
+Leave `X_BEARER_TOKEN` empty for **demo mode**. Signal1 injects fixture markets posts on a timer so the inbox, rules, and settings work without paid X API access. The UI labels this clearly.
 
 ## Environment
 
@@ -42,7 +42,7 @@ Do not commit `.env`. Per-rule Slack and generic webhook URLs live in SQLite on 
 4. Copy the **Bearer Token** (app-only auth). This is not a user access token.
 5. Put it in `.env` as `X_BEARER_TOKEN=...` and restart Compose.
 
-Signal talks only to `https://api.x.com/2/tweets/search/recent` (falling back to `api.twitter.com`). It does not scrape `x.com` or `twitter.com`.
+Signal1 talks only to `https://api.x.com/2/tweets/search/recent` (falling back to `api.twitter.com`). It does not scrape `x.com` or `twitter.com`.
 
 On the first live poll of a new rule, the client uses `start_time` equal to the rule's created timestamp so you are not backfilled with seven days of hits. After that it pages with `since_id`.
 
@@ -166,7 +166,7 @@ The poller honors `x-rate-limit-remaining`, `x-rate-limit-reset`, and `Retry-Aft
 | Duplicate alerts | Should not happen. Dedup is `UNIQUE(rule_id, tweet_id)`. The same tweet can still match two different rules. |
 | Empty live inbox | Rule `start_time` is the created-at of the rule. Wait for a new matching post, or tighten the query. |
 
-Do not lower every interval to 15s on a live token. Recent search budgets are small; Signal spaces requests at least 400ms apart and will still 429 if you run too many enabled rules.
+Do not lower every interval to 15s on a live token. Recent search budgets are small; Signal1 spaces requests at least 400ms apart and will still 429 if you run too many enabled rules.
 
 ## Tests
 

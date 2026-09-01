@@ -45,7 +45,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Radio className="size-3.5" />
           </span>
           <div className="leading-tight">
-            <div className="font-heading text-sm font-semibold tracking-wide">Signal</div>
+            <div className="font-heading text-sm font-semibold tracking-wide">Signal1</div>
             <div className="font-mono text-[10px] text-muted-foreground">X alerts · self-hosted</div>
           </div>
         </div>

@@ -56,7 +56,7 @@ export function buildSlackWebhookPayload(
     blocks: [
       {
         type: "header",
-        text: { type: "plain_text", text: `Signal · ${rule.name}`, emoji: true },
+        text: { type: "plain_text", text: `Signal1 · ${rule.name}`, emoji: true },
       },
       {
         type: "section",

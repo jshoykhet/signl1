@@ -295,7 +295,7 @@ export function InboxView() {
                 <dd>{formatCompact(selected.followersCount)}</dd>
                 <dt>Likes</dt>
                 <dd>{formatCompact(selected.likeCount)}</dd>
-                <dt>Signal</dt>
+                <dt>Score</dt>
                 <dd>{selected.signalScore != null ? selected.signalScore : "—"}</dd>
                 <dt>ID</dt>
                 <dd>{selected.tweetId}</dd>

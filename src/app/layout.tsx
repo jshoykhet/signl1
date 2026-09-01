@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Signal",
+  title: "Signal1",
   description: "Self-hosted X (Twitter) alerts for research operators.",
 };
 
