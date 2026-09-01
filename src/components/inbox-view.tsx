@@ -272,25 +272,36 @@ export function InboxView() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex flex-wrap items-center gap-3 border-b border-border/80 px-5 py-3">
-        <div className="min-w-0">
-          <h1 className="text-sm font-semibold tracking-tight">Inbox</h1>
-          <p className="text-xs text-muted-foreground">
-            Newest matches first. Catalysts, flow, and KOL desks land here — use + / − to train the rest.
-          </p>
+      <header className="flex flex-col gap-3 border-b border-border/80 px-4 py-3 sm:px-5">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h1 className="text-sm font-semibold tracking-tight">Inbox</h1>
+            <p className="text-xs text-muted-foreground">
+              Newest matches first. Catalysts, flow, and KOL desks land here — use + / − to train the rest.
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button variant="outline" size="sm" onClick={repoll} disabled={polling}>
+              <RefreshCw className={cn("size-3.5", polling && "animate-spin")} />
+              {polling ? "Polling…" : "Re-poll"}
+            </Button>
+            <Button variant="outline" size="sm" onClick={markAll}>
+              Mark all read
+            </Button>
+          </div>
         </div>
-        <div className="relative min-w-56 flex-1">
-          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            id="inbox-search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search posts, @handles, rules…"
-            className="pl-8 font-mono text-[13px]"
-            aria-label="Search inbox"
-          />
-        </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="relative min-w-0 flex-1 basis-48">
+            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="inbox-search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search posts, @handles, rules…"
+              className="pl-8 font-mono text-[13px]"
+              aria-label="Search inbox"
+            />
+          </div>
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
             <Checkbox
               checked={unreadOnly}
@@ -299,7 +310,7 @@ export function InboxView() {
             Unread only
           </label>
           <Select value={ruleId} onValueChange={(value) => setRuleId(String(value ?? "all"))}>
-            <SelectTrigger className="min-w-44" size="sm">
+            <SelectTrigger className="min-w-36 sm:min-w-44" size="sm">
               <Filter className="size-3.5 text-muted-foreground" />
               <SelectValue />
             </SelectTrigger>
@@ -312,13 +323,6 @@ export function InboxView() {
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" onClick={repoll} disabled={polling}>
-            <RefreshCw className={cn("size-3.5", polling && "animate-spin")} />
-            {polling ? "Polling…" : "Re-poll"}
-          </Button>
-          <Button variant="outline" size="sm" onClick={markAll}>
-            Mark all read
-          </Button>
         </div>
       </header>
       {error ? (

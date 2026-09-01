@@ -40,8 +40,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-full bg-background text-foreground">
-      <aside className="flex w-56 shrink-0 flex-col border-r border-border/80 bg-sidebar">
-        <div className="flex items-center gap-2.5 px-4 py-4">
+      <aside className="flex w-14 shrink-0 flex-col border-r border-border/80 bg-sidebar md:w-56">
+        <div className="flex items-center justify-center gap-2.5 px-2 py-4 md:justify-start md:px-4">
           <img
             src="/signal1-logo-256.png"
             alt="Signal1"
@@ -49,12 +49,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             height={28}
             className="size-7 rounded-md ring-1 ring-amber-500/30"
           />
-          <div className="leading-tight">
+          <div className="hidden leading-tight md:block">
             <div className="font-heading text-sm font-semibold tracking-wide">Signal1</div>
             <div className="font-mono text-[10px] text-muted-foreground">X alerts · self-hosted</div>
           </div>
         </div>
-        <nav className="flex flex-1 flex-col gap-0.5 px-2">
+        <nav className="flex flex-1 flex-col gap-0.5 px-1.5 md:px-2">
           {NAV.map((item) => {
             const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
             const Icon = item.icon;
@@ -62,22 +62,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
+                title={item.label}
                 className={cn(
-                  "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] transition-colors",
+                  "flex items-center justify-center gap-2 rounded-md px-2 py-1.5 text-[13px] transition-colors md:justify-start md:px-2.5",
                   active
                     ? "bg-sidebar-accent text-sidebar-accent-foreground"
                     : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground",
                 )}
               >
                 <Icon className="size-3.5" />
-                <span className="flex-1">{item.label}</span>
+                <span className="hidden flex-1 md:inline">{item.label}</span>
                 {item.href === "/" && status && status.counts.unread > 0 ? (
-                  <span className="rounded-full bg-amber-500/20 px-1.5 font-mono text-[10px] text-amber-300">
+                  <span className="hidden rounded-full bg-amber-500/20 px-1.5 font-mono text-[10px] text-amber-300 md:inline">
                     {status.counts.unread}
                   </span>
                 ) : null}
                 {item.href === "/watchlist" && status && status.counts.tickers > 0 ? (
-                  <span className="rounded-full bg-muted px-1.5 font-mono text-[10px] text-muted-foreground">
+                  <span className="hidden rounded-full bg-muted px-1.5 font-mono text-[10px] text-muted-foreground md:inline">
                     {status.counts.tickers}
                   </span>
                 ) : null}
@@ -85,7 +86,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-        <div className="space-y-2 border-t border-border/80 p-3">
+        <div className="hidden space-y-2 border-t border-border/80 p-3 md:block">
           {status?.demoMode ? (
             <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5">
               <div className="text-[10px] font-semibold tracking-wider text-amber-300 uppercase">Demo mode</div>
