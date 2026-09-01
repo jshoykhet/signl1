@@ -92,20 +92,10 @@ export function WatchlistView() {
         <div className="min-w-0 flex-1">
           <h1 className="text-sm font-semibold tracking-tight">Watchlist</h1>
           <p className="text-xs text-muted-foreground">
-            Names you want FinTwit alerts on. Paste tickers as-is — the backend adds the $ cashtag and polls them as
-            a dedicated rule.
+            Names you want FinTwit alerts on. Paste tickers as-is — the backend adds the $ cashtag. Turn screening off
+            anytime; the list stays.
           </p>
         </div>
-        {watchlist ? (
-          <label className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Switch
-              checked={watchlist.enabled}
-              onCheckedChange={(checked) => void put({ enabled: Boolean(checked) })}
-              disabled={saving}
-            />
-            {watchlist.enabled ? "Screening on" : "Paused"}
-          </label>
-        ) : null}
       </header>
       {error ? (
         <div className="m-5 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -114,6 +104,26 @@ export function WatchlistView() {
       ) : null}
       <div className="mx-auto grid w-full max-w-5xl flex-1 gap-6 px-5 py-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
         <section className="space-y-4">
+          {watchlist ? (
+            <label className="flex items-center justify-between gap-3 rounded-md border border-border/80 px-3 py-2">
+              <div>
+                <div className="text-sm font-medium">{watchlist.enabled ? "Screening on" : "Screening off"}</div>
+                <div className="text-xs text-muted-foreground">
+                  {watchlist.enabled
+                    ? "Cashtag alerts are polling. Flip this off to stop X searches for these names without deleting them."
+                    : "The ticker list is kept, but Watchlist is not included in live polls."}
+                </div>
+              </div>
+              <Switch
+                checked={watchlist.enabled}
+                aria-label="Turn watchlist screening on or off"
+                onCheckedChange={(checked) =>
+                  void put({ enabled: Boolean(checked) }, checked ? "Watchlist on" : "Watchlist off")
+                }
+                disabled={saving}
+              />
+            </label>
+          ) : null}
           <div className="grid gap-1.5">
             <Label htmlFor="ticker-draft">Add tickers</Label>
             <Textarea
@@ -231,6 +241,11 @@ export function WatchlistView() {
                 <p className="text-[11px] text-muted-foreground">
                   Split across {watchlist.compiledQueries.length} rules so each query stays under X recent-search
                   length limits.
+                </p>
+              ) : null}
+              {watchlist && !watchlist.enabled ? (
+                <p className="text-[11px] text-amber-300">
+                  Screening is off. This query is not sent to X until you turn it back on.
                 </p>
               ) : null}
             </div>

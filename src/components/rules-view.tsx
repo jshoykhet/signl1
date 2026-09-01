@@ -95,7 +95,26 @@ export function RulesView() {
     }
   };
 
+  const toggleWatchlist = async (enabled: boolean) => {
+    setRules((prev) => prev.map((r) => (r.kind === "watchlist" ? { ...r, enabled } : r)));
+    const res = await fetch("/api/watchlist", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ enabled }),
+    });
+    if (!res.ok) {
+      toast.error("Could not update watchlist");
+      load();
+      return;
+    }
+    toast.success(enabled ? "Watchlist on" : "Watchlist off");
+  };
+
   const toggle = async (rule: Rule, enabled: boolean) => {
+    if (rule.kind === "watchlist") {
+      await toggleWatchlist(enabled);
+      return;
+    }
     setRules((prev) => prev.map((r) => (r.id === rule.id ? { ...r, enabled } : r)));
     const res = await fetch(`/api/rules/${rule.id}`, {
       method: "PATCH",
@@ -188,11 +207,7 @@ export function RulesView() {
                   <td className="px-5 py-3">
                     <Switch
                       checked={rule.enabled}
-                      disabled={rule.kind === "watchlist"}
-                      onCheckedChange={(checked) => {
-                        if (rule.kind === "watchlist") return;
-                        toggle(rule, Boolean(checked));
-                      }}
+                      onCheckedChange={(checked) => toggle(rule, Boolean(checked))}
                     />
                   </td>
                   <td className="px-3 py-3">
