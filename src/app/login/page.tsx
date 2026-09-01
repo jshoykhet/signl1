@@ -20,27 +20,22 @@ export default async function LoginPage({
       : "/";
 
   return (
-    <div className="flex min-h-full flex-1 items-center justify-center bg-background px-4 py-10">
-      <div className="w-full max-w-md">
-        <div className="mb-6 flex items-center gap-3">
+    <div className="flex min-h-full flex-1 items-center justify-center bg-background px-5 py-12">
+      <div className="w-full max-w-[400px]">
+        <div className="mb-8 flex flex-col items-center text-center">
           <img
             src="/signal1-logo-256.png"
             alt="Signal1"
-            width={40}
-            height={40}
-            className="size-10 rounded-md ring-1 ring-amber-500/30"
+            width={72}
+            height={72}
+            className="size-[72px] rounded-[22px] shadow-[0_12px_40px_rgba(0,0,0,0.35)] ring-1 ring-amber-400/25"
           />
-          <div>
-            <div className="font-heading text-lg font-semibold tracking-wide">Signal1</div>
-            <div className="text-xs text-muted-foreground">Shared markets desk · Google sign-in</div>
-          </div>
+          <h1 className="mt-5 text-[28px] font-semibold tracking-[-0.022em]">Signal1</h1>
+          <p className="mt-1 text-[15px] text-muted-foreground">Sign in to the shared desk</p>
         </div>
-        <div className="rounded-xl border border-border/80 bg-card/40 p-5 shadow-sm">
-          <h1 className="text-sm font-semibold tracking-tight">Sign in</h1>
-          <p className="mt-1 mb-4 text-xs leading-relaxed text-muted-foreground">
-            Every operator shares the same inbox, rules, Key Network Nodes, blocked list, and WhatsApp session. Access is
-            invite-only —
-            your Google account must be on the desk allowlist.
+        <div className="rounded-3xl bg-card/90 p-6 ring-1 ring-white/[0.06]">
+          <p className="mb-5 text-[15px] leading-snug text-muted-foreground">
+            Every operator shares the same inbox, rules, Key Network Nodes, and WhatsApp session. Access is invite-only.
           </p>
           <LoginForm
             googleConfigured={isGoogleAuthConfigured()}

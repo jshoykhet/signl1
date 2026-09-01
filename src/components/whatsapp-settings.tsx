@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { GroupedRow, SettingsGroup } from "@/components/grouped-list";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -161,25 +162,22 @@ export function WhatsAppSettings() {
   };
 
   return (
-    <section className="overflow-hidden rounded-lg border border-border/80">
-      <div className="border-b border-border/80 bg-muted/30 px-4 py-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-        WhatsApp (Baileys)
-      </div>
+    <SettingsGroup title="WhatsApp">
       {error ? (
-        <div className="border-b border-destructive/40 bg-destructive/10 px-4 py-2 text-sm text-destructive">{error}</div>
+        <div className="bg-destructive/10 px-4 py-2.5 text-[15px] text-destructive">{error}</div>
       ) : null}
-      <div className="grid grid-cols-[160px_minmax(0,1fr)] gap-4 border-b border-border/60 px-4 py-2.5 text-[13px]">
-        <div className="text-muted-foreground">Status</div>
-        <div className="min-w-0">
+      <GroupedRow>
+        <div className="w-[9.5rem] shrink-0 text-[15px] text-muted-foreground">Status</div>
+        <div className="min-w-0 flex-1 text-[15px]">
           <span className={wa?.status === "connected" ? "text-emerald-400" : "text-amber-300"}>
             {wa ? statusLabel(wa.status) : "Loading…"}
           </span>
-          {wa?.linkedAs ? <div className="mt-0.5 font-mono text-[11px] text-muted-foreground">{wa.linkedAs}</div> : null}
+          {wa?.linkedAs ? <div className="mt-0.5 text-[13px] text-muted-foreground">{wa.linkedAs}</div> : null}
         </div>
-      </div>
-      <div className="grid grid-cols-[160px_minmax(0,1fr)] gap-4 border-b border-border/60 px-4 py-2.5 text-[13px]">
-        <div className="text-muted-foreground">Send alerts</div>
-        <div className="flex items-center gap-2">
+      </GroupedRow>
+      <GroupedRow>
+        <div className="w-[9.5rem] shrink-0 text-[15px] text-muted-foreground">Send alerts</div>
+        <div className="flex items-center gap-3 text-[15px]">
           <Switch
             checked={wa?.enabled ?? true}
             disabled={!wa || busy}
@@ -187,10 +185,10 @@ export function WhatsAppSettings() {
           />
           <span className="text-muted-foreground">{wa?.enabled === false ? "Off" : "On"}</span>
         </div>
-      </div>
-      <div className="grid grid-cols-1 gap-2 border-b border-border/60 px-4 py-2.5 text-[13px] sm:grid-cols-[160px_minmax(0,1fr)] sm:gap-4">
-        <div className="text-muted-foreground">Alert timing</div>
-        <div className="grid gap-2">
+      </GroupedRow>
+      <GroupedRow className="items-start">
+        <div className="w-full shrink-0 text-[15px] text-muted-foreground sm:w-[9.5rem]">Alert timing</div>
+        <div className="grid min-w-0 flex-1 gap-2">
           <div className="flex flex-wrap gap-1.5">
             <Button
               type="button"
@@ -228,17 +226,16 @@ export function WhatsAppSettings() {
               </SelectContent>
             </Select>
           ) : null}
-          <p className="text-[12px] leading-relaxed text-muted-foreground">
+          <p className="text-[13px] leading-relaxed text-muted-foreground">
             Immediate sends one WhatsApp per inbox match. Digest sends the top 20 most important tweets from that window
             (score, likes, Key Network Nodes first), every 5 / 15 / 30 / 45 minutes or every 1 / 2 / 3 / 4 hours. Extra
-            matches stay
-            in the inbox. Send test is always immediate.
+            matches stay in the inbox. Send test is always immediate.
           </p>
         </div>
-      </div>
-      <div className="grid grid-cols-[160px_minmax(0,1fr)] gap-4 border-b border-border/60 px-4 py-2.5 text-[13px]">
-        <div className="text-muted-foreground">Destination</div>
-        <div className="grid gap-2">
+      </GroupedRow>
+      <GroupedRow className="items-start">
+        <div className="w-full shrink-0 text-[15px] text-muted-foreground sm:w-[9.5rem]">Destination</div>
+        <div className="grid min-w-0 flex-1 gap-2">
           <div className="flex flex-wrap gap-2">
             <Input
               value={to}
@@ -251,19 +248,19 @@ export function WhatsAppSettings() {
               Save
             </Button>
           </div>
-          <p className="text-[12px] leading-relaxed text-muted-foreground">
+          <p className="text-[13px] leading-relaxed text-muted-foreground">
             Number that should receive alerts, with country code. Or paste a group JID ending in{" "}
-            <code className="font-mono text-[11px]">@g.us</code>. Sending to the <span className="text-foreground">linked</span>{" "}
+            <code className="font-mono text-[12px]">@g.us</code>. Sending to the <span className="text-foreground">linked</span>{" "}
             number is a note to yourself — look for <span className="text-foreground">Message yourself</span> in WhatsApp;
             it often will not push-notify. For a normal chat ping, save a different number or a group. Also settable as{" "}
-            <code className="font-mono text-[11px]">WHATSAPP_TO</code>.
+            <code className="font-mono text-[12px]">WHATSAPP_TO</code>.
           </p>
         </div>
-      </div>
-      <div className="grid grid-cols-1 gap-4 border-b border-border/60 px-4 py-3 text-[13px] sm:grid-cols-[160px_minmax(0,1fr)]">
-        <div className="text-muted-foreground">Link device</div>
-        <div className="grid gap-3">
-          <p className="text-[12px] leading-relaxed text-muted-foreground">
+      </GroupedRow>
+      <GroupedRow className="items-start">
+        <div className="w-full shrink-0 text-[15px] text-muted-foreground sm:w-[9.5rem]">Link device</div>
+        <div className="grid min-w-0 flex-1 gap-3">
+          <p className="text-[13px] leading-relaxed text-muted-foreground">
             Uses the unofficial WhatsApp Web API from{" "}
             <a className="text-amber-300 underline-offset-4 hover:underline" href="https://baileys.wiki/" target="_blank" rel="noreferrer">
               baileys.wiki
@@ -278,12 +275,12 @@ export function WhatsAppSettings() {
               alt="WhatsApp link QR code"
               width={280}
               height={280}
-              className="size-56 rounded-md bg-white p-2"
+              className="size-56 rounded-2xl bg-white p-2"
             />
           ) : null}
           {wa?.pairingCode ? (
             <div>
-              <div className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Pairing code</div>
+              <div className="text-[13px] text-muted-foreground">Pairing code</div>
               <div className="mt-1 font-mono text-2xl tracking-[0.2em] text-amber-200">{wa.pairingCode}</div>
             </div>
           ) : null}
@@ -311,20 +308,20 @@ export function WhatsAppSettings() {
             </Button>
           </div>
         </div>
-      </div>
-      <div className="grid grid-cols-[160px_minmax(0,1fr)] gap-4 px-4 py-2.5 text-[13px]">
-        <div className="text-muted-foreground">Last send</div>
-        <div>{wa?.lastSentAt ? formatClock(wa.lastSentAt) : "None"}</div>
-      </div>
+      </GroupedRow>
+      <GroupedRow>
+        <div className="w-[9.5rem] shrink-0 text-[15px] text-muted-foreground">Last send</div>
+        <div className="text-[15px]">{wa?.lastSentAt ? formatClock(wa.lastSentAt) : "None"}</div>
+      </GroupedRow>
       {wa?.lastSentTo ? (
-        <div className="grid grid-cols-[160px_minmax(0,1fr)] gap-4 border-t border-border/60 px-4 py-2.5 text-[13px]">
-          <div className="text-muted-foreground">Sent to</div>
-          <div className="min-w-0 font-mono text-[12px] break-all">{wa.lastSentTo}</div>
-        </div>
+        <GroupedRow>
+          <div className="w-[9.5rem] shrink-0 text-[15px] text-muted-foreground">Sent to</div>
+          <div className="min-w-0 font-mono text-[13px] break-all">{wa.lastSentTo}</div>
+        </GroupedRow>
       ) : null}
       {wa?.lastError ? (
-        <div className="border-t border-destructive/40 bg-destructive/10 px-4 py-2 text-sm text-destructive">{wa.lastError}</div>
+        <div className="bg-destructive/10 px-4 py-2.5 text-[15px] text-destructive">{wa.lastError}</div>
       ) : null}
-    </section>
+    </SettingsGroup>
   );
 }

@@ -15,6 +15,10 @@ const NAV = [
   { href: "/settings", label: "Settings", icon: Settings2 },
 ];
 
+function isActive(pathname: string, href: string) {
+  return href === "/" ? pathname === "/" : pathname.startsWith(href);
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [status, setStatus] = useState<StatusSnapshot | null>(null);
@@ -45,76 +49,117 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-full bg-background text-foreground">
-      <aside className="flex w-14 shrink-0 flex-col border-r border-border/80 bg-sidebar md:w-56">
-        <div className="flex items-center justify-center gap-2.5 px-2 py-4 md:justify-start md:px-4">
+      <aside className="hidden w-[232px] shrink-0 flex-col bg-sidebar md:flex">
+        <div className="flex items-center gap-2.5 px-4 pt-5 pb-4">
           <img
             src="/signal1-logo-256.png"
             alt="Signal1"
-            width={28}
-            height={28}
-            className="size-7 rounded-md ring-1 ring-amber-500/30"
+            width={32}
+            height={32}
+            className="size-8 rounded-xl ring-1 ring-amber-400/25"
           />
-          <div className="hidden leading-tight md:block">
-            <div className="font-heading text-sm font-semibold tracking-wide">Signal1</div>
-            <div className="font-mono text-[10px] text-muted-foreground">X alerts · self-hosted</div>
+          <div className="min-w-0 leading-tight">
+            <div className="text-[17px] font-semibold tracking-[-0.02em]">Signal1</div>
+            <div className="text-[12px] text-muted-foreground">X alerts · self-hosted</div>
           </div>
         </div>
-        <nav className="flex flex-1 flex-col gap-0.5 px-1.5 md:px-2">
+        <nav className="flex flex-1 flex-col gap-0.5 px-3">
           {NAV.map((item) => {
-            const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+            const active = isActive(pathname, item.href);
             const Icon = item.icon;
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                title={item.label}
                 className={cn(
-                  "flex items-center justify-center gap-2 rounded-md px-2 py-1.5 text-[13px] transition-colors md:justify-start md:px-2.5",
+                  "flex h-9 items-center gap-2.5 rounded-[9px] px-3 text-[15px] transition-colors",
                   active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground",
+                    ? "bg-white/[0.08] font-medium text-foreground"
+                    : "text-muted-foreground hover:bg-white/[0.05] hover:text-foreground",
                 )}
               >
-                <Icon className="size-3.5" />
-                <span className="hidden flex-1 md:inline">{item.label}</span>
+                <Icon className="size-4 opacity-80" />
+                <span className="flex-1">{item.label}</span>
                 {item.href === "/" && status && status.counts.unread > 0 ? (
-                  <span className="hidden rounded-full bg-amber-500/20 px-1.5 font-mono text-[10px] text-amber-300 md:inline">
+                  <span className="min-w-5 rounded-full bg-amber-400/90 px-1.5 text-center text-[11px] font-semibold text-amber-950">
                     {status.counts.unread}
                   </span>
                 ) : null}
                 {item.href === "/watchlist" && status && status.counts.tickers > 0 ? (
-                  <span className="hidden rounded-full bg-muted px-1.5 font-mono text-[10px] text-muted-foreground md:inline">
-                    {status.counts.tickers}
-                  </span>
+                  <span className="text-[13px] tabular-nums text-muted-foreground">{status.counts.tickers}</span>
                 ) : null}
               </Link>
             );
           })}
         </nav>
-        <div className="space-y-2 border-t border-border/80 p-2 md:p-3">
+        <div className="space-y-3 px-3 pb-4">
           {status?.demoMode ? (
-            <div className="hidden rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 md:block">
-              <div className="text-[10px] font-semibold tracking-wider text-amber-300 uppercase">Demo mode</div>
-              <div className="text-[11px] leading-snug text-amber-100/70">
+            <div className="rounded-2xl bg-amber-400/10 px-3 py-2.5">
+              <div className="text-[13px] font-medium text-amber-200">Demo mode</div>
+              <div className="mt-0.5 text-[12px] leading-snug text-amber-100/60">
                 No X bearer token. Fixture tape is playing.
               </div>
             </div>
           ) : (
-            <div className="hidden rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-1.5 md:block">
-              <div className="text-[10px] font-semibold tracking-wider text-emerald-300 uppercase">Live</div>
-              <div className="text-[11px] text-emerald-100/70">X API v2 recent search</div>
+            <div className="flex items-center gap-2 px-1 text-[12px] text-muted-foreground">
+              <Activity className={cn("size-3.5", status?.poller.healthy ? "text-emerald-400" : "text-zinc-500")} />
+              <span>{status?.poller.healthy ? "Poller healthy" : "Poller waiting"}</span>
             </div>
           )}
-          <div className="hidden items-center gap-2 px-1 text-[11px] text-muted-foreground md:flex">
-            <Activity
-              className={cn("size-3", status?.poller.healthy ? "text-emerald-400" : "text-zinc-500")}
-            />
-            <span>{status?.poller.healthy ? "Poller healthy" : "Poller waiting"}</span>
-          </div>
           <UserMenu />
         </div>
       </aside>
-      <main className="flex min-w-0 flex-1 flex-col">{children}</main>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex items-center justify-between gap-3 border-b border-white/[0.06] px-4 py-2.5 md:hidden">
+          <div className="flex items-center gap-2.5">
+            <img
+              src="/signal1-logo-256.png"
+              alt=""
+              width={32}
+              height={32}
+              className="size-8 rounded-xl ring-1 ring-amber-400/25"
+            />
+            <span className="text-[17px] font-semibold tracking-[-0.02em]">Signal1</span>
+          </div>
+          <UserMenu compact />
+        </header>
+        <main className="flex min-w-0 flex-1 flex-col pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:pb-0">
+          {children}
+        </main>
+      </div>
+
+      <nav
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.08] bg-sidebar/90 backdrop-blur-xl md:hidden"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
+        <div className="grid h-[4.25rem] grid-cols-4">
+          {NAV.map((item) => {
+            const active = isActive(pathname, item.href);
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium",
+                  active ? "text-amber-300" : "text-muted-foreground",
+                )}
+              >
+                <span className="relative">
+                  <Icon className="size-5" />
+                  {item.href === "/" && status && status.counts.unread > 0 ? (
+                    <span className="absolute -top-1 -right-2 min-w-4 rounded-full bg-amber-400 px-1 text-center text-[9px] font-semibold text-amber-950">
+                      {status.counts.unread > 99 ? "99+" : status.counts.unread}
+                    </span>
+                  ) : null}
+                </span>
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }

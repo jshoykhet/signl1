@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { SettingsGroup } from "@/components/grouped-list";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -62,50 +63,50 @@ export function TeamSettings() {
   const admin = team?.me.role === "admin";
 
   return (
-    <section className="overflow-hidden rounded-lg border border-border/80">
-      <div className="border-b border-border/80 bg-muted/30 px-4 py-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-        Team
-      </div>
-      <div className="space-y-4 px-4 py-3 text-[13px]">
-        <p className="text-muted-foreground">
+    <SettingsGroup title="Team">
+      <div className="space-y-4 px-4 py-3.5 text-[15px]">
+        <p className="text-[13px] leading-relaxed text-muted-foreground">
           Shared desk: every signed-in operator sees the same inbox, rules, Key Network Nodes, blocked list, and WhatsApp
-          session.
-          Google accounts must be invited here before they can sign in.
+          session. Google accounts must be invited here before they can sign in.
         </p>
         {error ? <p className="text-destructive">{error}</p> : null}
         {!team ? (
           <p className="text-muted-foreground">Loading team…</p>
         ) : (
           <>
-            <div className="flex flex-wrap gap-2 text-[11px]">
-              <Badge variant={team.googleConfigured ? "secondary" : "outline"}>
+            <div className="flex flex-wrap gap-2 text-[13px]">
+              <Badge variant={team.googleConfigured ? "secondary" : "outline"} className="rounded-full">
                 Google {team.googleConfigured ? "ready" : "not configured"}
               </Badge>
-              {team.devLogin ? <Badge variant="outline">Local email login on</Badge> : null}
+              {team.devLogin ? (
+                <Badge variant="outline" className="rounded-full">
+                  Local email login on
+                </Badge>
+              ) : null}
             </div>
-            <div className="overflow-x-auto rounded-md border border-border/70">
-              <table className="w-full text-left text-[13px]">
-                <thead className="bg-muted/40 text-[11px] tracking-wider text-muted-foreground uppercase">
+            <div className="overflow-x-auto rounded-xl bg-background/40">
+              <table className="w-full text-left text-[15px]">
+                <thead className="text-[13px] text-muted-foreground">
                   <tr>
-                    <th className="px-3 py-2 font-medium">Operator</th>
-                    <th className="px-3 py-2 font-medium">Role</th>
-                    <th className="px-3 py-2 font-medium">Last login</th>
-                    {admin ? <th className="px-3 py-2 font-medium"> </th> : null}
+                    <th className="px-3 py-2 font-normal">Operator</th>
+                    <th className="px-3 py-2 font-normal">Role</th>
+                    <th className="px-3 py-2 font-normal">Last login</th>
+                    {admin ? <th className="px-3 py-2 font-normal"> </th> : null}
                   </tr>
                 </thead>
                 <tbody>
                   {team.users.map((user) => (
-                    <tr key={user.id} className="border-t border-border/60">
-                      <td className="px-3 py-2">
+                    <tr key={user.id} className="border-t border-white/[0.06]">
+                      <td className="px-3 py-2.5">
                         <div className="font-medium">{user.name || user.email}</div>
-                        <div className="font-mono text-[11px] text-muted-foreground">{user.email}</div>
+                        <div className="text-[13px] text-muted-foreground">{user.email}</div>
                       </td>
-                      <td className="px-3 py-2 capitalize">{user.role}</td>
-                      <td className="px-3 py-2 text-muted-foreground" title={formatClock(user.lastLoginAt)}>
+                      <td className="px-3 py-2.5 capitalize">{user.role}</td>
+                      <td className="px-3 py-2.5 text-muted-foreground" title={formatClock(user.lastLoginAt)}>
                         {formatRelative(user.lastLoginAt)}
                       </td>
                       {admin ? (
-                        <td className="px-3 py-2 text-right">
+                        <td className="px-3 py-2.5 text-right">
                           <Button
                             type="button"
                             variant="ghost"
@@ -120,18 +121,18 @@ export function TeamSettings() {
                     </tr>
                   ))}
                   {team.pendingInvites.map((invite) => (
-                    <tr key={invite.email} className="border-t border-border/60">
-                      <td className="px-3 py-2">
-                        <div className="font-mono text-[12px]">{invite.email}</div>
-                        <div className="text-[11px] text-muted-foreground">
+                    <tr key={invite.email} className="border-t border-white/[0.06]">
+                      <td className="px-3 py-2.5">
+                        <div className="text-[15px]">{invite.email}</div>
+                        <div className="text-[13px] text-muted-foreground">
                           Invited {formatRelative(invite.invitedAt)}
                           {invite.invitedBy ? ` by ${invite.invitedBy}` : ""}
                         </div>
                       </td>
-                      <td className="px-3 py-2 text-muted-foreground">Pending</td>
-                      <td className="px-3 py-2 text-muted-foreground">—</td>
+                      <td className="px-3 py-2.5 text-muted-foreground">Pending</td>
+                      <td className="px-3 py-2.5 text-muted-foreground">—</td>
                       {admin ? (
-                        <td className="px-3 py-2 text-right">
+                        <td className="px-3 py-2.5 text-right">
                           <Button
                             type="button"
                             variant="ghost"
@@ -169,11 +170,11 @@ export function TeamSettings() {
                 </Button>
               </form>
             ) : (
-              <p className="text-[12px] text-muted-foreground">Only admins can invite or revoke operators.</p>
+              <p className="text-[13px] text-muted-foreground">Only admins can invite or revoke operators.</p>
             )}
           </>
         )}
       </div>
-    </section>
+    </SettingsGroup>
   );
 }

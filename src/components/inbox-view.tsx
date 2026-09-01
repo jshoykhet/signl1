@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { EmptyState } from "@/components/empty-state";
 import { formatClock, formatCompact, formatRelative } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Match, Rule, UserLabel } from "@/lib/types";
@@ -27,7 +28,7 @@ function SignalVote({
 }) {
   return (
     <div
-      className="flex shrink-0 flex-col gap-1"
+      className="flex shrink-0 flex-col gap-1.5"
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
     >
@@ -37,10 +38,10 @@ function SignalVote({
         aria-label="Mark high signal"
         aria-pressed={match.userLabel === "high"}
         className={cn(
-          buttonVariants({ variant: "outline", size: "xs" }),
-          "font-mono",
-          match.userLabel === "high" &&
-            "border-emerald-500/50 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 hover:text-emerald-200",
+          "flex size-7 items-center justify-center rounded-full text-[15px] font-medium transition-colors",
+          match.userLabel === "high"
+            ? "bg-emerald-500/20 text-emerald-300"
+            : "bg-white/[0.06] text-muted-foreground hover:bg-white/[0.1] hover:text-foreground",
         )}
         onClick={() => onVote(match, "high")}
       >
@@ -52,10 +53,10 @@ function SignalVote({
         aria-label="Mark low signal"
         aria-pressed={match.userLabel === "low"}
         className={cn(
-          buttonVariants({ variant: "outline", size: "xs" }),
-          "font-mono",
-          match.userLabel === "low" &&
-            "border-destructive/50 bg-destructive/15 text-destructive hover:bg-destructive/25",
+          "flex size-7 items-center justify-center rounded-full text-[15px] font-medium transition-colors",
+          match.userLabel === "low"
+            ? "bg-destructive/20 text-destructive"
+            : "bg-white/[0.06] text-muted-foreground hover:bg-white/[0.1] hover:text-foreground",
         )}
         onClick={() => onVote(match, "low")}
       >
@@ -267,45 +268,45 @@ export function InboxView() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex flex-col gap-3 border-b border-border/80 px-4 py-3 sm:px-5">
-        <div className="flex flex-wrap items-start justify-between gap-2">
+      <header className="flex flex-col gap-3 border-b border-white/[0.06] px-4 py-4 sm:px-5">
+        <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-sm font-semibold tracking-tight">Inbox</h1>
-            <p className="text-xs text-muted-foreground">
-              Newest matches first. Catalysts, flow, and Key Network Nodes land here — use + / − to train the rest.
+            <h1 className="text-[28px] font-semibold leading-tight tracking-[-0.022em]">Inbox</h1>
+            <p className="mt-0.5 text-[13px] text-muted-foreground">
+              Newest first. Use + / − to train the tape.
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <Button variant="outline" size="sm" onClick={repoll} disabled={polling}>
+            <Button variant="ghost" size="sm" onClick={repoll} disabled={polling}>
               <RefreshCw className={cn("size-3.5", polling && "animate-spin")} />
               {polling ? "Polling…" : "Re-poll"}
             </Button>
-            <Button variant="outline" size="sm" onClick={markAll}>
+            <Button variant="ghost" size="sm" onClick={markAll}>
               Mark all read
             </Button>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <div className="relative min-w-0 flex-1 basis-48">
-            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               id="inbox-search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search posts, @handles, rules…"
-              className="pl-8 font-mono text-[13px]"
+              placeholder="Search posts, @handles, rules"
+              className="h-9 rounded-full bg-white/[0.08] pl-9 text-[15px]"
               aria-label="Search inbox"
             />
           </div>
-          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          <label className="flex items-center gap-2 text-[13px] text-muted-foreground">
             <Checkbox
               checked={unreadOnly}
               onCheckedChange={(value) => setUnreadOnly(value === true)}
             />
-            Unread only
+            Unread
           </label>
           <Select value={ruleId} onValueChange={(value) => setRuleId(String(value ?? "all"))}>
-            <SelectTrigger className="min-w-36 sm:min-w-44" size="sm">
+            <SelectTrigger className="min-w-36 rounded-full sm:min-w-44" size="sm">
               <Filter className="size-3.5 text-muted-foreground" />
               <SelectValue />
             </SelectTrigger>
@@ -321,20 +322,23 @@ export function InboxView() {
         </div>
       </header>
       {error ? (
-        <div className="m-5 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <div className="m-5 rounded-2xl bg-destructive/10 px-4 py-3 text-[15px] text-destructive">
           {error}
         </div>
       ) : null}
-      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-        <div className="min-h-0 overflow-y-auto border-r border-border/80">
+      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+        <div className="min-h-0 overflow-y-auto lg:border-r lg:border-white/[0.06]">
           {loading && matches.length === 0 ? (
-            <div className="px-5 py-10 text-sm text-muted-foreground">Loading matches…</div>
+            <EmptyState title="Loading" description="Fetching the latest matches." />
           ) : matches.length === 0 ? (
-            <div className="px-5 py-10 text-sm text-muted-foreground">
-              {query.trim()
-                ? `No matches for “${query.trim()}”.`
-                : "No desk-relevant matches yet. Chatter without a catalyst is dropped. Key Network Nodes skip the like floor."}
-            </div>
+            <EmptyState
+              title={query.trim() ? "No matches" : "Inbox Zero"}
+              description={
+                query.trim()
+                  ? `Nothing found for “${query.trim()}”.`
+                  : "New catalysts will appear here. Chatter without a desk signal is dropped."
+              }
+            />
           ) : (
             <ul>
               {matches.map((match) => {
@@ -343,9 +347,9 @@ export function InboxView() {
                   <li key={match.id}>
                     <div
                       className={cn(
-                        "flex w-full items-start gap-2 border-b border-border/60 pr-2 text-left transition-colors",
-                        active ? "bg-muted/70" : "hover:bg-muted/40",
-                        match.userLabel === "low" && "opacity-55",
+                        "flex w-full items-start gap-1 border-b border-white/[0.05] pr-2 text-left transition-colors",
+                        active ? "bg-white/[0.08]" : "hover:bg-white/[0.04]",
+                        match.userLabel === "low" && "opacity-50",
                       )}
                     >
                       <button
@@ -354,55 +358,56 @@ export function InboxView() {
                           setSelectedId(match.id);
                           if (!match.read) mark(match.id, true);
                         }}
-                        className="flex min-w-0 flex-1 items-start gap-3 px-4 py-2.5 text-left"
+                        className="flex min-w-0 flex-1 items-start gap-3 px-4 py-3 text-left"
                       >
                         <span
                           className={cn(
-                            "mt-1.5 size-1.5 shrink-0 rounded-full",
+                            "mt-2 size-2 shrink-0 rounded-full",
                             match.read ? "bg-transparent" : "bg-amber-400",
                           )}
                         />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-baseline gap-2">
-                            <span className="font-mono text-[12px] text-foreground">@{match.authorHandle}</span>
-                            <span className="truncate text-[11px] text-muted-foreground">{match.authorName}</span>
-                            <span className="ml-auto shrink-0 font-mono text-[10px] text-muted-foreground">
+                            <span className="text-[15px] font-semibold tracking-[-0.01em] text-foreground">
+                              @{match.authorHandle}
+                            </span>
+                            <span className="truncate text-[13px] text-muted-foreground">{match.authorName}</span>
+                            <span className="ml-auto shrink-0 text-[12px] tabular-nums text-muted-foreground">
                               {formatRelative(match.matchedAt)}
                             </span>
                           </div>
-                          <p className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-foreground/90">{match.text}</p>
-                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                            <Badge variant="outline" className="h-4 rounded-sm px-1.5 text-[10px] font-normal">
+                          <p className="mt-0.5 line-clamp-2 text-[15px] leading-snug text-muted-foreground">
+                            {match.text}
+                          </p>
+                          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                            <Badge variant="outline" className="h-5 rounded-full border-white/10 px-2 text-[11px] font-normal">
                               {match.ruleName}
                             </Badge>
                             {match.kol ? (
-                              <Badge
-                                variant="outline"
-                                className="h-4 rounded-sm border-amber-500/40 px-1.5 text-[10px] font-semibold tracking-wide text-amber-300"
-                              >
-                                NODE
+                              <Badge className="h-5 rounded-full bg-amber-400/15 px-2 text-[11px] font-semibold text-amber-200">
+                                Node
                               </Badge>
                             ) : null}
                             {match.followersCount != null ? (
-                              <span className="font-mono text-[10px] text-muted-foreground">
+                              <span className="text-[12px] tabular-nums text-muted-foreground">
                                 {formatCompact(match.followersCount)} fol
                               </span>
                             ) : null}
                             {match.likeCount != null ? (
-                              <span className="font-mono text-[10px] text-muted-foreground">
+                              <span className="text-[12px] tabular-nums text-muted-foreground">
                                 {formatCompact(match.likeCount)} likes
                               </span>
                             ) : null}
                             {match.userLabel === "high" ? (
-                              <span className="font-mono text-[10px] text-emerald-400">high</span>
+                              <span className="text-[12px] text-emerald-400">High</span>
                             ) : null}
                             {match.userLabel === "low" ? (
-                              <span className="font-mono text-[10px] text-destructive">low</span>
+                              <span className="text-[12px] text-destructive">Low</span>
                             ) : null}
                           </div>
                         </div>
                       </button>
-                      <div className="pt-2">
+                      <div className="pt-2.5">
                         <SignalVote match={match} onVote={vote} />
                       </div>
                     </div>
@@ -412,31 +417,31 @@ export function InboxView() {
             </ul>
           )}
         </div>
-        <div className="hidden min-h-0 overflow-y-auto p-5 lg:block">
+        <div className="hidden min-h-0 overflow-y-auto px-8 py-8 lg:block">
           {selected ? (
-            <article className="space-y-4">
+            <article className="mx-auto max-w-xl space-y-6">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="font-mono text-sm">@{selected.authorHandle}</div>
-                  <div className="text-xs text-muted-foreground">{selected.authorName}</div>
+                  <div className="text-[17px] font-semibold tracking-[-0.02em]">@{selected.authorHandle}</div>
+                  <div className="text-[15px] text-muted-foreground">{selected.authorName}</div>
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2">
-                  <Button variant="outline" size="sm" onClick={() => mark(selected.id, !selected.read)}>
+                  <Button variant="ghost" size="sm" onClick={() => mark(selected.id, !selected.read)}>
                     {selected.read ? "Mark unread" : "Mark read"}
                   </Button>
                   <a
                     href={selected.permalink}
                     target="_blank"
                     rel="noreferrer"
-                    className={cn(buttonVariants({ size: "sm" }))}
+                    className={cn(buttonVariants({ size: "sm", variant: "outline" }), "rounded-full")}
                   >
                     Open original
                     <ExternalLink className="size-3.5" />
                   </a>
                 </div>
               </div>
-              <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{selected.text}</p>
-              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 font-mono text-[11px] text-muted-foreground">
+              <p className="whitespace-pre-wrap text-[17px] leading-[1.47] tracking-[-0.01em]">{selected.text}</p>
+              <dl className="grid grid-cols-[auto_1fr] gap-x-5 gap-y-2 text-[13px] text-muted-foreground">
                 <dt>Rule</dt>
                 <dd className="text-foreground">{selected.ruleName}</dd>
                 <dt>Tweet</dt>
@@ -450,9 +455,7 @@ export function InboxView() {
                 <dt>Score</dt>
                 <dd>{selected.signalScore != null ? selected.signalScore : "—"}</dd>
                 <dt>Node</dt>
-                <dd className="text-foreground">
-                  {selected.kol ? "Yes — Key Network Node" : "No"}
-                </dd>
+                <dd className="text-foreground">{selected.kol ? "Key Network Node" : "No"}</dd>
                 <dt>Label</dt>
                 <dd className="text-foreground">
                   {selected.userLabel === "high"
@@ -466,11 +469,11 @@ export function InboxView() {
                   {selected.authorPrior.high} high / {selected.authorPrior.low} low
                 </dd>
                 <dt>ID</dt>
-                <dd>{selected.tweetId}</dd>
+                <dd className="tabular-nums">{selected.tweetId}</dd>
               </dl>
             </article>
           ) : (
-            <p className="text-sm text-muted-foreground">Select a match to inspect it.</p>
+            <EmptyState title="No selection" description="Choose a match from the list." />
           )}
         </div>
       </div>

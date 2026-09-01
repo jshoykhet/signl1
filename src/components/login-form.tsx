@@ -75,15 +75,15 @@ export function LoginForm({
   return (
     <div className="space-y-4">
       {error ? (
-        <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <div className="rounded-2xl bg-destructive/10 px-3.5 py-2.5 text-[15px] text-destructive">
           {error}
         </div>
       ) : null}
 
       {!hasAny ? (
-        <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100/80">
+        <div className="rounded-2xl bg-amber-400/10 px-3.5 py-2.5 text-[15px] text-amber-100/80">
           No sign-in provider is enabled. Add a Google OAuth client, or set{" "}
-          <code className="font-mono text-[12px]">AUTH_DEV_LOGIN=1</code> for a local desk email.
+          <code className="font-mono text-[13px]">AUTH_DEV_LOGIN=1</code> for a local desk email.
         </div>
       ) : null}
 
@@ -91,7 +91,8 @@ export function LoginForm({
         <Button
           type="button"
           variant="outline"
-          className="h-9 w-full gap-2"
+          size="lg"
+          className="w-full gap-2 rounded-xl border-white/10 bg-white/[0.06]"
           onClick={onGoogle}
           disabled={pending !== null}
         >
@@ -99,7 +100,7 @@ export function LoginForm({
           {pending === "google" ? "Redirecting to Google…" : "Continue with Google"}
         </Button>
       ) : (
-        <p className="text-xs leading-relaxed text-muted-foreground">
+        <p className="text-[13px] leading-relaxed text-muted-foreground">
           Google sign-in is off until <code className="font-mono">GOOGLE_CLIENT_ID</code> and{" "}
           <code className="font-mono">GOOGLE_CLIENT_SECRET</code> are set. Production should use Google only —
           see <span className="font-medium text-foreground">DEPLOY.md</span>.
@@ -107,10 +108,10 @@ export function LoginForm({
       )}
 
       {googleConfigured && devLogin ? (
-        <div className="flex items-center gap-3 text-[11px] tracking-wider text-muted-foreground uppercase">
-          <span className="h-px flex-1 bg-border" />
+        <div className="flex items-center gap-3 text-[13px] text-muted-foreground">
+          <span className="h-px flex-1 bg-white/10" />
           or local desk
-          <span className="h-px flex-1 bg-border" />
+          <span className="h-px flex-1 bg-white/10" />
         </div>
       ) : null}
 
@@ -128,10 +129,10 @@ export function LoginForm({
               placeholder="you@desk.com"
             />
           </div>
-          <Button type="submit" className="h-9 w-full" disabled={pending !== null}>
+          <Button type="submit" size="lg" className="w-full" disabled={pending !== null}>
             {pending === "dev" ? "Signing in…" : "Sign in with email"}
           </Button>
-          <p className="text-[11px] leading-relaxed text-muted-foreground">
+          <p className="text-[13px] leading-relaxed text-muted-foreground">
             Local fallback only. The production Compose file sets{" "}
             <code className="font-mono">AUTH_DEV_LOGIN=0</code> so operators must use Google.
           </p>

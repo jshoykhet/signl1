@@ -10,6 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 
 function initials(name: string | null | undefined, email: string | null | undefined): string {
   const source = name?.trim() || email?.trim() || "?";
@@ -18,32 +19,39 @@ function initials(name: string | null | undefined, email: string | null | undefi
   return source.slice(0, 2).toUpperCase();
 }
 
-export function UserMenu() {
+export function UserMenu({ compact = false }: { compact?: boolean }) {
   const { data } = useSession();
   const user = data?.user;
   if (!user?.email) return null;
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex w-full items-center justify-center gap-2 rounded-md px-1.5 py-1.5 text-left hover:bg-sidebar-accent/60 md:justify-start">
+      <DropdownMenuTrigger
+        className={cn(
+          "flex items-center gap-2.5 rounded-xl text-left transition-colors hover:bg-white/[0.06]",
+          compact ? "p-0.5" : "w-full px-2 py-1.5",
+        )}
+      >
         {user.image ? (
-          <img src={user.image} alt="" className="size-6 rounded-full ring-1 ring-border" />
+          <img src={user.image} alt="" className="size-8 rounded-full ring-1 ring-white/10" />
         ) : (
-          <span className="flex size-6 items-center justify-center rounded-full bg-amber-500/20 font-mono text-[10px] text-amber-200">
+          <span className="flex size-8 items-center justify-center rounded-full bg-amber-400/15 text-[12px] font-semibold text-amber-200">
             {initials(user.name, user.email)}
           </span>
         )}
-        <span className="hidden min-w-0 flex-1 md:block">
-          <span className="block truncate text-[12px] text-foreground">{user.name || user.email}</span>
-          <span className="block truncate font-mono text-[10px] text-muted-foreground">
-            {user.role === "admin" ? "Admin" : "Operator"}
+        {compact ? null : (
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[13px] font-medium text-foreground">{user.name || user.email}</span>
+            <span className="block truncate text-[12px] text-muted-foreground">
+              {user.role === "admin" ? "Admin" : "Operator"}
+            </span>
           </span>
-        </span>
+        )}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-56">
+      <DropdownMenuContent align={compact ? "end" : "start"} className="w-56 rounded-2xl">
         <DropdownMenuLabel className="font-normal">
-          <div className="truncate text-xs text-foreground">{user.email}</div>
-          <div className="text-[11px] text-muted-foreground">
+          <div className="truncate text-[13px] text-foreground">{user.email}</div>
+          <div className="text-[12px] text-muted-foreground">
             Shared desk · {user.role === "admin" ? "admin" : "operator"}
           </div>
         </DropdownMenuLabel>

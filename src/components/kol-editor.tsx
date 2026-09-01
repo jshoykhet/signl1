@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ArrowDown, ArrowUp, ArrowUpDown, ExternalLink, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
+import { SettingsGroup } from "@/components/grouped-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -119,24 +120,19 @@ export function KolEditor() {
   const addedCount = kol?.items.filter((item) => item.source === "added" && item.active).length ?? 0;
 
   return (
-    <section className="overflow-hidden rounded-lg border border-border/80">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/80 bg-muted/30 px-4 py-2">
-        <div className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-          Key Network Nodes
-        </div>
-        {kol ? (
-          <div className="font-mono text-[11px] text-muted-foreground">
-            {activeCount} active
-            {addedCount ? ` · ${addedCount} added` : ""}
-            {removedCount ? ` · ${removedCount} removed` : ""}
-          </div>
-        ) : null}
-      </div>
+    <SettingsGroup
+      title="Key Network Nodes"
+      accessory={
+        kol
+          ? `${activeCount} active${addedCount ? ` · ${addedCount} added` : ""}${removedCount ? ` · ${removedCount} removed` : ""}`
+          : undefined
+      }
+    >
       {!kol ? (
-        <div className="px-4 py-3 text-sm text-muted-foreground">Loading Key Network Nodes…</div>
+        <div className="px-4 py-3.5 text-[15px] text-muted-foreground">Loading Key Network Nodes…</div>
       ) : (
-        <div className="grid gap-3 px-4 py-3">
-          <p className="text-[12px] leading-relaxed text-muted-foreground">
+        <div className="grid gap-3 px-4 py-3.5">
+          <p className="text-[13px] leading-relaxed text-muted-foreground">
             Seeded with {kol.seedCount} markets-desk handles. These accounts skip the like floor and get a desk bump
             unless Require likes is on. Click a handle to open the X profile. Follower counts come from posts Signal1
             has already ingested — accounts with no match yet show —.
@@ -202,12 +198,12 @@ export function KolEditor() {
               ))}
             </div>
           </div>
-          <div className="overflow-hidden rounded-md border border-white/20 bg-background">
+          <div className="overflow-hidden rounded-xl bg-background/50">
             <div className="max-h-[28rem] overflow-auto">
               <table className="w-full min-w-[44rem] table-fixed border-collapse text-[13px]">
                 <thead className="sticky top-0 z-10">
-                  <tr className="bg-muted text-left text-[11px] font-medium normal-case text-muted-foreground">
-                    <th className="w-[32%] border-b border-r border-white/20">
+                  <tr className="bg-white/[0.04] text-left text-[13px] font-normal text-muted-foreground">
+                    <th className="w-[32%] border-b border-white/[0.06]">
                       <button
                         type="button"
                         className="flex w-full items-center gap-1.5 px-3 py-2 text-left hover:text-foreground"
@@ -217,7 +213,7 @@ export function KolEditor() {
                         <SortIcon active={sortKey === "handle"} dir={sortDir} />
                       </button>
                     </th>
-                    <th className="w-28 border-b border-r border-white/20">
+                    <th className="w-28 border-b border-r border-white/[0.06]">
                       <button
                         type="button"
                         className="flex w-full items-center gap-1.5 px-3 py-2 text-left hover:text-foreground"
@@ -227,7 +223,7 @@ export function KolEditor() {
                         <SortIcon active={sortKey === "followers"} dir={sortDir} />
                       </button>
                     </th>
-                    <th className="w-24 border-b border-r border-white/20">
+                    <th className="w-24 border-b border-r border-white/[0.06]">
                       <button
                         type="button"
                         className="flex w-full items-center gap-1.5 px-3 py-2 text-left hover:text-foreground"
@@ -237,7 +233,7 @@ export function KolEditor() {
                         <SortIcon active={sortKey === "source"} dir={sortDir} />
                       </button>
                     </th>
-                    <th className="w-24 border-b border-r border-white/20">
+                    <th className="w-24 border-b border-r border-white/[0.06]">
                       <button
                         type="button"
                         className="flex w-full items-center gap-1.5 px-3 py-2 text-left hover:text-foreground"
@@ -247,7 +243,7 @@ export function KolEditor() {
                         <SortIcon active={sortKey === "status"} dir={sortDir} />
                       </button>
                     </th>
-                    <th className="w-28 border-b border-white/20 px-3 py-2 text-right normal-case">Action</th>
+                    <th className="w-28 border-b border-white/[0.06] px-3 py-2 text-right normal-case">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -265,7 +261,7 @@ export function KolEditor() {
                         key={item.handle}
                         className={item.active ? "hover:bg-muted/50" : "bg-muted/10 text-muted-foreground hover:bg-muted/30"}
                       >
-                        <td className="border-r border-b border-white/20 px-3 py-1.5 font-mono text-[13px] leading-6">
+                        <td className="border-r border-b border-white/[0.06] px-3 py-1.5 font-mono text-[13px] leading-6">
                           <a
                             href={item.profileUrl}
                             target="_blank"
@@ -277,22 +273,22 @@ export function KolEditor() {
                             <ExternalLink className="size-3 shrink-0 opacity-70" />
                           </a>
                         </td>
-                        <td className="border-r border-b border-white/20 px-3 py-1.5 font-mono leading-6 tabular-nums">
+                        <td className="border-r border-b border-white/[0.06] px-3 py-1.5 font-mono leading-6 tabular-nums">
                           {formatCompact(item.followers)}
                         </td>
-                        <td className="border-r border-b border-white/20 px-3 py-1.5 leading-6">
+                        <td className="border-r border-b border-white/[0.06] px-3 py-1.5 leading-6">
                           <Badge variant={item.source === "added" ? "default" : "outline"} className="font-normal">
                             {item.source === "added" ? "Added" : "Seed"}
                           </Badge>
                         </td>
-                        <td className="border-r border-b border-white/20 px-3 py-1.5 leading-6">
+                        <td className="border-r border-b border-white/[0.06] px-3 py-1.5 leading-6">
                           {item.active ? (
                             <span className="text-emerald-400">Active</span>
                           ) : (
                             <span className="text-amber-300">Removed</span>
                           )}
                         </td>
-                        <td className="border-b border-white/20 px-2 py-1 text-right">
+                        <td className="border-b border-white/[0.06] px-2 py-1 text-right">
                           {item.active ? (
                             <Button
                               type="button"
@@ -325,7 +321,7 @@ export function KolEditor() {
                 </tbody>
               </table>
             </div>
-            <div className="border-t border-white/20 bg-muted/30 px-3 py-1.5 font-mono text-[11px] text-muted-foreground">
+            <div className="border-t border-white/[0.06] px-3 py-1.5 text-[13px] text-muted-foreground">
               {rows.length === kol.items.length
                 ? `${rows.length} rows`
                 : `Showing ${rows.length} of ${kol.items.length} rows`}
@@ -333,6 +329,6 @@ export function KolEditor() {
           </div>
         </div>
       )}
-    </section>
+    </SettingsGroup>
   );
 }

@@ -15,6 +15,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
+import { EmptyState } from "@/components/empty-state";
+import { PageHeader } from "@/components/page-header";
 import { RuleForm, type RuleFormValue } from "@/components/rule-form";
 import { formatInterval, formatRelative } from "@/lib/format";
 import { tokenizeSearch } from "@/lib/search";
@@ -149,93 +151,90 @@ export function RulesView() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex flex-wrap items-center gap-3 border-b border-border/80 px-5 py-3">
-        <div className="min-w-0">
-          <h1 className="text-sm font-semibold tracking-tight">Rules</h1>
-          <p className="text-xs text-muted-foreground">
-            Each enabled rule is polled on its own interval using X recent-search syntax.
-          </p>
-        </div>
-        <div className="relative min-w-56 flex-1">
-          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+      <div className="border-b border-white/[0.06] px-5 py-6">
+        <PageHeader
+          title="Rules"
+          description="Each enabled rule is polled on its own interval using X recent-search syntax."
+          actions={
+            <Button
+              onClick={() => {
+                setEditing(null);
+                setOpen(true);
+              }}
+            >
+              <Plus className="size-4" />
+              New rule
+            </Button>
+          }
+        />
+        <div className="relative mt-5 max-w-md">
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search rules or queries…"
-            className="pl-8 font-mono text-[13px]"
+            placeholder="Search rules or queries"
+            className="rounded-full pl-9"
             aria-label="Search rules"
           />
         </div>
-        <Button
-          size="sm"
-          onClick={() => {
-            setEditing(null);
-            setOpen(true);
-          }}
-        >
-          <Plus className="size-3.5" />
-          New rule
-        </Button>
-      </header>
+      </div>
       {error ? (
-        <div className="m-5 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {error}
-        </div>
+        <div className="m-5 rounded-2xl bg-destructive/10 px-4 py-3 text-[15px] text-destructive">{error}</div>
       ) : null}
       <div className="flex-1 overflow-auto">
         {loading ? (
-          <div className="px-5 py-10 text-sm text-muted-foreground">Loading rules…</div>
+          <EmptyState title="Loading" description="Fetching your rules." />
         ) : rules.length === 0 ? (
-          <div className="px-5 py-10 text-sm text-muted-foreground">No rules yet. Create one to start scanning.</div>
+          <EmptyState title="No rules yet" description="Create one to start scanning recent search." />
         ) : visibleRules.length === 0 ? (
-          <div className="px-5 py-10 text-sm text-muted-foreground">No rules match “{query.trim()}”.</div>
+          <EmptyState title="No matches" description={`Nothing found for “${query.trim()}”.`} />
         ) : (
-          <table className="w-full text-left text-[13px]">
-            <thead className="sticky top-0 bg-background text-[11px] tracking-wide text-muted-foreground uppercase">
-              <tr className="border-b border-border/80">
-                <th className="px-5 py-2 font-medium">On</th>
-                <th className="px-3 py-2 font-medium">Name</th>
-                <th className="px-3 py-2 font-medium">Query</th>
-                <th className="px-3 py-2 font-medium">Interval</th>
-                <th className="px-3 py-2 font-medium">Last poll</th>
-                <th className="px-5 py-2 font-medium"></th>
+          <table className="w-full text-left text-[15px]">
+            <thead className="sticky top-0 bg-background/90 text-[13px] text-muted-foreground backdrop-blur">
+              <tr className="border-b border-white/[0.06]">
+                <th className="px-5 py-2.5 font-normal">On</th>
+                <th className="px-3 py-2.5 font-normal">Name</th>
+                <th className="px-3 py-2.5 font-normal">Query</th>
+                <th className="px-3 py-2.5 font-normal">Interval</th>
+                <th className="px-3 py-2.5 font-normal">Last poll</th>
+                <th className="px-5 py-2.5 font-normal"></th>
               </tr>
             </thead>
             <tbody>
               {visibleRules.map((rule) => (
-                <tr key={rule.id} className="border-b border-border/60 align-top">
-                  <td className="px-5 py-3">
+                <tr key={rule.id} className="border-b border-white/[0.05] align-top">
+                  <td className="px-5 py-3.5">
                     <Switch
                       checked={rule.enabled}
                       onCheckedChange={(checked) => toggle(rule, Boolean(checked))}
                     />
                   </td>
-                  <td className="px-3 py-3">
-                    <div className="font-medium">{rule.name}</div>
+                  <td className="px-3 py-3.5">
+                    <div className="font-medium tracking-[-0.01em]">{rule.name}</div>
                     {rule.kind === "watchlist" ? (
-                      <div className="mt-1 text-[11px] text-muted-foreground">Managed from Watchlist · cashtags</div>
+                      <div className="mt-1 text-[13px] text-muted-foreground">Managed from Watchlist · cashtags</div>
                     ) : null}
                     {rule.lastError ? (
-                      <div className="mt-1 max-w-56 truncate text-[11px] text-destructive">{rule.lastError}</div>
+                      <div className="mt-1 max-w-56 truncate text-[13px] text-destructive">{rule.lastError}</div>
                     ) : null}
                   </td>
-                  <td className="px-3 py-3">
-                    <code className="block max-w-xl font-mono text-[11px] leading-relaxed break-all text-muted-foreground">
+                  <td className="px-3 py-3.5">
+                    <code className="block max-w-xl font-mono text-[13px] leading-relaxed break-all text-muted-foreground">
                       {rule.query}
                     </code>
                     {rule.accounts.length ? (
-                      <div className="mt-1 flex flex-wrap gap-1">
+                      <div className="mt-1.5 flex flex-wrap gap-1">
                         {rule.accounts.map((account) => (
-                          <Badge key={account} variant="outline" className="h-4 rounded-sm px-1 font-mono text-[10px]">
+                          <Badge key={account} variant="outline" className="h-5 rounded-full px-2 font-mono text-[11px]">
                             @{account}
                           </Badge>
                         ))}
                       </div>
                     ) : null}
                   </td>
-                  <td className="px-3 py-3 font-mono text-[12px]">{formatInterval(rule.pollIntervalMs)}</td>
-                  <td className="px-3 py-3 text-[12px] text-muted-foreground">{formatRelative(rule.lastPolledAt)}</td>
-                  <td className="px-5 py-3">
+                  <td className="px-3 py-3.5 text-[13px] tabular-nums">{formatInterval(rule.pollIntervalMs)}</td>
+                  <td className="px-3 py-3.5 text-[13px] text-muted-foreground">{formatRelative(rule.lastPolledAt)}</td>
+                  <td className="px-5 py-3.5">
                     <div className="flex justify-end gap-1">
                       {rule.kind === "watchlist" ? (
                         <Link href="/watchlist" className={buttonVariants({ variant: "ghost", size: "sm" })}>
@@ -273,7 +272,7 @@ export function RulesView() {
           if (!next) setEditing(null);
         }}
       >
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl" showCloseButton>
+        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-3xl sm:max-w-2xl" showCloseButton>
           <DialogHeader>
             <DialogTitle>{editing ? "Edit rule" : "New rule"}</DialogTitle>
             <DialogDescription>

@@ -69,10 +69,10 @@ export function RuleForm({
           placeholder="Fed Watch"
         />
       </div>
-      <label className="flex items-center justify-between gap-3 rounded-md border border-border/80 px-3 py-2">
+      <label className="flex items-center justify-between gap-3 rounded-2xl bg-white/[0.06] px-4 py-3">
         <div>
-          <div className="text-sm font-medium">Enabled</div>
-          <div className="text-xs text-muted-foreground">Disabled rules are skipped by the poller.</div>
+          <div className="text-[15px] font-medium">Enabled</div>
+          <div className="text-[13px] text-muted-foreground">Disabled rules are skipped by the poller.</div>
         </div>
         <Switch
           checked={value.enabled}
@@ -87,7 +87,7 @@ export function RuleForm({
           onChange={(e) => setValue((v) => ({ ...v, accounts: e.target.value }))}
           placeholder="federalreserve, newyorkfed, nvidia"
         />
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-[13px] text-muted-foreground">
           Comma-separated handles. Compiles to {accounts.length ? compileQuery({ accounts }) : "from:user1 OR from:user2"}.
         </p>
       </div>
@@ -101,18 +101,18 @@ export function RuleForm({
           className="min-h-20 font-mono text-xs"
         />
       </div>
-      <div className="rounded-md border border-border/80 bg-muted/30 px-3 py-2">
-        <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Compiled query</div>
-        <code className="mt-1 block font-mono text-[11px] leading-relaxed break-all text-foreground">
+      <div className="rounded-2xl bg-white/[0.06] px-4 py-3">
+        <div className="text-[13px] text-muted-foreground">Compiled query</div>
+        <code className="mt-1 block font-mono text-[13px] leading-relaxed break-all text-foreground">
           {compiled || "Add a query or at least one account."}
         </code>
       </div>
-      <details className="rounded-md border border-border/80 px-3 py-2">
-        <summary className="cursor-pointer text-sm font-medium">X recent-search syntax</summary>
-        <ul className="mt-2 space-y-1.5 text-[12px] text-muted-foreground">
+      <details className="rounded-2xl bg-white/[0.06] px-4 py-3">
+        <summary className="cursor-pointer text-[15px] font-medium">X recent-search syntax</summary>
+        <ul className="mt-2 space-y-1.5 text-[13px] text-muted-foreground">
           {QUERY_SYNTAX.map((row) => (
             <li key={row.op}>
-              <code className="mr-2 font-mono text-[11px] text-foreground">{row.op}</code>
+              <code className="mr-2 font-mono text-[12px] text-foreground">{row.op}</code>
               {row.meaning}
             </li>
           ))}
@@ -130,12 +130,10 @@ export function RuleForm({
             setValue((v) => ({ ...v, pollIntervalSec: Number(e.target.value) }))
           }
         />
-        <p className="text-[11px] text-muted-foreground">
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-[13px] text-muted-foreground">
           Default 120s. Minimum {formatInterval(MIN_POLL_INTERVAL_MS)} for demos. Live mode packs every enabled rule
           into as few X recent-search calls as possible and will not poll faster than 60s, so a 15s interval does not
           burn extra credits.
-        </p>
         </p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -160,7 +158,7 @@ export function RuleForm({
           />
         </div>
       </div>
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-[13px] text-muted-foreground">
         Inbox always receives matches. Slack can also fall back to the global <code>SLACK_WEBHOOK_URL</code> env var.
         WhatsApp is linked once on Settings (Baileys) and fans out every new match.
       </p>

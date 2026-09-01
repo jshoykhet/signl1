@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { GroupedRow, SettingsGroup } from "@/components/grouped-list";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -16,10 +17,10 @@ import {
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-1 gap-2 border-b border-border/60 px-4 py-2.5 text-[13px] sm:grid-cols-[160px_minmax(0,1fr)] sm:gap-4">
-      <div className="text-muted-foreground">{label}</div>
-      <div className="min-w-0">{children}</div>
-    </div>
+    <GroupedRow className="items-start sm:items-center">
+      <div className="w-full shrink-0 text-[15px] text-muted-foreground sm:w-[9.5rem]">{label}</div>
+      <div className="min-w-0 flex-1 text-[15px]">{children}</div>
+    </GroupedRow>
   );
 }
 
@@ -63,16 +64,13 @@ export function DeskFilters() {
   const effective = filters ? effectiveMinLikes(filters) : floors.minLikes;
 
   return (
-    <section className="overflow-hidden rounded-lg border border-border/80">
-      <div className="border-b border-border/80 bg-muted/30 px-4 py-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-        Desk tape
-      </div>
+    <SettingsGroup title="Desk tape">
       {!filters ? (
-        <div className="px-4 py-3 text-sm text-muted-foreground">Loading filters…</div>
+        <div className="px-4 py-3.5 text-[15px] text-muted-foreground">Loading filters…</div>
       ) : (
         <>
           <Row label="Nodes only">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <Switch
                 checked={filters.kolOnly}
                 disabled={busy}
@@ -99,7 +97,7 @@ export function DeskFilters() {
                   </Button>
                 ))}
               </div>
-              <p className="text-[12px] leading-relaxed text-muted-foreground">
+              <p className="text-[13px] leading-relaxed text-muted-foreground">
                 {floors.hint}. Followers ≥{floors.minFollowers}, score ≥{floors.minScore}, desk ≥{floors.minDesk}.
                 Likes use Min likes below.
               </p>
@@ -115,7 +113,7 @@ export function DeskFilters() {
                 />
                 <span className="text-muted-foreground">{filters.allowFresh ? "On" : "Off"}</span>
               </div>
-              <p className="text-[12px] leading-relaxed text-muted-foreground">
+              <p className="text-[13px] leading-relaxed text-muted-foreground">
                 Let new posts from 10k+ accounts through before likes print (first {Math.round(floors.freshMs / 60000)}{" "}
                 minutes).
               </p>
@@ -169,9 +167,9 @@ export function DeskFilters() {
                     if (parsed != null && parsed !== filters.minLikes) void save({ minLikes: parsed });
                   }}
                 />
-                <span className="text-[12px] text-muted-foreground">Currently ≥{effective} likes</span>
+                <span className="text-[13px] text-muted-foreground">Currently ≥{effective} likes</span>
               </div>
-              <p className="text-[12px] leading-relaxed text-muted-foreground">
+              <p className="text-[13px] leading-relaxed text-muted-foreground">
                 Posts below this like count are dropped from the inbox and alerts. A number you pick applies to every
                 account, including Key Network Nodes and fresh desks. Level default ({floors.minLikes} on this signal
                 level) still lets nodes and brand-new 10k+ posts skip, unless Require likes is on. 0 allows zero-like
@@ -193,7 +191,7 @@ export function DeskFilters() {
                     : "Nodes / fresh desks can skip this floor"}
                 </span>
               </div>
-              <p className="text-[12px] leading-relaxed text-muted-foreground">
+              <p className="text-[13px] leading-relaxed text-muted-foreground">
                 When on, the score floor also applies to Key Network Nodes and brand-new posts. Min likes you set above
                 already applies to those accounts.
               </p>
@@ -201,6 +199,6 @@ export function DeskFilters() {
           </Row>
         </>
       )}
-    </section>
+    </SettingsGroup>
   );
 }
