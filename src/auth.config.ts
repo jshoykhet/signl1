@@ -12,6 +12,20 @@ export function resolveAuthSecret(): string {
   throw new Error("AUTH_SECRET is required in production. Generate one with: openssl rand -base64 32");
 }
 
+function requestOrigin(request: { nextUrl: URL; headers: Headers }): string {
+  const host = (request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "")
+    .split(",")[0]
+    .trim();
+  if (!host || host.startsWith("localhost")) {
+    const authUrl = process.env.AUTH_URL?.trim();
+    if (authUrl) return authUrl.replace(/\/$/, "");
+  }
+  const proto = (request.headers.get("x-forwarded-proto") ?? request.nextUrl.protocol.replace(":", ""))
+    .split(",")[0]
+    .trim();
+  return host ? `${proto}://${host}` : request.nextUrl.origin;
+}
+
 function isPublicPath(pathname: string): boolean {
   return pathname === "/login" || pathname.startsWith("/api/auth");
 }
@@ -34,7 +48,10 @@ export const authConfig = {
       if (pathname.startsWith("/api/")) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
-      return false;
+      const login = new URL("/login", requestOrigin(request));
+      const callback = `${pathname}${request.nextUrl.search}`;
+      if (callback && callback !== "/") login.searchParams.set("callbackUrl", callback);
+      return NextResponse.redirect(login);
     },
   },
 } satisfies NextAuthConfig;
