@@ -44,7 +44,7 @@ describe("passesSignalFilter", () => {
   it("does not treat a mid-size account with zero likes as established", () => {
     const verdict = passesSignalFilter(
       quality({
-        followersCount: 18_000,
+        followersCount: 9_000,
         likeCount: 0,
         retweetCount: 0,
         createdAt: "2026-09-01T15:55:00.000Z",

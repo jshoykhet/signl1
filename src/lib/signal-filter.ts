@@ -2,7 +2,7 @@ export const MIN_FOLLOWERS = 50;
 export const MIN_LIKES = 5;
 export const MIN_SIGNAL_SCORE = 18;
 /** Accounts this large typically draw likes; a brand-new post may still be at 0. */
-export const ESTABLISHED_FOLLOWERS = 100_000;
+export const ESTABLISHED_FOLLOWERS = 10_000;
 export const FRESH_TWEET_MS = 10 * 60_000;
 
 export type TweetQuality = {
