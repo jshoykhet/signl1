@@ -178,6 +178,26 @@ export const DEMO_FIXTURES: DemoFixture[] = [
     isRetweet: false,
     isReply: false,
   },
+  {
+    id: "demo-5001",
+    authorHandle: "bloomberg",
+    authorName: "Bloomberg",
+    text: "Tape: $NVDA and $MSFT catch a bid into the close as AI capex prints land. $AAPL lags on mix; $SPY holds the session high.",
+    createdAt: "2026-08-31T19:02:00.000Z",
+    lang: "en",
+    isRetweet: false,
+    isReply: false,
+  },
+  {
+    id: "demo-5002",
+    authorHandle: "zerohedge",
+    authorName: "ZeroHedge",
+    text: "Dealer gamma flips in $TSLA after a delivery beat. Watch $QQQ and $IWM into the bell — this is a cashtag tape, not a press release.",
+    createdAt: "2026-08-31T19:14:00.000Z",
+    lang: "en",
+    isRetweet: false,
+    isReply: false,
+  },
 ];
 
 export function fixtureToTweet(fixture: DemoFixture, tweetId: string, createdAt: string): NormalizedTweet {

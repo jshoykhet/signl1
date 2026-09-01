@@ -29,6 +29,11 @@ export async function PATCH(request: Request, context: Ctx) {
 
 export async function DELETE(_request: Request, context: Ctx) {
   const { id } = await context.params;
-  if (!deleteRule(id)) return jsonError("Rule not found", 404);
-  return NextResponse.json({ ok: true });
+  try {
+    if (!deleteRule(id)) return jsonError("Rule not found", 404);
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not delete rule";
+    return jsonError(message, message === "Rule not found" ? 404 : 400);
+  }
 }

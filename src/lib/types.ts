@@ -2,6 +2,8 @@ import type { AuthorPrior, UserLabel } from "./signal-filter";
 
 export type { AuthorPrior, UserLabel };
 
+export type RuleKind = "custom" | "watchlist";
+
 export type Rule = {
   id: string;
   name: string;
@@ -17,6 +19,8 @@ export type Rule = {
   lastError: string | null;
   createdAt: string;
   updatedAt: string;
+  kind: RuleKind;
+  watchlistChunk: number | null;
 };
 
 export type Match = {
@@ -94,5 +98,21 @@ export type StatusSnapshot = {
     enabledRules: number;
     matches: number;
     unread: number;
+    tickers: number;
   };
+};
+
+export type WatchlistSnapshot = {
+  tickers: string[];
+  enabled: boolean;
+  pollIntervalMs: number;
+  compiledQueries: string[];
+  rules: Array<{
+    id: string;
+    name: string;
+    enabled: boolean;
+    query: string;
+    lastPolledAt: string | null;
+    lastError: string | null;
+  }>;
 };

@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Activity, Inbox, Settings2, SlidersHorizontal } from "lucide-react";
+import { Activity, BadgeDollarSign, Inbox, Settings2, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { StatusSnapshot } from "@/lib/types";
 
 const NAV = [
   { href: "/", label: "Inbox", icon: Inbox },
+  { href: "/watchlist", label: "Watchlist", icon: BadgeDollarSign },
   { href: "/rules", label: "Rules", icon: SlidersHorizontal },
   { href: "/settings", label: "Settings", icon: Settings2 },
 ];
@@ -73,6 +74,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 {item.href === "/" && status && status.counts.unread > 0 ? (
                   <span className="rounded-full bg-amber-500/20 px-1.5 font-mono text-[10px] text-amber-300">
                     {status.counts.unread}
+                  </span>
+                ) : null}
+                {item.href === "/watchlist" && status && status.counts.tickers > 0 ? (
+                  <span className="rounded-full bg-muted px-1.5 font-mono text-[10px] text-muted-foreground">
+                    {status.counts.tickers}
                   </span>
                 ) : null}
               </Link>

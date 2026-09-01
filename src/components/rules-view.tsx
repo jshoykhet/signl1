@@ -1,10 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -123,7 +124,7 @@ export function RulesView() {
     tokens.length === 0
       ? rules
       : rules.filter((rule) => {
-          const haystack = `${rule.name} ${rule.query} ${rule.queryInput} ${rule.accounts.join(" ")}`.toLowerCase();
+          const haystack = `${rule.name} ${rule.query} ${rule.queryInput} ${rule.accounts.join(" ")} ${rule.kind}`.toLowerCase();
           return tokens.every((token) => haystack.includes(token));
         });
 
@@ -185,10 +186,20 @@ export function RulesView() {
               {visibleRules.map((rule) => (
                 <tr key={rule.id} className="border-b border-border/60 align-top">
                   <td className="px-5 py-3">
-                    <Switch checked={rule.enabled} onCheckedChange={(checked) => toggle(rule, Boolean(checked))} />
+                    <Switch
+                      checked={rule.enabled}
+                      disabled={rule.kind === "watchlist"}
+                      onCheckedChange={(checked) => {
+                        if (rule.kind === "watchlist") return;
+                        toggle(rule, Boolean(checked));
+                      }}
+                    />
                   </td>
                   <td className="px-3 py-3">
                     <div className="font-medium">{rule.name}</div>
+                    {rule.kind === "watchlist" ? (
+                      <div className="mt-1 text-[11px] text-muted-foreground">Managed from Watchlist · cashtags</div>
+                    ) : null}
                     {rule.lastError ? (
                       <div className="mt-1 max-w-56 truncate text-[11px] text-destructive">{rule.lastError}</div>
                     ) : null}
@@ -211,19 +222,27 @@ export function RulesView() {
                   <td className="px-3 py-3 text-[12px] text-muted-foreground">{formatRelative(rule.lastPolledAt)}</td>
                   <td className="px-5 py-3">
                     <div className="flex justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => {
-                          setEditing(rule);
-                          setOpen(true);
-                        }}
-                      >
-                        <Pencil className="size-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon-sm" onClick={() => remove(rule)}>
-                        <Trash2 className="size-3.5" />
-                      </Button>
+                      {rule.kind === "watchlist" ? (
+                        <Link href="/watchlist" className={buttonVariants({ variant: "ghost", size: "sm" })}>
+                          Edit list
+                        </Link>
+                      ) : (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => {
+                              setEditing(rule);
+                              setOpen(true);
+                            }}
+                          >
+                            <Pencil className="size-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon-sm" onClick={() => remove(rule)}>
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>

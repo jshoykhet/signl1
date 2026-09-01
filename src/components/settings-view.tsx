@@ -140,6 +140,7 @@ export function SettingsView() {
                 Store
               </div>
               <Row label="Rules">{status.counts.rules} ({status.counts.enabledRules} enabled)</Row>
+              <Row label="Watchlist">{status.counts.tickers} tickers</Row>
               <Row label="Matches">{status.counts.matches}</Row>
               <Row label="Unread">{status.counts.unread}</Row>
             </section>

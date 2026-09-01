@@ -233,6 +233,7 @@ export const QUERY_SYNTAX = [
   { op: "OR", meaning: "Either side may match. Example: FOMC OR Powell" },
   { op: "()", meaning: "Group clauses. Example: (hike OR cut) rates" },
   { op: "from:user", meaning: "Only posts by that account (no @). Example: from:federalreserve" },
+  { op: "$TICKER", meaning: "Cashtag. Signal1 adds the $ for you from the Watchlist. Example: $NVDA" },
   { op: "-is:retweet", meaning: "Drop retweets. Highly recommended." },
   { op: "lang:en", meaning: "Restrict to English." },
   { op: "has:links", meaning: "Only posts that contain a URL." },

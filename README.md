@@ -78,6 +78,16 @@ NVDA (earnings OR guidance) lang:en -is:retweet
 
 The **accounts helper** compiles `nvidia, apple` into `(from:nvidia OR from:apple)` and prepends it to the free-text query.
 
+## Watchlist (cashtags)
+
+**Watchlist** is a list of stock tickers you want FinTwit alerts on. Paste `NVDA, AAPL, TSLA` — you do not type the `$`. Signal1 compiles an extra recent-search rule:
+
+```
+($AAPL OR $NVDA OR $TSLA) lang:en -is:retweet
+```
+
+Long lists are split into multiple Watchlist rules so each query stays under the X 512-character limit. Matches land in the inbox like any other rule, named **Watchlist**. Pause screening or change the poll interval on that page without deleting the names.
+
 Poll interval defaults to **2 minutes**. The UI allows **15 seconds** so demos and local tests are usable. Live accounts should stay at 2 minutes or slower — recent search is rate-limited per app.
 
 ## Notifications
@@ -176,7 +186,7 @@ Do not lower every interval to 15s on a live token. Recent search budgets are sm
 npm test
 ```
 
-Covers query compilation (including the accounts helper), tweet/rule dedup against SQLite, demo fixture coverage of the sample rules, webhook payload shape, and +/− training labels that boost or suppress authors.
+Covers query compilation (including the accounts helper), tweet/rule dedup against SQLite, demo fixture coverage of the sample rules, webhook payload shape, +/− training labels that boost or suppress authors, and watchlist cashtag compilation.
 
 ## Layout
 

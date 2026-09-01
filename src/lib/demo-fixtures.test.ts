@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { compileQuery, matchesQuery } from "./query";
+import { compileCashtagQuery } from "./tickers";
 import { DEMO_FIXTURES, fixtureToTweet } from "./demo-fixtures";
 import { passesSignalFilter } from "./signal-filter";
 
@@ -35,6 +36,12 @@ describe("demo fixtures", () => {
       const hits = DEMO_FIXTURES.filter((fixture) => matchesQuery(fixture, query));
       expect(hits.length, `expected hits for ${query}`).toBeGreaterThanOrEqual(2);
     }
+  });
+
+  it("covers a Mag 7 cashtag screen with at least two matches", () => {
+    const query = compileCashtagQuery(["NVDA", "AAPL", "MSFT", "TSLA", "SPY", "QQQ"]);
+    const hits = DEMO_FIXTURES.filter((fixture) => matchesQuery(fixture, query));
+    expect(hits.length).toBeGreaterThanOrEqual(2);
   });
 
   it("assigns high-signal desk metrics so fixtures pass the quality filter", () => {

@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
-import { clampPollIntervalMs, databasePath, DEFAULT_POLL_INTERVAL_MS, isDemoMode } from "./config";
+import { clampPollIntervalMs, databasePath, DEFAULT_POLL_INTERVAL_MS, isDemoMode, MAX_WATCHLIST_TICKERS } from "./config";
 import { compileQuery, normalizeAccounts } from "./query";
 import { likePattern, tokenizeSearch } from "./search";
 import {
@@ -12,7 +12,8 @@ import {
   type AuthorPrior,
   type UserLabel,
 } from "./signal-filter";
-import type { Match, NormalizedTweet, Rule, RuleInput, StatusSnapshot } from "./types";
+import { chunkTickersForQuery, compileCashtagQuery, normalizeTickers } from "./tickers";
+import type { Match, NormalizedTweet, Rule, RuleInput, StatusSnapshot, WatchlistSnapshot } from "./types";
 
 type RuleRow = {
   id: string;
@@ -29,6 +30,8 @@ type RuleRow = {
   last_error: string | null;
   created_at: string;
   updated_at: string;
+  kind: string | null;
+  watchlist_chunk: number | null;
 };
 
 type MatchRow = {
@@ -82,6 +85,8 @@ function mapRule(row: RuleRow): Rule {
     lastError: row.last_error,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    kind: row.kind === "watchlist" ? "watchlist" : "custom",
+    watchlistChunk: typeof row.watchlist_chunk === "number" ? row.watchlist_chunk : null,
   };
 }
 
@@ -158,8 +163,14 @@ function migrate(db: Database.Database) {
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS tickers (
+      symbol TEXT PRIMARY KEY,
+      created_at TEXT NOT NULL
+    );
   `);
 
+  ensureColumn(db, "rules", "kind", "TEXT NOT NULL DEFAULT 'custom'");
+  ensureColumn(db, "rules", "watchlist_chunk", "INTEGER");
   ensureColumn(db, "matches", "author_followers", "INTEGER");
   ensureColumn(db, "matches", "like_count", "INTEGER");
   ensureColumn(db, "matches", "signal_score", "REAL");
@@ -479,6 +490,9 @@ export function createRule(input: RuleInput, db = getDb()): Rule {
 export function updateRule(id: string, input: Partial<RuleInput>, db = getDb()): Rule {
   const existing = getRule(id, db);
   if (!existing) throw new Error("Rule not found");
+  if (existing.kind === "watchlist") {
+    throw new Error("Watchlist cashtag rules are edited on the Watchlist page.");
+  }
   const merged: RuleInput = {
     name: input.name ?? existing.name,
     enabled: input.enabled ?? existing.enabled,
@@ -513,6 +527,11 @@ export function updateRule(id: string, input: Partial<RuleInput>, db = getDb()):
 }
 
 export function deleteRule(id: string, db = getDb()): boolean {
+  const existing = getRule(id, db);
+  if (!existing) return false;
+  if (existing.kind === "watchlist") {
+    throw new Error("Watchlist cashtag rules are edited on the Watchlist page.");
+  }
   const result = db.prepare("DELETE FROM rules WHERE id = ?").run(id);
   return result.changes > 0;
 }
@@ -658,8 +677,9 @@ export function getStatus(opts: { demoMode: boolean; bearerPresent: boolean }, d
       (SELECT COUNT(*) FROM rules) AS rules,
       (SELECT COUNT(*) FROM rules WHERE enabled = 1) AS enabled_rules,
       (SELECT COUNT(*) FROM matches WHERE (signal_pass IS NULL OR signal_pass = 1) ${opts.demoMode ? "" : "AND tweet_id NOT LIKE 'demo-%'"}) AS matches,
-      (SELECT COUNT(*) FROM matches WHERE read = 0 AND (signal_pass IS NULL OR signal_pass = 1) ${opts.demoMode ? "" : "AND tweet_id NOT LIKE 'demo-%'"}) AS unread
-  `).get() as { rules: number; enabled_rules: number; matches: number; unread: number };
+      (SELECT COUNT(*) FROM matches WHERE read = 0 AND (signal_pass IS NULL OR signal_pass = 1) ${opts.demoMode ? "" : "AND tweet_id NOT LIKE 'demo-%'"}) AS unread,
+      (SELECT COUNT(*) FROM tickers) AS tickers
+  `).get() as { rules: number; enabled_rules: number; matches: number; unread: number; tickers: number };
 
   const training = db.prepare(`
     SELECT
@@ -694,6 +714,130 @@ export function getStatus(opts: { demoMode: boolean; bearerPresent: boolean }, d
       enabledRules: counts.enabled_rules,
       matches: counts.matches,
       unread: counts.unread,
+      tickers: counts.tickers,
     },
   };
+}
+
+export function listTickers(db = getDb()): string[] {
+  const rows = db.prepare("SELECT symbol FROM tickers ORDER BY symbol ASC").all() as Array<{ symbol: string }>;
+  return rows.map((row) => row.symbol);
+}
+
+function listWatchlistRules(db: Database.Database): Rule[] {
+  const rows = db.prepare(
+    "SELECT * FROM rules WHERE kind = 'watchlist' ORDER BY COALESCE(watchlist_chunk, 0) ASC, created_at ASC",
+  ).all() as RuleRow[];
+  return rows.map(mapRule);
+}
+
+function watchlistEnabled(db: Database.Database): boolean {
+  return (getMeta("watchlist_enabled", db) ?? "1") !== "0";
+}
+
+function watchlistPollIntervalMs(db: Database.Database): number {
+  return clampPollIntervalMs(Number(getMeta("watchlist_poll_interval_ms", db) ?? DEFAULT_POLL_INTERVAL_MS));
+}
+
+export function getWatchlist(db = getDb()): WatchlistSnapshot {
+  const tickers = listTickers(db);
+  const rules = listWatchlistRules(db);
+  return {
+    tickers,
+    enabled: watchlistEnabled(db),
+    pollIntervalMs: watchlistPollIntervalMs(db),
+    compiledQueries: chunkTickersForQuery(tickers).map((chunk) => compileCashtagQuery(chunk)),
+    rules: rules.map((rule) => ({
+      id: rule.id,
+      name: rule.name,
+      enabled: rule.enabled,
+      query: rule.query,
+      lastPolledAt: rule.lastPolledAt,
+      lastError: rule.lastError,
+    })),
+  };
+}
+
+export function syncWatchlistRules(db = getDb()) {
+  const tickers = listTickers(db);
+  const enabled = watchlistEnabled(db) && tickers.length > 0;
+  const interval = watchlistPollIntervalMs(db);
+  const chunks = chunkTickersForQuery(tickers);
+  const existing = listWatchlistRules(db);
+  const ts = nowIso();
+
+  const apply = db.transaction(() => {
+    if (chunks.length === 0) {
+      for (const rule of existing) {
+        db.prepare("DELETE FROM rules WHERE id = ?").run(rule.id);
+      }
+      return;
+    }
+    for (let i = 0; i < chunks.length; i += 1) {
+      const query = compileCashtagQuery(chunks[i]);
+      const name = chunks.length === 1 ? "Watchlist" : `Watchlist ${i + 1}`;
+      const current = existing[i];
+      if (current) {
+        db.prepare(`
+          UPDATE rules SET
+            name = ?, enabled = ?, query = ?, query_input = ?,
+            poll_interval_ms = ?, watchlist_chunk = ?, kind = 'watchlist', updated_at = ?
+          WHERE id = ?
+        `).run(name, enabled ? 1 : 0, query, query, interval, i, ts, current.id);
+      } else {
+        db.prepare(`
+          INSERT INTO rules (
+            id, name, enabled, query, query_input, accounts_json, poll_interval_ms,
+            slack_webhook_url, generic_webhook_url, created_at, updated_at, kind, watchlist_chunk
+          ) VALUES (?, ?, ?, ?, ?, '[]', ?, NULL, NULL, ?, ?, 'watchlist', ?)
+        `).run(crypto.randomUUID(), name, enabled ? 1 : 0, query, query, interval, ts, ts, i);
+      }
+    }
+    for (const extra of existing.slice(chunks.length)) {
+      db.prepare("DELETE FROM rules WHERE id = ?").run(extra.id);
+    }
+  });
+  apply();
+}
+
+export function replaceTickers(input: string[] | string, db = getDb()): WatchlistSnapshot {
+  const symbols = normalizeTickers(input);
+  if (symbols.length > MAX_WATCHLIST_TICKERS) {
+    throw new Error(`Watchlist is capped at ${MAX_WATCHLIST_TICKERS} tickers.`);
+  }
+  const write = db.transaction(() => {
+    db.prepare("DELETE FROM tickers").run();
+    const insert = db.prepare("INSERT INTO tickers (symbol, created_at) VALUES (?, ?)");
+    const ts = nowIso();
+    for (const symbol of symbols) insert.run(symbol, ts);
+    syncWatchlistRules(db);
+  });
+  write();
+  return getWatchlist(db);
+}
+
+export function addTickers(input: string[] | string, db = getDb()): WatchlistSnapshot {
+  return replaceTickers([...listTickers(db), ...normalizeTickers(input)], db);
+}
+
+export function removeTickers(input: string[] | string, db = getDb()): WatchlistSnapshot {
+  const drop = new Set(normalizeTickers(input));
+  return replaceTickers(
+    listTickers(db).filter((symbol) => !drop.has(symbol)),
+    db,
+  );
+}
+
+export function setWatchlistSettings(
+  input: { enabled?: boolean; pollIntervalMs?: number },
+  db = getDb(),
+): WatchlistSnapshot {
+  if (input.enabled !== undefined) {
+    setMeta("watchlist_enabled", input.enabled ? "1" : "0", db);
+  }
+  if (input.pollIntervalMs !== undefined) {
+    setMeta("watchlist_poll_interval_ms", String(clampPollIntervalMs(input.pollIntervalMs)), db);
+  }
+  syncWatchlistRules(db);
+  return getWatchlist(db);
 }
