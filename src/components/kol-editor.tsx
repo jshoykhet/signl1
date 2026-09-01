@@ -195,8 +195,8 @@ export function KolEditor() {
             <div className="max-h-[28rem] overflow-auto">
               <table className="w-full min-w-[36rem] table-fixed border-collapse text-[13px]">
                 <thead className="sticky top-0 z-10">
-                  <tr className="bg-muted/95 text-left text-[11px] font-semibold tracking-wider text-muted-foreground uppercase backdrop-blur">
-                    <th className="w-[42%] min-w-[10rem] border-b border-r border-border/80">
+                  <tr className="bg-muted text-left text-[11px] font-medium text-muted-foreground">
+                    <th className="w-[42%] min-w-[10rem] border-b border-r border-border">
                       <button
                         type="button"
                         className="flex w-full items-center gap-1.5 px-3 py-2 text-left hover:text-foreground"
@@ -206,7 +206,7 @@ export function KolEditor() {
                         <SortIcon active={sortKey === "handle"} dir={sortDir} />
                       </button>
                     </th>
-                    <th className="w-[22%] min-w-[6.5rem] border-b border-r border-border/80">
+                    <th className="w-[22%] min-w-[6.5rem] border-b border-r border-border">
                       <button
                         type="button"
                         className="flex w-full items-center gap-1.5 px-3 py-2 text-left hover:text-foreground"
@@ -216,7 +216,7 @@ export function KolEditor() {
                         <SortIcon active={sortKey === "source"} dir={sortDir} />
                       </button>
                     </th>
-                    <th className="w-[18%] min-w-[5.5rem] border-b border-r border-border/80">
+                    <th className="w-[18%] min-w-[5.5rem] border-b border-r border-border">
                       <button
                         type="button"
                         className="flex w-full items-center gap-1.5 px-3 py-2 text-left hover:text-foreground"
@@ -226,7 +226,9 @@ export function KolEditor() {
                         <SortIcon active={sortKey === "status"} dir={sortDir} />
                       </button>
                     </th>
-                    <th className="w-[18%] min-w-[5.5rem] border-b border-border/80 px-3 py-2 text-right">Action</th>
+                    <th className="w-[18%] min-w-[5.5rem] border-b border-border px-3 py-2 text-right">
+                      Action
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -239,29 +241,27 @@ export function KolEditor() {
                       </td>
                     </tr>
                   ) : (
-                    rows.map((item, index) => (
+                    rows.map((item) => (
                       <tr
                         key={item.handle}
-                        className={`border-b border-border/60 last:border-b-0 hover:bg-muted/40 ${
-                          item.active ? "" : "text-muted-foreground"
-                        } ${index % 2 === 1 ? "bg-muted/15" : ""}`}
+                        className={item.active ? "hover:bg-muted/50" : "bg-muted/10 text-muted-foreground hover:bg-muted/30"}
                       >
-                        <td className="border-r border-border/60 px-3 py-1.5 font-mono text-[13px]">
+                        <td className="border-r border-b border-border px-3 py-1.5 font-mono text-[13px] leading-6">
                           @{item.handle}
                         </td>
-                        <td className="border-r border-border/60 px-3 py-1.5">
+                        <td className="border-r border-b border-border px-3 py-1.5 leading-6">
                           <Badge variant={item.source === "added" ? "default" : "outline"} className="font-normal">
                             {item.source === "added" ? "Added" : "Seed"}
                           </Badge>
                         </td>
-                        <td className="border-r border-border/60 px-3 py-1.5">
+                        <td className="border-r border-b border-border px-3 py-1.5 leading-6">
                           {item.active ? (
                             <span className="text-emerald-400">Active</span>
                           ) : (
                             <span className="text-amber-300">Removed</span>
                           )}
                         </td>
-                        <td className="px-2 py-1 text-right">
+                        <td className="border-b border-border px-2 py-1 text-right">
                           {item.active ? (
                             <Button
                               type="button"
