@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +16,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { RuleForm, type RuleFormValue } from "@/components/rule-form";
 import { formatInterval, formatRelative } from "@/lib/format";
+import { tokenizeSearch } from "@/lib/search";
 import type { Rule } from "@/lib/types";
 
 export function RulesView() {
@@ -24,6 +26,7 @@ export function RulesView() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Rule | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [query, setQuery] = useState("");
 
   const load = async () => {
     try {
@@ -115,14 +118,33 @@ export function RulesView() {
     load();
   };
 
+  const tokens = tokenizeSearch(query);
+  const visibleRules =
+    tokens.length === 0
+      ? rules
+      : rules.filter((rule) => {
+          const haystack = `${rule.name} ${rule.query} ${rule.queryInput} ${rule.accounts.join(" ")}`.toLowerCase();
+          return tokens.every((token) => haystack.includes(token));
+        });
+
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex items-center gap-3 border-b border-border/80 px-5 py-3">
-        <div className="min-w-0 flex-1">
+      <header className="flex flex-wrap items-center gap-3 border-b border-border/80 px-5 py-3">
+        <div className="min-w-0">
           <h1 className="text-sm font-semibold tracking-tight">Rules</h1>
           <p className="text-xs text-muted-foreground">
             Each enabled rule is polled on its own interval using X recent-search syntax.
           </p>
+        </div>
+        <div className="relative min-w-56 flex-1">
+          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search rules or queries…"
+            className="pl-8 font-mono text-[13px]"
+            aria-label="Search rules"
+          />
         </div>
         <Button
           size="sm"
@@ -145,6 +167,8 @@ export function RulesView() {
           <div className="px-5 py-10 text-sm text-muted-foreground">Loading rules…</div>
         ) : rules.length === 0 ? (
           <div className="px-5 py-10 text-sm text-muted-foreground">No rules yet. Create one to start scanning.</div>
+        ) : visibleRules.length === 0 ? (
+          <div className="px-5 py-10 text-sm text-muted-foreground">No rules match “{query.trim()}”.</div>
         ) : (
           <table className="w-full text-left text-[13px]">
             <thead className="sticky top-0 bg-background text-[11px] tracking-wide text-muted-foreground uppercase">
@@ -158,7 +182,7 @@ export function RulesView() {
               </tr>
             </thead>
             <tbody>
-              {rules.map((rule) => (
+              {visibleRules.map((rule) => (
                 <tr key={rule.id} className="border-b border-border/60 align-top">
                   <td className="px-5 py-3">
                     <Switch checked={rule.enabled} onCheckedChange={(checked) => toggle(rule, Boolean(checked))} />

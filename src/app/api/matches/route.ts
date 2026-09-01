@@ -9,11 +9,13 @@ export async function GET(request: Request) {
   const ruleId = url.searchParams.get("ruleId") ?? undefined;
   const unread = url.searchParams.get("unread") === "1";
   const quality = url.searchParams.get("quality") !== "0";
+  const q = url.searchParams.get("q") ?? undefined;
   const limit = Number(url.searchParams.get("limit") ?? "200");
   const matches = listMatches({
     ruleId,
     unread,
     quality,
+    q,
     limit: Number.isFinite(limit) ? limit : 200,
   });
   return NextResponse.json({ matches });

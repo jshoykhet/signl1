@@ -3,6 +3,7 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import { clampPollIntervalMs, databasePath, DEFAULT_POLL_INTERVAL_MS, isDemoMode } from "./config";
 import { compileQuery, normalizeAccounts } from "./query";
+import { likePattern, tokenizeSearch } from "./search";
 import { MIN_FOLLOWERS, MIN_LIKES, MIN_SIGNAL_SCORE, passesSignalFilter } from "./signal-filter";
 import type { Match, NormalizedTweet, Rule, RuleInput, StatusSnapshot } from "./types";
 
@@ -450,7 +451,7 @@ export function tryInsertMatch(
 }
 
 export function listMatches(
-  opts: { ruleId?: string; unread?: boolean; limit?: number; quality?: boolean } = {},
+  opts: { ruleId?: string; unread?: boolean; limit?: number; quality?: boolean; q?: string } = {},
   db = getDb(),
 ): Match[] {
   const limit = Math.min(Math.max(opts.limit ?? 200, 1), 500);
@@ -468,6 +469,13 @@ export function listMatches(
     if (!isDemoMode()) {
       clauses.push("m.tweet_id NOT LIKE 'demo-%'");
     }
+  }
+  for (const token of tokenizeSearch(opts.q ?? "")) {
+    clauses.push(
+      `(lower(m.text) LIKE ? ESCAPE char(92) OR lower(m.author_handle) LIKE ? ESCAPE char(92) OR lower(m.author_name) LIKE ? ESCAPE char(92) OR lower(r.name) LIKE ? ESCAPE char(92) OR lower(m.tweet_id) LIKE ? ESCAPE char(92))`,
+    );
+    const pattern = likePattern(token);
+    params.push(pattern, pattern, pattern, pattern, pattern);
   }
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
   const rows = db.prepare(`

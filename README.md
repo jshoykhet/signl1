@@ -104,6 +104,8 @@ Every match lands in the in-app inbox.
 
 Webhook failures are logged on the poller; they do not drop the inbox row.
 
+The inbox and rules pages are searchable. In the inbox, `/` or Ctrl/Cmd+K focuses search; tokens match tweet text, @handle, display name, rule name, and tweet id.
+
 ## Docker Compose
 
 `docker compose up --build` starts:

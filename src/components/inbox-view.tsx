@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ExternalLink, Filter } from "lucide-react";
+import { ExternalLink, Filter, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -22,6 +23,7 @@ export function InboxView() {
   const [rules, setRules] = useState<Rule[]>([]);
   const [ruleId, setRuleId] = useState<string>("all");
   const [unreadOnly, setUnreadOnly] = useState(false);
+  const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,6 +33,11 @@ export function InboxView() {
       const params = new URLSearchParams();
       if (ruleId !== "all") params.set("ruleId", ruleId);
       if (unreadOnly) params.set("unread", "1");
+      const trimmed = query.trim();
+      if (trimmed) {
+        params.set("q", trimmed);
+        params.set("limit", "500");
+      }
       const [matchRes, ruleRes] = await Promise.all([
         fetch(`/api/matches?${params.toString()}`, { cache: "no-store" }),
         fetch("/api/rules", { cache: "no-store" }),
@@ -49,12 +56,32 @@ export function InboxView() {
   };
 
   useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const typing =
+        target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable;
+      if (typing) return;
+      if (event.key === "/" || ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k")) {
+        event.preventDefault();
+        document.getElementById("inbox-search")?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     const run = async () => {
       try {
         const params = new URLSearchParams();
         if (ruleId !== "all") params.set("ruleId", ruleId);
         if (unreadOnly) params.set("unread", "1");
+        const trimmed = query.trim();
+        if (trimmed) {
+          params.set("q", trimmed);
+          params.set("limit", "500");
+        }
         const [matchRes, ruleRes] = await Promise.all([
           fetch(`/api/matches?${params.toString()}`, { cache: "no-store" }),
           fetch("/api/rules", { cache: "no-store" }),
@@ -72,15 +99,19 @@ export function InboxView() {
         if (!cancelled) setLoading(false);
       }
     };
-    void run();
+    const delay = query.trim() ? 200 : 0;
+    const kickoff = setTimeout(() => {
+      void run();
+    }, delay);
     const timer = setInterval(() => {
       void run();
     }, 3000);
     return () => {
       cancelled = true;
+      clearTimeout(kickoff);
       clearInterval(timer);
     };
-  }, [ruleId, unreadOnly]);
+  }, [ruleId, unreadOnly, query]);
 
   const selected = useMemo(
     () => matches.find((m) => m.id === selectedId) ?? matches[0] ?? null,
@@ -116,10 +147,21 @@ export function InboxView() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex items-center gap-3 border-b border-border/80 px-5 py-3">
-        <div className="min-w-0 flex-1">
+      <header className="flex flex-wrap items-center gap-3 border-b border-border/80 px-5 py-3">
+        <div className="min-w-0">
           <h1 className="text-sm font-semibold tracking-tight">Inbox</h1>
           <p className="text-xs text-muted-foreground">Newest matches first. Low-signal accounts are filtered out.</p>
+        </div>
+        <div className="relative min-w-56 flex-1">
+          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            id="inbox-search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search posts, @handles, rules…"
+            className="pl-8 font-mono text-[13px]"
+            aria-label="Search inbox"
+          />
         </div>
         <div className="flex items-center gap-3">
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -159,7 +201,9 @@ export function InboxView() {
             <div className="px-5 py-10 text-sm text-muted-foreground">Loading matches…</div>
           ) : matches.length === 0 ? (
             <div className="px-5 py-10 text-sm text-muted-foreground">
-              No quality matches yet. Noise below 50 followers or 5 likes is dropped. Wait for the next live poll.
+              {query.trim()
+                ? `No matches for “${query.trim()}”.`
+                : "No quality matches yet. Noise below 50 followers or 5 likes is dropped. Wait for the next live poll."}
             </div>
           ) : (
             <ul>
