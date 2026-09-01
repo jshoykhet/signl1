@@ -127,8 +127,12 @@ export function SettingsView() {
                 <p className="text-[13px] leading-relaxed text-muted-foreground">
                   Matches need ≥{status.qualityFilter.minFollowers} followers and ≥{status.qualityFilter.minLikes} likes,
                   plus a signal score that favors desks which typically draw engagement. A fresh post from an account
-                  with 10k+ followers can land before likes accrue.
+                  with 10k+ followers can land before likes accrue. Inbox + / − labels train author priors: two or more
+                  net-low votes suppress that account; two or more net-high votes relax the floors.
                 </p>
+              </Row>
+              <Row label="Training labels">
+                {status.training.high} high / {status.training.low} low
               </Row>
             </section>
             <section className="overflow-hidden rounded-lg border border-border/80">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ExternalLink, Filter, Search } from "lucide-react";
+import { ExternalLink, Filter, Minus, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -16,7 +16,60 @@ import {
 } from "@/components/ui/select";
 import { formatClock, formatCompact, formatRelative } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { Match, Rule } from "@/lib/types";
+import type { Match, Rule, UserLabel } from "@/lib/types";
+
+function SignalVote({
+  match,
+  onVote,
+  size = "compact",
+}: {
+  match: Match;
+  onVote: (match: Match, label: UserLabel) => void;
+  size?: "compact" | "full";
+}) {
+  return (
+    <div
+      className={cn("flex shrink-0", size === "full" ? "gap-1" : "flex-col gap-0.5")}
+      onClick={(event) => event.stopPropagation()}
+      onKeyDown={(event) => event.stopPropagation()}
+    >
+      <Button
+        type="button"
+        variant="ghost"
+        size={size === "full" ? "sm" : "icon-xs"}
+        title="High signal — keep tweets like this"
+        aria-label="Mark high signal"
+        aria-pressed={match.userLabel === "high"}
+        className={cn(
+          "font-mono",
+          match.userLabel === "high" &&
+            "bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 hover:text-emerald-300",
+        )}
+        onClick={() => onVote(match, "high")}
+      >
+        <Plus className="size-3.5" />
+        {size === "full" ? "High" : null}
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size={size === "full" ? "sm" : "icon-xs"}
+        title="Low signal — hide tweets like this"
+        aria-label="Mark low signal"
+        aria-pressed={match.userLabel === "low"}
+        className={cn(
+          "font-mono",
+          match.userLabel === "low" &&
+            "bg-destructive/15 text-destructive hover:bg-destructive/25",
+        )}
+        onClick={() => onVote(match, "low")}
+      >
+        <Minus className="size-3.5" />
+        {size === "full" ? "Low" : null}
+      </Button>
+    </div>
+  );
+}
 
 export function InboxView() {
   const [matches, setMatches] = useState<Match[]>([]);
@@ -118,6 +171,27 @@ export function InboxView() {
     [matches, selectedId],
   );
 
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const typing =
+        target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable;
+      if (typing || !selected) return;
+      if (event.key === "+" || event.key === "=") {
+        event.preventDefault();
+        void vote(selected, "high");
+      }
+      if (event.key === "-" || event.key === "_") {
+        event.preventDefault();
+        void vote(selected, "low");
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // vote is stable enough via selected + matches closure; we rebind when selected changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected]);
+
   const mark = async (id: string, read: boolean) => {
     const res = await fetch(`/api/matches/${id}`, {
       method: "PATCH",
@@ -129,6 +203,27 @@ export function InboxView() {
       return;
     }
     setMatches((prev) => prev.map((m) => (m.id === id ? { ...m, read } : m)));
+  };
+
+  const vote = async (match: Match, label: UserLabel) => {
+    const next = match.userLabel === label ? null : label;
+    setMatches((prev) =>
+      prev.map((m) => (m.tweetId === match.tweetId ? { ...m, userLabel: next } : m)),
+    );
+    const res = await fetch(`/api/matches/${match.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ userLabel: next }),
+    });
+    if (!res.ok) {
+      toast.error("Could not save signal label");
+      load();
+      return;
+    }
+    toast.success(
+      next === "high" ? "Marked high signal" : next === "low" ? "Marked low signal" : "Cleared label",
+    );
+    load();
   };
 
   const markAll = async () => {
@@ -150,7 +245,9 @@ export function InboxView() {
       <header className="flex flex-wrap items-center gap-3 border-b border-border/80 px-5 py-3">
         <div className="min-w-0">
           <h1 className="text-sm font-semibold tracking-tight">Inbox</h1>
-          <p className="text-xs text-muted-foreground">Newest matches first. Low-signal accounts are filtered out.</p>
+          <p className="text-xs text-muted-foreground">
+            Newest matches first. Use + / − to train which accounts are high or low signal.
+          </p>
         </div>
         <div className="relative min-w-56 flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -211,49 +308,63 @@ export function InboxView() {
                 const active = selected?.id === match.id;
                 return (
                   <li key={match.id}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedId(match.id);
-                        if (!match.read) mark(match.id, true);
-                      }}
+                    <div
                       className={cn(
-                        "flex w-full items-start gap-3 border-b border-border/60 px-4 py-2.5 text-left transition-colors",
+                        "flex w-full items-start gap-2 border-b border-border/60 pr-2 text-left transition-colors",
                         active ? "bg-muted/70" : "hover:bg-muted/40",
+                        match.userLabel === "low" && "opacity-55",
                       )}
                     >
-                      <span
-                        className={cn(
-                          "mt-1.5 size-1.5 shrink-0 rounded-full",
-                          match.read ? "bg-transparent" : "bg-amber-400",
-                        )}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-baseline gap-2">
-                          <span className="font-mono text-[12px] text-foreground">@{match.authorHandle}</span>
-                          <span className="truncate text-[11px] text-muted-foreground">{match.authorName}</span>
-                          <span className="ml-auto shrink-0 font-mono text-[10px] text-muted-foreground">
-                            {formatRelative(match.matchedAt)}
-                          </span>
-                        </div>
-                        <p className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-foreground/90">{match.text}</p>
-                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                          <Badge variant="outline" className="h-4 rounded-sm px-1.5 text-[10px] font-normal">
-                            {match.ruleName}
-                          </Badge>
-                          {match.followersCount != null ? (
-                            <span className="font-mono text-[10px] text-muted-foreground">
-                              {formatCompact(match.followersCount)} fol
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedId(match.id);
+                          if (!match.read) mark(match.id, true);
+                        }}
+                        className="flex min-w-0 flex-1 items-start gap-3 px-4 py-2.5 text-left"
+                      >
+                        <span
+                          className={cn(
+                            "mt-1.5 size-1.5 shrink-0 rounded-full",
+                            match.read ? "bg-transparent" : "bg-amber-400",
+                          )}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-baseline gap-2">
+                            <span className="font-mono text-[12px] text-foreground">@{match.authorHandle}</span>
+                            <span className="truncate text-[11px] text-muted-foreground">{match.authorName}</span>
+                            <span className="ml-auto shrink-0 font-mono text-[10px] text-muted-foreground">
+                              {formatRelative(match.matchedAt)}
                             </span>
-                          ) : null}
-                          {match.likeCount != null ? (
-                            <span className="font-mono text-[10px] text-muted-foreground">
-                              {formatCompact(match.likeCount)} likes
-                            </span>
-                          ) : null}
+                          </div>
+                          <p className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-foreground/90">{match.text}</p>
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                            <Badge variant="outline" className="h-4 rounded-sm px-1.5 text-[10px] font-normal">
+                              {match.ruleName}
+                            </Badge>
+                            {match.followersCount != null ? (
+                              <span className="font-mono text-[10px] text-muted-foreground">
+                                {formatCompact(match.followersCount)} fol
+                              </span>
+                            ) : null}
+                            {match.likeCount != null ? (
+                              <span className="font-mono text-[10px] text-muted-foreground">
+                                {formatCompact(match.likeCount)} likes
+                              </span>
+                            ) : null}
+                            {match.userLabel === "high" ? (
+                              <span className="font-mono text-[10px] text-emerald-400">high</span>
+                            ) : null}
+                            {match.userLabel === "low" ? (
+                              <span className="font-mono text-[10px] text-destructive">low</span>
+                            ) : null}
+                          </div>
                         </div>
+                      </button>
+                      <div className="pt-2">
+                        <SignalVote match={match} onVote={vote} />
                       </div>
-                    </button>
+                    </div>
                   </li>
                 );
               })}
@@ -268,7 +379,8 @@ export function InboxView() {
                   <div className="font-mono text-sm">@{selected.authorHandle}</div>
                   <div className="text-xs text-muted-foreground">{selected.authorName}</div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <SignalVote match={selected} onVote={vote} size="full" />
                   <Button variant="outline" size="sm" onClick={() => mark(selected.id, !selected.read)}>
                     {selected.read ? "Mark unread" : "Mark read"}
                   </Button>
@@ -297,6 +409,18 @@ export function InboxView() {
                 <dd>{formatCompact(selected.likeCount)}</dd>
                 <dt>Score</dt>
                 <dd>{selected.signalScore != null ? selected.signalScore : "—"}</dd>
+                <dt>Label</dt>
+                <dd className="text-foreground">
+                  {selected.userLabel === "high"
+                    ? "High signal"
+                    : selected.userLabel === "low"
+                      ? "Low signal"
+                      : "Unlabeled"}
+                </dd>
+                <dt>Author prior</dt>
+                <dd>
+                  {selected.authorPrior.high} high / {selected.authorPrior.low} low
+                </dd>
                 <dt>ID</dt>
                 <dd>{selected.tweetId}</dd>
               </dl>

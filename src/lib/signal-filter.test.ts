@@ -87,3 +87,60 @@ describe("passesSignalFilter", () => {
     expect(desk).toBeGreaterThan(40);
   });
 });
+
+describe("user labels and author priors", () => {
+  it("always keeps a tweet labeled high", () => {
+    const verdict = passesSignalFilter(quality({ followersCount: 12, likeCount: 0 }), now, {
+      userLabel: "high",
+    });
+    expect(verdict.pass).toBe(true);
+    expect(verdict.reasons).toContain("labeled high");
+  });
+
+  it("always drops a tweet labeled low", () => {
+    const verdict = passesSignalFilter(quality({ followersCount: 80_000, likeCount: 40 }), now, {
+      userLabel: "low",
+    });
+    expect(verdict.pass).toBe(false);
+    expect(verdict.reasons).toContain("labeled low");
+  });
+
+  it("suppresses an author after two net-low labels", () => {
+    const verdict = passesSignalFilter(quality({ followersCount: 80_000, likeCount: 40 }), now, {
+      prior: { high: 0, low: 2 },
+    });
+    expect(verdict.pass).toBe(false);
+    expect(verdict.prior.suppress).toBe(true);
+  });
+
+  it("does not suppress or boost when labels are tied", () => {
+    const verdict = passesSignalFilter(quality({ followersCount: 8_000, likeCount: 12 }), now, {
+      prior: { high: 2, low: 2 },
+    });
+    expect(verdict.pass).toBe(true);
+    expect(verdict.prior.suppress).toBe(false);
+    expect(verdict.prior.boost).toBe(false);
+  });
+
+  it("boosts an author after two net-high labels so low-engagement posts still pass", () => {
+    const verdict = passesSignalFilter(
+      quality({ followersCount: 40, likeCount: 0, retweetCount: 0, quoteCount: 0, replyCount: 0 }),
+      now,
+      { prior: { high: 2, low: 0 } },
+    );
+    expect(verdict.prior.boost).toBe(true);
+    expect(verdict.pass).toBe(true);
+  });
+
+  it("shifts the displayed score toward the labeled prior", () => {
+    const base = passesSignalFilter(quality({ followersCount: 8_000, likeCount: 12 }), now);
+    const boosted = passesSignalFilter(quality({ followersCount: 8_000, likeCount: 12 }), now, {
+      prior: { high: 4, low: 0 },
+    });
+    const penalized = passesSignalFilter(quality({ followersCount: 8_000, likeCount: 12 }), now, {
+      prior: { high: 0, low: 1 },
+    });
+    expect(boosted.score).toBeGreaterThan(base.score);
+    expect(penalized.score).toBeLessThan(base.score);
+  });
+});

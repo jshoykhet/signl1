@@ -11,11 +11,11 @@ import {
   markRulePolled,
   setMeta,
   tryInsertMatch,
+  evaluateTweetSignal,
 } from "../lib/db";
 import { DEMO_FIXTURES, fixtureToTweet } from "../lib/demo-fixtures";
 import { notifyMatch } from "../lib/notify";
 import { matchesQuery } from "../lib/query";
-import { passesSignalFilter } from "../lib/signal-filter";
 import type { NormalizedTweet, Rule } from "../lib/types";
 import { recentSearch, XRateLimiter } from "../lib/x-client";
 
@@ -39,7 +39,7 @@ function recordPoll(error?: string) {
 }
 
 async function ingestTweet(rule: Rule, tweet: NormalizedTweet): Promise<boolean> {
-  const verdict = passesSignalFilter(tweet);
+  const verdict = evaluateTweetSignal(tweet);
   if (!verdict.pass) return false;
   const result = tryInsertMatch(rule, tweet);
   if (!result.inserted) return false;

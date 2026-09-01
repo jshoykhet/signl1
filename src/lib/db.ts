@@ -4,7 +4,14 @@ import Database from "better-sqlite3";
 import { clampPollIntervalMs, databasePath, DEFAULT_POLL_INTERVAL_MS, isDemoMode } from "./config";
 import { compileQuery, normalizeAccounts } from "./query";
 import { likePattern, tokenizeSearch } from "./search";
-import { MIN_FOLLOWERS, MIN_LIKES, MIN_SIGNAL_SCORE, passesSignalFilter } from "./signal-filter";
+import {
+  MIN_FOLLOWERS,
+  MIN_LIKES,
+  MIN_SIGNAL_SCORE,
+  passesSignalFilter,
+  type AuthorPrior,
+  type UserLabel,
+} from "./signal-filter";
 import type { Match, NormalizedTweet, Rule, RuleInput, StatusSnapshot } from "./types";
 
 type RuleRow = {
@@ -41,6 +48,7 @@ type MatchRow = {
   like_count: number | null;
   signal_score: number | null;
   signal_pass: number | null;
+  user_label: string | null;
 };
 
 const globalForDb = globalThis as unknown as { signalDb?: Database.Database };
@@ -94,7 +102,13 @@ function mapMatch(row: MatchRow): Match {
     followersCount: row.author_followers,
     likeCount: row.like_count,
     signalScore: row.signal_score,
+    userLabel: parseUserLabel(row.user_label),
+    authorPrior: { high: 0, low: 0 },
   };
+}
+
+function parseUserLabel(value: string | null | undefined): UserLabel | null {
+  return value === "high" || value === "low" ? value : null;
 }
 
 function migrate(db: Database.Database) {
@@ -150,6 +164,7 @@ function migrate(db: Database.Database) {
   ensureColumn(db, "matches", "like_count", "INTEGER");
   ensureColumn(db, "matches", "signal_score", "REAL");
   ensureColumn(db, "matches", "signal_pass", "INTEGER");
+  ensureColumn(db, "matches", "user_label", "TEXT");
   backfillMatchQuality(db);
 }
 
@@ -189,16 +204,19 @@ function metricsFromRaw(rawJson: string): {
 }
 
 function backfillMatchQuality(db: Database.Database) {
+  const priors = listAuthorPriors(db);
   const rows = db.prepare(
-    "SELECT id, tweet_id, raw_json, tweet_created_at, author_followers, like_count, signal_pass FROM matches",
+    "SELECT id, tweet_id, raw_json, tweet_created_at, author_handle, author_followers, like_count, signal_pass, user_label FROM matches",
   ).all() as Array<{
     id: string;
     tweet_id: string;
     raw_json: string;
     tweet_created_at: string;
+    author_handle: string;
     author_followers: number | null;
     like_count: number | null;
     signal_pass: number | null;
+    user_label: string | null;
   }>;
   const update = db.prepare(
     "UPDATE matches SET author_followers = ?, like_count = ?, signal_score = ?, signal_pass = ? WHERE id = ?",
@@ -208,7 +226,8 @@ function backfillMatchQuality(db: Database.Database) {
     const followers = row.author_followers ?? metrics.followersCount;
     const likes = row.like_count ?? metrics.likeCount;
     if (followers == null && likes == null) {
-      const pass = row.tweet_id.startsWith("demo-") ? 1 : 0;
+      const labeled = parseUserLabel(row.user_label);
+      const pass = labeled === "high" ? 1 : labeled === "low" ? 0 : row.tweet_id.startsWith("demo-") ? 1 : 0;
       update.run(null, null, null, pass, row.id);
       continue;
     }
@@ -221,9 +240,12 @@ function backfillMatchQuality(db: Database.Database) {
       verified: metrics.verified,
       createdAt: row.tweet_created_at,
     };
-    const verdict = passesSignalFilter(quality);
+    const verdict = passesSignalFilter(quality, Date.now(), {
+      userLabel: parseUserLabel(row.user_label),
+      prior: priors.get(row.author_handle.toLowerCase()) ?? { high: 0, low: 0 },
+    });
     const pass =
-      followers == null
+      followers == null && parseUserLabel(row.user_label) == null
         ? likes != null && likes >= MIN_LIKES
           ? 1
           : likes != null
@@ -233,6 +255,103 @@ function backfillMatchQuality(db: Database.Database) {
           ? 1
           : 0;
     update.run(followers, likes, verdict.score, pass, row.id);
+  }
+}
+
+export function listAuthorPriors(db = getDb()): Map<string, AuthorPrior> {
+  const rows = db.prepare(`
+    SELECT lower(author_handle) AS handle,
+      COUNT(DISTINCT CASE WHEN user_label = 'high' THEN tweet_id END) AS high,
+      COUNT(DISTINCT CASE WHEN user_label = 'low' THEN tweet_id END) AS low
+    FROM matches
+    WHERE user_label IN ('high', 'low')
+    GROUP BY lower(author_handle)
+  `).all() as Array<{ handle: string; high: number; low: number }>;
+  const map = new Map<string, AuthorPrior>();
+  for (const row of rows) {
+    map.set(row.handle, { high: Number(row.high), low: Number(row.low) });
+  }
+  return map;
+}
+
+export function getAuthorPrior(handle: string, db = getDb()): AuthorPrior {
+  const row = db.prepare(`
+    SELECT
+      COUNT(DISTINCT CASE WHEN user_label = 'high' THEN tweet_id END) AS high,
+      COUNT(DISTINCT CASE WHEN user_label = 'low' THEN tweet_id END) AS low
+    FROM matches
+    WHERE lower(author_handle) = lower(?) AND user_label IN ('high', 'low')
+  `).get(handle) as { high: number; low: number };
+  return { high: Number(row.high), low: Number(row.low) };
+}
+
+export function getTweetLabel(tweetId: string, db = getDb()): UserLabel | null {
+  const row = db.prepare(
+    "SELECT user_label FROM matches WHERE tweet_id = ? AND user_label IN ('high', 'low') LIMIT 1",
+  ).get(tweetId) as { user_label: string } | undefined;
+  return parseUserLabel(row?.user_label);
+}
+
+export function evaluateTweetSignal(tweet: NormalizedTweet, db = getDb()) {
+  return passesSignalFilter(tweet, Date.now(), {
+    prior: getAuthorPrior(tweet.authorHandle, db),
+    userLabel: getTweetLabel(tweet.id, db),
+  });
+}
+
+function attachPriors(matches: Match[], db: Database.Database): Match[] {
+  const priors = listAuthorPriors(db);
+  return matches.map((match) => ({
+    ...match,
+    authorPrior: priors.get(match.authorHandle.toLowerCase()) ?? { high: 0, low: 0 },
+  }));
+}
+
+function getMatchById(id: string, db: Database.Database): Match | null {
+  const row = db.prepare(`
+    SELECT m.*, r.name AS rule_name
+    FROM matches m
+    JOIN rules r ON r.id = m.rule_id
+    WHERE m.id = ?
+  `).get(id) as MatchRow | undefined;
+  if (!row) return null;
+  return attachPriors([mapMatch(row)], db)[0] ?? null;
+}
+
+function recomputeAuthorQuality(handle: string, db: Database.Database) {
+  const prior = getAuthorPrior(handle, db);
+  const rows = db.prepare(
+    `SELECT id, tweet_id, raw_json, tweet_created_at, author_handle, author_followers, like_count, user_label
+     FROM matches WHERE lower(author_handle) = lower(?)`,
+  ).all(handle) as Array<{
+    id: string;
+    tweet_id: string;
+    raw_json: string;
+    tweet_created_at: string;
+    author_handle: string;
+    author_followers: number | null;
+    like_count: number | null;
+    user_label: string | null;
+  }>;
+  const update = db.prepare("UPDATE matches SET signal_score = ?, signal_pass = ? WHERE id = ?");
+  for (const row of rows) {
+    const metrics = metricsFromRaw(row.raw_json);
+    const followers = row.author_followers ?? metrics.followersCount ?? 0;
+    const likes = row.like_count ?? metrics.likeCount ?? 0;
+    const verdict = passesSignalFilter(
+      {
+        followersCount: followers,
+        likeCount: likes,
+        retweetCount: metrics.retweetCount,
+        replyCount: metrics.replyCount,
+        quoteCount: metrics.quoteCount,
+        verified: metrics.verified,
+        createdAt: row.tweet_created_at,
+      },
+      Date.now(),
+      { userLabel: parseUserLabel(row.user_label), prior },
+    );
+    update.run(verdict.score, verdict.pass ? 1 : 0, row.id);
   }
 }
 
@@ -416,14 +535,14 @@ export function tryInsertMatch(
   db = getDb(),
 ): { inserted: boolean; matchId: string | null } {
   const id = crypto.randomUUID();
-  const verdict = passesSignalFilter(tweet);
+  const verdict = evaluateTweetSignal(tweet, db);
   try {
     db.prepare(`
       INSERT INTO matches (
         id, tweet_id, rule_id, author_handle, author_name, text,
         tweet_created_at, permalink, raw_json, read, matched_at,
-        author_followers, like_count, signal_score, signal_pass
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
+        author_followers, like_count, signal_score, signal_pass, user_label
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)
     `).run(
       id,
       tweet.id,
@@ -439,6 +558,7 @@ export function tryInsertMatch(
       tweet.likeCount,
       verdict.score,
       verdict.pass ? 1 : 0,
+      verdict.userLabel,
     );
     return { inserted: true, matchId: id };
   } catch (error) {
@@ -465,7 +585,7 @@ export function listMatches(
     clauses.push("m.read = 0");
   }
   if (opts.quality !== false) {
-    clauses.push("(m.signal_pass IS NULL OR m.signal_pass = 1)");
+    clauses.push("(m.signal_pass IS NULL OR m.signal_pass = 1 OR m.user_label IN ('high', 'low'))");
     if (!isDemoMode()) {
       clauses.push("m.tweet_id NOT LIKE 'demo-%'");
     }
@@ -486,18 +606,22 @@ export function listMatches(
     ORDER BY m.matched_at DESC, m.tweet_created_at DESC
     LIMIT ?
   `).all(...params, limit) as MatchRow[];
-  return rows.map(mapMatch);
+  return attachPriors(rows.map(mapMatch), db);
 }
 
 export function setMatchRead(id: string, read: boolean, db = getDb()): Match | null {
   db.prepare("UPDATE matches SET read = ? WHERE id = ?").run(read ? 1 : 0, id);
-  const row = db.prepare(`
-    SELECT m.*, r.name AS rule_name
-    FROM matches m
-    JOIN rules r ON r.id = m.rule_id
-    WHERE m.id = ?
-  `).get(id) as MatchRow | undefined;
-  return row ? mapMatch(row) : null;
+  return getMatchById(id, db);
+}
+
+export function setMatchLabel(id: string, label: UserLabel | null, db = getDb()): Match | null {
+  const existing = db.prepare("SELECT id, tweet_id, author_handle FROM matches WHERE id = ?").get(id) as
+    | { id: string; tweet_id: string; author_handle: string }
+    | undefined;
+  if (!existing) return null;
+  db.prepare("UPDATE matches SET user_label = ? WHERE tweet_id = ?").run(label, existing.tweet_id);
+  recomputeAuthorQuality(existing.author_handle, db);
+  return getMatchById(id, db);
 }
 
 export function markAllMatchesRead(ruleId?: string, db = getDb()): number {
@@ -537,6 +661,13 @@ export function getStatus(opts: { demoMode: boolean; bearerPresent: boolean }, d
       (SELECT COUNT(*) FROM matches WHERE read = 0 AND (signal_pass IS NULL OR signal_pass = 1) ${opts.demoMode ? "" : "AND tweet_id NOT LIKE 'demo-%'"}) AS unread
   `).get() as { rules: number; enabled_rules: number; matches: number; unread: number };
 
+  const training = db.prepare(`
+    SELECT
+      COUNT(DISTINCT CASE WHEN user_label = 'high' THEN tweet_id END) AS high,
+      COUNT(DISTINCT CASE WHEN user_label = 'low' THEN tweet_id END) AS low
+    FROM matches
+  `).get() as { high: number; low: number };
+
   return {
     demoMode: opts.demoMode,
     bearerToken: opts.bearerPresent ? "present" : "missing",
@@ -553,6 +684,10 @@ export function getStatus(opts: { demoMode: boolean; bearerPresent: boolean }, d
       minFollowers: MIN_FOLLOWERS,
       minLikes: MIN_LIKES,
       minScore: MIN_SIGNAL_SCORE,
+    },
+    training: {
+      high: Number(training.high),
+      low: Number(training.low),
     },
     counts: {
       rules: counts.rules,

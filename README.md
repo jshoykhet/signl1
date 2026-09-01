@@ -153,6 +153,8 @@ Live matches are dropped unless they look like a real desk, not a zero-engagemen
 
 A post from an account with **10k+ followers** that is less than 10 minutes old can still alert before likes accrue. Settings lists the current thresholds. The inbox shows follower and like counts on each row.
 
+**Train the filter** with **+** (high signal) and **−** (low signal) on each match. Labels persist per tweet. After **two net-high** votes, that author is boosted (floors relax). After **two net-low** votes, new posts from that author are dropped. Click the same button again to clear. Keyboard: `+` / `-` on the selected match.
+
 ## Rate-limit troubleshooting
 
 The poller honors `x-rate-limit-remaining`, `x-rate-limit-reset`, and `Retry-After`. On `429` it backs off exponentially (capped at 15 minutes) and records the error on **Settings**.
@@ -174,7 +176,7 @@ Do not lower every interval to 15s on a live token. Recent search budgets are sm
 npm test
 ```
 
-Covers query compilation (including the accounts helper), tweet/rule dedup against SQLite, demo fixture coverage of the sample rules, and webhook payload shape.
+Covers query compilation (including the accounts helper), tweet/rule dedup against SQLite, demo fixture coverage of the sample rules, webhook payload shape, and +/− training labels that boost or suppress authors.
 
 ## Layout
 

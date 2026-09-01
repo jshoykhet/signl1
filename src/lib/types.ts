@@ -1,3 +1,7 @@
+import type { AuthorPrior, UserLabel } from "./signal-filter";
+
+export type { AuthorPrior, UserLabel };
+
 export type Rule = {
   id: string;
   name: string;
@@ -31,6 +35,8 @@ export type Match = {
   followersCount: number | null;
   likeCount: number | null;
   signalScore: number | null;
+  userLabel: UserLabel | null;
+  authorPrior: AuthorPrior;
 };
 
 export type NormalizedTweet = {
@@ -65,7 +71,7 @@ export type RuleInput = {
 export type StatusSnapshot = {
   demoMode: boolean;
   bearerToken: "present" | "missing";
-    poller: {
+  poller: {
     healthy: boolean;
     startedAt: string | null;
     lastHeartbeatAt: string | null;
@@ -78,6 +84,10 @@ export type StatusSnapshot = {
     minFollowers: number;
     minLikes: number;
     minScore: number;
+  };
+  training: {
+    high: number;
+    low: number;
   };
   counts: {
     rules: number;
