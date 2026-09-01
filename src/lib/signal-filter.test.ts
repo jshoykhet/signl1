@@ -168,6 +168,15 @@ describe("passesSignalFilter", () => {
     expect(verdict.reasons.some((r) => r.includes("likes"))).toBe(true);
   });
 
+  it("uses a custom min-likes floor", () => {
+    const verdict = passesSignalFilter(quality({ followersCount: 8_000, likeCount: 12 }), now, {
+      minLikes: 50,
+      allowFresh: false,
+    });
+    expect(verdict.pass).toBe(false);
+    expect(verdict.reasons.some((r) => r.includes("likes 12 < 50"))).toBe(true);
+  });
+
   it("raises floors on the higher signal level", () => {
     const standard = passesSignalFilter(quality({ followersCount: 8_000, likeCount: 12 }), now, {
       signalLevel: "standard",

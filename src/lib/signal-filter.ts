@@ -45,6 +45,7 @@ export type SignalContext = {
   signalLevel?: SignalLevel;
   allowFresh?: boolean;
   requireEngagement?: boolean;
+  minLikes?: number | null;
   kol?: boolean;
 };
 
@@ -209,13 +210,14 @@ export function passesSignalFilter(
     prior.boost ||
     (!requireEngagement && ((allowFresh && establishedFresh) || kol));
   const minDesk = deskFloor(q, { kol, boost: prior.boost, signalLevel: ctx.signalLevel });
+  const minLikes = ctx.minLikes ?? level.minLikes;
 
   if (q.followersCount < level.minFollowers && !prior.boost && !kol) {
     reasons.push(`followers ${q.followersCount} < ${level.minFollowers}`);
   }
 
-  if (q.likeCount < level.minLikes && !skipFloors) {
-    reasons.push(`likes ${q.likeCount} < ${level.minLikes}`);
+  if (q.likeCount < minLikes && !skipFloors) {
+    reasons.push(`likes ${q.likeCount} < ${minLikes}`);
   }
 
   if (score < level.minScore && !skipFloors) {

@@ -3,8 +3,10 @@ import {
   isDigestDue,
   parseBoolMeta,
   parseDigestMinutes,
+  parseMinLikes,
   parseSignalLevel,
   parseWhatsAppAlertMode,
+  effectiveMinLikes,
   SIGNAL_LEVELS,
 } from "./desk-settings";
 
@@ -25,7 +27,19 @@ describe("desk settings parsers", () => {
     expect(parseWhatsAppAlertMode("digest")).toBe("digest");
     expect(parseWhatsAppAlertMode(null)).toBe("immediate");
     expect(parseDigestMinutes("15")).toBe(15);
+    expect(parseDigestMinutes("5")).toBe(5);
+    expect(parseDigestMinutes("45")).toBe(45);
+    expect(parseDigestMinutes("180")).toBe(180);
     expect(parseDigestMinutes("9")).toBe(60);
+  });
+
+  it("parses a custom min-likes override", () => {
+    expect(parseMinLikes(null)).toBeNull();
+    expect(parseMinLikes("")).toBeNull();
+    expect(parseMinLikes("0")).toBe(0);
+    expect(parseMinLikes(50)).toBe(50);
+    expect(effectiveMinLikes({ signalLevel: "standard", minLikes: null })).toBe(5);
+    expect(effectiveMinLikes({ signalLevel: "low", minLikes: 25 })).toBe(25);
   });
 
   it("treats a missing last digest as due", () => {

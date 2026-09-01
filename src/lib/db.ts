@@ -16,9 +16,11 @@ import {
 import {
   parseBoolMeta,
   parseDigestMinutes,
+  parseMinLikes,
   parseSignalLevel,
   parseWhatsAppAlertMode,
   SIGNAL_LEVELS,
+  effectiveMinLikes,
   type DeskFilterSettings,
   type WhatsAppCadenceSettings,
 } from "./desk-settings";
@@ -275,7 +277,7 @@ function backfillMatchQuality(db: Database.Database) {
     });
     const pass =
       followers == null && parseUserLabel(row.user_label) == null
-        ? likes != null && likes >= SIGNAL_LEVELS[filters.signalLevel].minLikes
+        ? likes != null && likes >= effectiveMinLikes(filters)
           ? 1
           : likes != null
             ? 0
@@ -336,6 +338,7 @@ export function getDeskFilterSettings(db = getDb()): DeskFilterSettings {
     signalLevel: parseSignalLevel(getMeta("desk_signal_level", db)),
     allowFresh: parseBoolMeta(getMeta("desk_allow_fresh", db), true),
     requireEngagement: parseBoolMeta(getMeta("desk_require_engagement", db), false),
+    minLikes: parseMinLikes(getMeta("desk_min_likes", db)),
   };
 }
 
@@ -684,7 +687,7 @@ export function listMatches(
   return attachPriors(rows.map(mapMatch), db);
 }
 
-export function listMatchesSince(iso: string, limit = 40, db = getDb()): Match[] {
+export function listMatchesSince(iso: string, limit = 400, db = getDb()): Match[] {
   const rows = db.prepare(`
     SELECT m.*, r.name AS rule_name
     FROM matches m
@@ -693,7 +696,7 @@ export function listMatchesSince(iso: string, limit = 40, db = getDb()): Match[]
       AND (m.signal_pass IS NULL OR m.signal_pass = 1)
     ORDER BY m.matched_at ASC
     LIMIT ?
-  `).all(iso, Math.min(Math.max(limit, 1), 80)) as MatchRow[];
+  `).all(iso, Math.min(Math.max(limit, 1), 400)) as MatchRow[];
   return attachPriors(rows.map(mapMatch), db);
 }
 
@@ -771,6 +774,10 @@ export function setDeskFilterSettings(input: Partial<DeskFilterSettings>, db = g
   if (typeof input.allowFresh === "boolean") setMeta("desk_allow_fresh", input.allowFresh ? "1" : "0", db);
   if (typeof input.requireEngagement === "boolean") {
     setMeta("desk_require_engagement", input.requireEngagement ? "1" : "0", db);
+  }
+  if ("minLikes" in input) {
+    const parsed = parseMinLikes(input.minLikes);
+    setMeta("desk_min_likes", parsed == null ? "" : String(parsed), db);
   }
   return getDeskFilterSettings(db);
 }
@@ -868,7 +875,7 @@ export function getStatus(opts: { demoMode: boolean; bearerPresent: boolean }, d
     },
     qualityFilter: {
       minFollowers: floors.minFollowers,
-      minLikes: floors.minLikes,
+      minLikes: effectiveMinLikes(filters),
       minScore: floors.minScore,
       minDeskScore: floors.minDesk,
     },

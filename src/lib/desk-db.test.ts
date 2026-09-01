@@ -57,6 +57,7 @@ describe("desk filters and KOL list persist in SQLite", () => {
       signalLevel: "standard",
       allowFresh: true,
       requireEngagement: false,
+      minLikes: null,
     });
     expect(isKolHandle("DeItaone", getKolSpec(db))).toBe(true);
   });
@@ -120,5 +121,20 @@ describe("desk filters and KOL list persist in SQLite", () => {
     const db = openDatabase(path.join(dir, "test.db"));
     setDeskFilterSettings({ requireEngagement: true }, db);
     expect(evaluateTweetSignal(catalyst("DeItaone"), db).pass).toBe(false);
+  });
+
+  it("applies a custom min-likes floor", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-"));
+    tmpDirs.push(dir);
+    const db = openDatabase(path.join(dir, "test.db"));
+    setDeskFilterSettings({ minLikes: 50, allowFresh: false }, db);
+    const weak = catalyst("middesk_tape", {
+      followersCount: 8_000,
+      likeCount: 12,
+      text: "$AAPL beats EPS; FOMC-sensitive names bid as guidance is raised.",
+    });
+    expect(evaluateTweetSignal(weak, db).pass).toBe(false);
+    setDeskFilterSettings({ minLikes: 5 }, db);
+    expect(evaluateTweetSignal(weak, db).pass).toBe(true);
   });
 });

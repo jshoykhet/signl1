@@ -3,8 +3,16 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { SIGNAL_LEVELS, type DeskFilterSettings, type SignalLevel } from "@/lib/desk-settings";
+import {
+  ENGAGEMENT_PRESETS,
+  SIGNAL_LEVELS,
+  effectiveMinLikes,
+  parseMinLikes,
+  type DeskFilterSettings,
+  type SignalLevel,
+} from "@/lib/desk-settings";
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -17,12 +25,15 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 export function DeskFilters() {
   const [filters, setFilters] = useState<DeskFilterSettings | null>(null);
+  const [likesDraft, setLikesDraft] = useState("");
   const [busy, setBusy] = useState(false);
 
   const load = async () => {
     const res = await fetch("/api/desk", { cache: "no-store" });
     if (!res.ok) throw new Error("Failed to load desk filters");
-    setFilters((await res.json()) as DeskFilterSettings);
+    const data = (await res.json()) as DeskFilterSettings;
+    setFilters(data);
+    setLikesDraft(data.minLikes == null ? "" : String(data.minLikes));
   };
 
   useEffect(() => {
@@ -38,7 +49,9 @@ export function DeskFilters() {
         body: JSON.stringify(patch),
       });
       if (!res.ok) throw new Error("Could not save desk filters");
-      setFilters((await res.json()) as DeskFilterSettings);
+      const data = (await res.json()) as DeskFilterSettings;
+      setFilters(data);
+      setLikesDraft(data.minLikes == null ? "" : String(data.minLikes));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not save desk filters");
     } finally {
@@ -47,6 +60,7 @@ export function DeskFilters() {
   };
 
   const floors = filters ? SIGNAL_LEVELS[filters.signalLevel] : SIGNAL_LEVELS.standard;
+  const effective = filters ? effectiveMinLikes(filters) : floors.minLikes;
 
   return (
     <section className="overflow-hidden rounded-lg border border-border/80">
@@ -86,8 +100,8 @@ export function DeskFilters() {
                 ))}
               </div>
               <p className="text-[12px] leading-relaxed text-muted-foreground">
-                {floors.hint}. Floors: ≥{floors.minFollowers} followers, ≥{floors.minLikes} likes, score ≥
-                {floors.minScore}, desk ≥{floors.minDesk}.
+                {floors.hint}. Followers ≥{floors.minFollowers}, score ≥{floors.minScore}, desk ≥{floors.minDesk}.
+                Likes use Min likes below.
               </p>
             </div>
           </Row>
@@ -107,7 +121,63 @@ export function DeskFilters() {
               </p>
             </div>
           </Row>
-          <Row label="Engagement">
+          <Row label="Min likes">
+            <div className="grid gap-2">
+              <div className="flex flex-wrap gap-1.5">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={filters.minLikes == null ? "default" : "outline"}
+                  disabled={busy}
+                  onClick={() => void save({ minLikes: null })}
+                >
+                  Level default ({floors.minLikes})
+                </Button>
+                {ENGAGEMENT_PRESETS.map((n) => (
+                  <Button
+                    key={n}
+                    type="button"
+                    size="sm"
+                    variant={filters.minLikes === n ? "default" : "outline"}
+                    disabled={busy}
+                    onClick={() => void save({ minLikes: n })}
+                  >
+                    {n}
+                  </Button>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  max={10000}
+                  value={likesDraft}
+                  placeholder="Custom"
+                  className="w-28 font-mono"
+                  aria-label="Custom minimum likes"
+                  onChange={(event) => setLikesDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      const parsed = parseMinLikes(likesDraft);
+                      if (parsed != null) void save({ minLikes: parsed });
+                    }
+                  }}
+                  onBlur={() => {
+                    if (likesDraft.trim() === "") return;
+                    const parsed = parseMinLikes(likesDraft);
+                    if (parsed != null && parsed !== filters.minLikes) void save({ minLikes: parsed });
+                  }}
+                />
+                <span className="text-[12px] text-muted-foreground">Currently ≥{effective} likes</span>
+              </div>
+              <p className="text-[12px] leading-relaxed text-muted-foreground">
+                Engagement floor for the like count. Independent of signal level. 0 lets zero-like posts through if they
+                still clear the other floors.
+              </p>
+            </div>
+          </Row>
+          <Row label="Require likes">
             <div className="grid gap-1.5">
               <div className="flex items-center gap-2">
                 <Switch
@@ -116,12 +186,12 @@ export function DeskFilters() {
                   onCheckedChange={(checked) => void save({ requireEngagement: checked === true })}
                 />
                 <span className="text-muted-foreground">
-                  {filters.requireEngagement ? "Require likes" : "Likes optional for KOLs / fresh desks"}
+                  {filters.requireEngagement ? "Even KOLs and fresh desks" : "KOLs / fresh desks can skip this floor"}
                 </span>
               </div>
               <p className="text-[12px] leading-relaxed text-muted-foreground">
-                When on, the like and score floors apply even to KOLs and brand-new posts. Use this for confirmed tape
-                instead of first-print breaking.
+                When on, the min-likes and score floors apply even to KOLs and brand-new posts. Use this for confirmed
+                tape instead of first-print breaking.
               </p>
             </div>
           </Row>

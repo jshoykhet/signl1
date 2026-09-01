@@ -216,7 +216,7 @@ export function WhatsAppSettings() {
               value={String(wa.digestMinutes ?? 60)}
               onValueChange={(value) => void saveCadence({ digestMinutes: Number(value) })}
             >
-              <SelectTrigger className="min-w-48" size="sm">
+              <SelectTrigger className="min-w-56" size="sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -229,8 +229,9 @@ export function WhatsAppSettings() {
             </Select>
           ) : null}
           <p className="text-[12px] leading-relaxed text-muted-foreground">
-            Immediate sends one WhatsApp per inbox match. Digest batches them into a single summary on that interval.
-            Send test is always immediate.
+            Immediate sends one WhatsApp per inbox match. Digest sends the top 20 most important tweets from that window
+            (score, likes, KOLs first), every 5 / 15 / 30 / 45 minutes or every 1 / 2 / 3 / 4 hours. Extra matches stay
+            in the inbox. Send test is always immediate.
           </p>
         </div>
       </div>

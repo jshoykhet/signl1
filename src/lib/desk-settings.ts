@@ -54,20 +54,27 @@ export const SIGNAL_LEVELS: Record<SignalLevel, SignalLevelConfig> = {
 };
 
 export const DIGEST_INTERVALS: { minutes: number; label: string }[] = [
+  { minutes: 5, label: "Every 5 minutes" },
   { minutes: 15, label: "Every 15 minutes" },
   { minutes: 30, label: "Every 30 minutes" },
-  { minutes: 60, label: "Every hour" },
+  { minutes: 45, label: "Every 45 minutes" },
+  { minutes: 60, label: "Every 1 hour" },
   { minutes: 120, label: "Every 2 hours" },
+  { minutes: 180, label: "Every 3 hours" },
   { minutes: 240, label: "Every 4 hours" },
-  { minutes: 480, label: "Every 8 hours" },
-  { minutes: 1440, label: "Once a day" },
 ];
+
+export const ENGAGEMENT_PRESETS = [0, 1, 5, 10, 25, 50, 100] as const;
+export const DIGEST_TOP_N = 20;
+export const DIGEST_CANDIDATE_LIMIT = 400;
 
 export type DeskFilterSettings = {
   kolOnly: boolean;
   signalLevel: SignalLevel;
   allowFresh: boolean;
   requireEngagement: boolean;
+  /** null = inherit the signal-level like floor */
+  minLikes: number | null;
 };
 
 export type WhatsAppCadenceSettings = {
@@ -93,6 +100,17 @@ export function parseDigestMinutes(raw: string | null | undefined): number {
   const n = Number(raw);
   if (DIGEST_INTERVALS.some((item) => item.minutes === n)) return n;
   return 60;
+}
+
+export function parseMinLikes(raw: string | number | null | undefined): number | null {
+  if (raw == null || raw === "") return null;
+  const n = typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isFinite(n)) return null;
+  return Math.min(10_000, Math.max(0, Math.round(n)));
+}
+
+export function effectiveMinLikes(filters: Pick<DeskFilterSettings, "signalLevel" | "minLikes">): number {
+  return filters.minLikes ?? SIGNAL_LEVELS[filters.signalLevel].minLikes;
 }
 
 export function isDigestDue(lastAtIso: string | null | undefined, digestMinutes: number, now = Date.now()): boolean {

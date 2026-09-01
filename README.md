@@ -100,9 +100,10 @@ These apply at ingest, so they change what lands in the inbox and what can fire 
 
 - **KOL only:** keep posts from the KOL list (plus anything you labeled high).
 - **KOL list:** seeded markets-desk handles. Add, remove, or reset to defaults on Settings.
-- **Signal level:** Lower (more tape), Standard, or Higher (stricter follower/like/desk floors).
+- **Signal level:** Lower (more tape), Standard, or Higher (stricter follower/desk/score floors).
+- **Min likes:** set the engagement floor (0–10000, or inherit the level default). Independent of signal level.
 - **Recent tweets:** let brand-new posts from 10k+ accounts through before likes print.
-- **Engagement:** require likes/score even from KOLs and fresh desks.
+- **Require likes:** apply the min-likes and score floors even to KOLs and fresh desks.
 
 Inbox + / − labels still train author priors.
 
@@ -111,7 +112,7 @@ Inbox + / − labels still train author priors.
 Every match lands in the in-app inbox.
 
 - **Slack:** rule-level incoming webhook, else `SLACK_WEBHOOK_URL`.
-- **WhatsApp:** link a phone on **Settings** with a QR or pairing code ([Baileys](https://baileys.wiki/) WhatsApp Web API). Optional destination (`WHATSAPP_TO` or the Settings field). If that number is the linked account, the text lands in WhatsApp **Message yourself** and often will not push-notify — use another number or a group JID for a normal chat ping. Alerts send only after status is **Linked**. Timing: **Immediate** (one text per match) or **Digest** (one summary every 15 minutes to 24 hours). After you enter the pairing code, WhatsApp sends a stream restart (code 515); Signal1 reconnects immediately with the new session and does not treat that as an error. Session files live on the data volume so you do not scan again after restart.
+- **WhatsApp:** link a phone on **Settings** with a QR or pairing code ([Baileys](https://baileys.wiki/) WhatsApp Web API). Optional destination (`WHATSAPP_TO` or the Settings field). If that number is the linked account, the text lands in WhatsApp **Message yourself** and often will not push-notify — use another number or a group JID for a normal chat ping. Alerts send only after status is **Linked**. Timing: **Immediate** (one text per match) or **Digest** (top 20 most important tweets every 5 / 15 / 30 / 45 minutes or every 1 / 2 / 3 / 4 hours). After you enter the pairing code, WhatsApp sends a stream restart (code 515); Signal1 reconnects immediately with the new session and does not treat that as an error. Session files live on the data volume so you do not scan again after restart.
 - **Generic webhook:** `POST` JSON:
 
 ```json
@@ -181,7 +182,7 @@ Floors still apply to unknown accounts:
 - A **signal score** (0–100) from follower scale, likes, retweets/quotes, replies, and verified status
 - A **desk-relevance score** from the tweet text (cashtags, catalysts, percent moves)
 
-**KOLs** (key opinion leaders) skip the like floor and get a score bump unless **Engagement** is on in Settings. They still need a catalyst. The seed list is wires, squawk, All-In, CNBC/FT talent, and official desks — edit it on Settings, or with `KOL_HANDLES` (append) / `KOL_HANDLES_MODE=replace`. Promo spam (giveaways, signal groups) is dropped even from a KOL.
+**KOLs** (key opinion leaders) skip the like floor and get a score bump unless **Require likes** is on in Settings. They still need a catalyst. The seed list is wires, squawk, All-In, CNBC/FT talent, and official desks — edit it on Settings, or with `KOL_HANDLES` (append) / `KOL_HANDLES_MODE=replace`. Promo spam (giveaways, signal groups) is dropped even from a KOL.
 
 A post from an account with **10k+ followers** that is less than the current fresh window (10 minutes on Standard) can still alert before likes accrue, if the text is desk-relevant and **Recent tweets** is on. Settings lists the live floors and the editable KOL list.
 

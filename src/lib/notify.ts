@@ -6,7 +6,7 @@ import {
   listMatchesSince,
   setMeta,
 } from "./db";
-import { isDigestDue } from "./desk-settings";
+import { DIGEST_CANDIDATE_LIMIT, isDigestDue } from "./desk-settings";
 import { buildGenericWebhookPayload, buildSlackWebhookPayload, postJson } from "./webhooks";
 import { buildWhatsAppDigest } from "./whatsapp-digest";
 import { buildWhatsAppText } from "./whatsapp";
@@ -54,17 +54,21 @@ export async function flushWhatsAppDigest(now = new Date()): Promise<boolean> {
   if (cadence.alertMode !== "digest") return false;
   const lastAt = getMeta("whatsapp_digest_last_at");
   if (!isDigestDue(lastAt, cadence.digestMinutes, now.getTime())) return false;
-  const matches = lastAt ? listMatchesSince(lastAt) : [];
+  const matches = lastAt ? listMatchesSince(lastAt, DIGEST_CANDIDATE_LIMIT) : [];
   if (matches.length) {
     const text = buildWhatsAppDigest(
       matches.map((match) => ({
         rule: { name: match.ruleName },
         tweet: {
+          id: match.tweetId,
           authorHandle: match.authorHandle,
           authorName: match.authorName,
           text: match.text,
           permalink: match.permalink,
         },
+        score: match.signalScore,
+        likes: match.likeCount,
+        kol: match.kol,
       })),
       cadence.digestMinutes,
     );
