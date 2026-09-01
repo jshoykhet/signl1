@@ -63,6 +63,23 @@ export function toWhatsAppJid(input: string): string {
   return `${digits}@s.whatsapp.net`;
 }
 
+/** Strip the companion device suffix so we can send to the linked account itself. */
+export function toOwnChatJid(userId: string): string {
+  const trimmed = userId.trim();
+  if (!trimmed.includes("@")) return toWhatsAppJid(trimmed);
+  const [user, server] = trimmed.split("@");
+  const pn = (user ?? "").split(":")[0];
+  if (!pn || !server) {
+    throw new Error("WhatsApp session identity is invalid");
+  }
+  return `${pn}@${server}`;
+}
+
+/** Open sockets expose `user` even when Baileys leaves `creds.registered` false. */
+export function isWhatsAppSocketReady(sock: { user?: { id?: string } | null } | null | undefined): boolean {
+  return Boolean(sock?.user?.id);
+}
+
 export function buildWhatsAppText(
   rule: Pick<Rule, "name">,
   tweet: Pick<NormalizedTweet, "authorHandle" | "authorName" | "text" | "permalink">,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildWhatsAppText, formatPairingCode, normalizeWhatsAppNumber, toWhatsAppJid } from "./whatsapp";
+import { buildWhatsAppText, formatPairingCode, isWhatsAppSocketReady, normalizeWhatsAppNumber, toOwnChatJid, toWhatsAppJid } from "./whatsapp";
 
 describe("WhatsApp JIDs", () => {
   it("strips punctuation and builds a PN JID with country code", () => {
@@ -14,6 +14,17 @@ describe("WhatsApp JIDs", () => {
 
   it("rejects a number without a country code", () => {
     expect(() => toWhatsAppJid("5551234")).toThrow(/country code/);
+  });
+
+  it("strips the companion device suffix for a self-chat JID", () => {
+    expect(toOwnChatJid("19177334993:1@s.whatsapp.net")).toBe("19177334993@s.whatsapp.net");
+    expect(toOwnChatJid("131121811562691:1@lid")).toBe("131121811562691@lid");
+  });
+
+  it("treats an open socket as ready even when registered is unset", () => {
+    expect(isWhatsAppSocketReady({ user: { id: "19177334993:1@s.whatsapp.net" } })).toBe(true);
+    expect(isWhatsAppSocketReady({ user: null })).toBe(false);
+    expect(isWhatsAppSocketReady(null)).toBe(false);
   });
 });
 

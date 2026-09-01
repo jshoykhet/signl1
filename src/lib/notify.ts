@@ -1,5 +1,5 @@
 import { globalSlackWebhookUrl } from "./config";
-import { getWhatsAppTo, isWhatsAppEnabled } from "./db";
+import { isWhatsAppEnabled } from "./db";
 import { buildGenericWebhookPayload, buildSlackWebhookPayload, postJson } from "./webhooks";
 import { buildWhatsAppText } from "./whatsapp";
 import type { NormalizedTweet, Rule } from "./types";
@@ -29,7 +29,7 @@ export async function notifyMatch(rule: Rule, tweet: NormalizedTweet): Promise<s
       errors.push(`webhook: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
-  if (whatsappSender && isWhatsAppEnabled() && getWhatsAppTo()) {
+  if (whatsappSender && isWhatsAppEnabled()) {
     try {
       await whatsappSender(buildWhatsAppText(rule, tweet));
     } catch (error) {

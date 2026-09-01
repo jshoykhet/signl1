@@ -99,7 +99,7 @@ Poll interval defaults to **2 minutes**. Live mode **packs every enabled rule** 
 Every match lands in the in-app inbox.
 
 - **Slack:** rule-level incoming webhook, else `SLACK_WEBHOOK_URL`.
-- **WhatsApp:** link a phone on **Settings** with a QR or pairing code ([Baileys](https://baileys.wiki/) WhatsApp Web API). Set the destination number (`WHATSAPP_TO` or the Settings field). Alerts send only after status is **Linked**. After you enter the pairing code, WhatsApp sends a stream restart (code 515); Signal1 reconnects immediately with the new session and does not treat that as an error. Session files live on the data volume so you do not scan again after restart.
+- **WhatsApp:** link a phone on **Settings** with a QR or pairing code ([Baileys](https://baileys.wiki/) WhatsApp Web API). Optional destination (`WHATSAPP_TO` or the Settings field); if blank, texts go to the linked account. Alerts send only after status is **Linked**. After you enter the pairing code, WhatsApp sends a stream restart (code 515); Signal1 reconnects immediately with the new session and does not treat that as an error. Session files live on the data volume so you do not scan again after restart.
 - **Generic webhook:** `POST` JSON:
 
 ```json

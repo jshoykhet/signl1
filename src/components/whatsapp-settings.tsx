@@ -186,8 +186,8 @@ export function WhatsAppSettings() {
           </div>
           <p className="text-[12px] leading-relaxed text-muted-foreground">
             Number that should receive alerts, with country code. Or paste a group JID ending in{" "}
-            <code className="font-mono text-[11px]">@g.us</code>. Also settable as{" "}
-            <code className="font-mono text-[11px]">WHATSAPP_TO</code>.
+            <code className="font-mono text-[11px]">@g.us</code>. Leave blank to send to the linked WhatsApp
+            account. Also settable as <code className="font-mono text-[11px]">WHATSAPP_TO</code>.
           </p>
         </div>
       </div>

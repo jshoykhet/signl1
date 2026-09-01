@@ -11,7 +11,7 @@ import {
   WA_LOGGED_OUT,
   WA_RESTART_REQUIRED,
 } from "../lib/whatsapp-disconnect";
-import { formatPairingCode, toWhatsAppJid, whatsappAuthDir } from "../lib/whatsapp";
+import { formatPairingCode, isWhatsAppSocketReady, toOwnChatJid, toWhatsAppJid, whatsappAuthDir } from "../lib/whatsapp";
 
 const log = pino({ level: process.env.WHATSAPP_DEBUG === "1" ? "debug" : "warn" });
 
@@ -33,7 +33,7 @@ function pairPhoneDigits(): string {
 }
 
 function sessionLinked(target: WASocket | null = sock): boolean {
-  return Boolean(target?.authState.creds.registered && target.user?.id);
+  return isWhatsAppSocketReady(target);
 }
 
 function writeStatus(
@@ -96,7 +96,12 @@ async function issuePairingCode(target: WASocket): Promise<void> {
   }
 }
 
-function handleConnectionUpdate(gen: number, next: WASocket, update: Partial<ConnectionState>) {
+function handleConnectionUpdate(
+  gen: number,
+  next: WASocket,
+  update: Partial<ConnectionState>,
+  saveCreds: () => Promise<void>,
+) {
   if (gen !== socketGen) return;
   const { connection, lastDisconnect, qr, isNewLogin } = update;
 
@@ -121,7 +126,9 @@ function handleConnectionUpdate(gen: number, next: WASocket, update: Partial<Con
     connecting = false;
     pairingIssuedForPhone = null;
     lastQr = null;
-    const linkedAs = next.user?.id ?? "";
+    next.authState.creds.registered = true;
+    void saveCreds();
+    const linkedAs = next.user?.id ?? next.authState.creds.me?.id ?? "";
     writeStatus("connected", { qr: "", pairingCode: "", linkedAs, error: "" });
     setMeta("whatsapp_pair_phone", "");
     console.log(`[whatsapp] linked as ${linkedAs || "unknown"}`);
@@ -226,7 +233,7 @@ async function connectWhatsApp() {
         await saveCreds();
       }
       if (events["connection.update"]) {
-        handleConnectionUpdate(gen, next, events["connection.update"]);
+        handleConnectionUpdate(gen, next, events["connection.update"], saveCreds);
       }
     });
   } catch (error) {
@@ -240,19 +247,27 @@ async function connectWhatsApp() {
 }
 
 async function resolveDestinationJid(raw: string): Promise<string> {
-  const jid = toWhatsAppJid(raw);
+  const jid = raw.includes("@") ? raw : toWhatsAppJid(raw);
   if (!sock) throw new Error("WhatsApp is not linked");
   if (jid.endsWith("@g.us") || jid.endsWith("@lid") || jid.endsWith("@newsletter")) {
     return jid;
   }
   try {
-    const results = await sock.onWhatsApp(jid.replace(/@.+$/, ""));
+    const results = await sock.onWhatsApp(jid.replace(/@.+$/, "").split(":")[0] ?? jid);
     const hit = results?.[0];
     if (hit?.exists && hit.jid) return hit.jid;
   } catch {
     /* send to constructed PN JID */
   }
   return jid;
+}
+
+function destinationForSend(): string | null {
+  const configured = getWhatsAppTo();
+  if (configured) return configured;
+  const self = sock?.user?.id ?? sock?.authState.creds.me?.id;
+  if (!self) return null;
+  return toOwnChatJid(self);
 }
 
 export async function sendWhatsAppText(
@@ -265,11 +280,11 @@ export async function sendWhatsAppText(
   }
   if (!sessionLinked()) {
     if (options.mustBeLinked) {
-      throw new Error("WhatsApp is not linked yet. Scan the QR or enter the pairing code first.");
+      throw new Error("WhatsApp is still connecting. Wait until status is Linked, then send the test.");
     }
     return;
   }
-  const to = getWhatsAppTo();
+  const to = destinationForSend();
   if (!to) {
     if (options.mustBeLinked) throw new Error("Set a WhatsApp destination number on Settings");
     return;
