@@ -121,17 +121,16 @@ export function WatchlistView() {
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-                  event.preventDefault();
-                  void addDraft();
-                }
+                if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
+                event.preventDefault();
+                void addDraft();
               }}
               placeholder={"NVDA, AAPL, TSLA\nSPY QQQ"}
               className="min-h-24 font-mono text-xs"
             />
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-[11px] text-muted-foreground">
-                Comma, space, or newline separated. $ is optional. Ctrl/Cmd+Enter to add.
+                Comma, space, or newline separated. $ is optional. Enter adds; Shift+Enter for a new line.
               </p>
               <Button size="sm" onClick={() => void addDraft()} disabled={saving || !draft.trim()}>
                 <Plus className="size-3.5" />
