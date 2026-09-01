@@ -113,7 +113,7 @@ export function SettingsView() {
                 <p className="text-[13px] leading-relaxed text-muted-foreground">
                   Matches need ≥{status.qualityFilter.minFollowers} followers and ≥{status.qualityFilter.minLikes} likes,
                   plus a signal score that favors desks which typically draw engagement. A fresh post from an account
-                  with 10k+ followers can land before likes accrue.
+                  with 100k+ followers can land before likes accrue.
                 </p>
               </Row>
             </section>

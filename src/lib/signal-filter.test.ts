@@ -41,6 +41,19 @@ describe("passesSignalFilter", () => {
     expect(passesSignalFilter(quality({ followersCount: 8_000, likeCount: 12 }), now).pass).toBe(true);
   });
 
+  it("does not treat a mid-size account with zero likes as established", () => {
+    const verdict = passesSignalFilter(
+      quality({
+        followersCount: 18_000,
+        likeCount: 0,
+        retweetCount: 0,
+        createdAt: "2026-09-01T15:55:00.000Z",
+      }),
+      now,
+    );
+    expect(verdict.pass).toBe(false);
+  });
+
   it("lets a fresh post from an established desk through before likes accrue", () => {
     const verdict = passesSignalFilter(
       quality({

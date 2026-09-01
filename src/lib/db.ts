@@ -203,7 +203,6 @@ function backfillMatchQuality(db: Database.Database) {
     "UPDATE matches SET author_followers = ?, like_count = ?, signal_score = ?, signal_pass = ? WHERE id = ?",
   );
   for (const row of rows) {
-    if (row.signal_pass != null && row.author_followers != null && row.like_count != null) continue;
     const metrics = metricsFromRaw(row.raw_json);
     const followers = row.author_followers ?? metrics.followersCount;
     const likes = row.like_count ?? metrics.likeCount;
