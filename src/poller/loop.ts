@@ -158,7 +158,9 @@ export async function runPollerLoop() {
   heartbeat(demo ? "demo" : "live");
   console.log(`[poller] starting in ${demo ? "DEMO" : "LIVE"} mode`);
   registerWhatsAppSender(sendWhatsAppText);
-  void startWhatsAppBridge();
+  void startWhatsAppBridge().catch((error) => {
+    console.error("[whatsapp] bridge failed to start", error);
+  });
 
   const limiter = new XRateLimiter();
   let lastDemoInject = 0;

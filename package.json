@@ -4,12 +4,12 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "dev": "concurrently -k -n web,poller -c cyan,magenta \"next dev -p 3847 -H 0.0.0.0\" \"tsx watch src/poller/index.ts\"",
+    "dev": "concurrently -k -n web,poller -c cyan,magenta \"next dev -p 3847 -H 0.0.0.0\" \"node --import tsx --watch src/poller/index.ts\"",
     "dev:web": "next dev -p 3847 -H 0.0.0.0",
-    "dev:poller": "tsx watch src/poller/index.ts",
+    "dev:poller": "node --import tsx --watch src/poller/index.ts",
     "build": "next build",
     "start": "next start -p 3847 -H 0.0.0.0",
-    "poller": "tsx src/poller/index.ts",
+    "poller": "node --import tsx src/poller/index.ts",
     "test": "vitest run",
     "lint": "eslint"
   },

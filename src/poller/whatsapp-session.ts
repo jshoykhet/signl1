@@ -1,17 +1,12 @@
 import fs from "node:fs";
-import makeWASocket, {
-  Browsers,
-  DisconnectReason,
-  fetchLatestBaileysVersion,
-  useMultiFileAuthState,
-  type WASocket,
-} from "@whiskeysockets/baileys";
+import type { WASocket } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
 import pino from "pino";
 import { getMeta, getWhatsAppTo, isWhatsAppEnabled, setMeta, takeMetaValue } from "../lib/db";
 import { toWhatsAppJid, whatsappAuthDir } from "../lib/whatsapp";
 
 const log = pino({ level: "silent" });
+const LOGGED_OUT = 401;
 
 let sock: WASocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -50,6 +45,12 @@ async function connectWhatsApp() {
   connecting = true;
   pairingRequested = false;
   try {
+    const {
+      default: makeWASocket,
+      Browsers,
+      fetchLatestBaileysVersion,
+      useMultiFileAuthState,
+    } = await import("@whiskeysockets/baileys");
     fs.mkdirSync(whatsappAuthDir(), { recursive: true });
     const { state, saveCreds } = await useMultiFileAuthState(whatsappAuthDir());
     let version: [number, number, number] | undefined;
@@ -104,7 +105,7 @@ async function connectWhatsApp() {
       if (connection === "close") {
         sock = null;
         const statusCode = lastDisconnect?.error instanceof Boom ? lastDisconnect.error.output.statusCode : undefined;
-        const loggedOut = statusCode === DisconnectReason.loggedOut;
+        const loggedOut = statusCode === LOGGED_OUT;
         if (loggedOut) {
           wipeAuthDir();
           writeStatus("idle", {
