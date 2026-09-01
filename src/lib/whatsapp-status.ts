@@ -1,5 +1,6 @@
 import QRCode from "qrcode";
 import { getMeta, getWhatsAppTo, isWhatsAppEnabled } from "./db";
+import { userFacingWhatsAppError } from "./whatsapp-disconnect";
 import { formatPairingCode, type WhatsAppLinkStatus, type WhatsAppSnapshot } from "./whatsapp";
 
 export type WhatsAppPublicStatus = WhatsAppSnapshot & {
@@ -37,7 +38,7 @@ export async function getWhatsAppPublicStatus(): Promise<WhatsAppPublicStatus> {
     linkedAs: getMeta("whatsapp_linked_as"),
     to: getWhatsAppTo(),
     enabled: isWhatsAppEnabled(),
-    lastError: getMeta("whatsapp_error"),
+    lastError: userFacingWhatsAppError(getMeta("whatsapp_error")),
     lastSentAt: getMeta("whatsapp_last_sent_at"),
   };
 }

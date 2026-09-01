@@ -18,7 +18,7 @@ function statusLabel(status: WhatsAppPublicStatus["status"]) {
     case "pairing":
       return "Enter pairing code";
     case "connecting":
-      return "Connecting";
+      return "Finishing link";
     case "error":
       return "Error";
     default:
@@ -200,9 +200,8 @@ export function WhatsAppSettings() {
               baileys.wiki
             </a>
             . On your phone: WhatsApp → Settings → Linked devices. Scan the QR, or choose Link with phone number and
-            enter the pairing code. Status must read <span className="text-foreground">Linked</span> before alerts or
-            a test message will send. Request a pairing code once and wait; Signal1 keeps that code until you request
-            another or the phone finishes linking.
+            enter the pairing code. After you enter it, WhatsApp restarts the socket — that is expected, not a failure.
+            Status must read <span className="text-foreground">Linked</span> before alerts or a test message will send.
           </p>
           {wa?.qrDataUrl ? (
             <img
