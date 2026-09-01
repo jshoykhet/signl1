@@ -27,46 +27,45 @@ function SignalVote({
   onVote: (match: Match, label: UserLabel) => void;
   size?: "compact" | "full";
 }) {
+  const full = size === "full";
   return (
     <div
-      className={cn("flex shrink-0", size === "full" ? "gap-1" : "flex-col gap-0.5")}
+      className={cn("flex shrink-0", full ? "gap-1" : "flex-col gap-1")}
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
     >
-      <Button
+      <button
         type="button"
-        variant="ghost"
-        size={size === "full" ? "sm" : "icon-xs"}
         title="High signal — keep tweets like this"
         aria-label="Mark high signal"
         aria-pressed={match.userLabel === "high"}
         className={cn(
+          buttonVariants({ variant: "outline", size: full ? "sm" : "xs" }),
           "font-mono",
           match.userLabel === "high" &&
-            "bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 hover:text-emerald-300",
+            "border-emerald-500/50 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 hover:text-emerald-200",
         )}
         onClick={() => onVote(match, "high")}
       >
         <Plus className="size-3.5" />
-        {size === "full" ? "High" : null}
-      </Button>
-      <Button
+        {full ? "High" : "+"}
+      </button>
+      <button
         type="button"
-        variant="ghost"
-        size={size === "full" ? "sm" : "icon-xs"}
         title="Low signal — hide tweets like this"
         aria-label="Mark low signal"
         aria-pressed={match.userLabel === "low"}
         className={cn(
+          buttonVariants({ variant: "outline", size: full ? "sm" : "xs" }),
           "font-mono",
           match.userLabel === "low" &&
-            "bg-destructive/15 text-destructive hover:bg-destructive/25",
+            "border-destructive/50 bg-destructive/15 text-destructive hover:bg-destructive/25",
         )}
         onClick={() => onVote(match, "low")}
       >
         <Minus className="size-3.5" />
-        {size === "full" ? "Low" : null}
-      </Button>
+        {full ? "Low" : "−"}
+      </button>
     </div>
   );
 }
@@ -380,7 +379,12 @@ export function InboxView() {
                   <div className="text-xs text-muted-foreground">{selected.authorName}</div>
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2">
-                  <SignalVote match={selected} onVote={vote} size="full" />
+                  <div className="flex items-center gap-2 rounded-md border border-border/80 bg-muted/30 px-2 py-1">
+                    <span className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+                      Train
+                    </span>
+                    <SignalVote match={selected} onVote={vote} size="full" />
+                  </div>
                   <Button variant="outline" size="sm" onClick={() => mark(selected.id, !selected.read)}>
                     {selected.read ? "Mark unread" : "Mark read"}
                   </Button>
