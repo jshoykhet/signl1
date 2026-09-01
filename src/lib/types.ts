@@ -1,3 +1,4 @@
+import type { DeskFilterSettings } from "./desk-settings";
 import type { AuthorPrior, UserLabel } from "./signal-filter";
 
 export type { AuthorPrior, UserLabel };
@@ -99,9 +100,12 @@ export type StatusSnapshot = {
     minScore: number;
     minDeskScore: number;
   };
+  deskFilters: DeskFilterSettings;
   kol: {
     count: number;
     mode: "append" | "replace";
+    added: string[];
+    removed: string[];
   };
   training: {
     high: number;

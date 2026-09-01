@@ -4,16 +4,17 @@ import Database from "better-sqlite3";
 import { clampPollIntervalMs, databasePath, DEFAULT_POLL_INTERVAL_MS, isDemoMode, MAX_WATCHLIST_TICKERS } from "./config";
 import { compileQuery, normalizeAccounts } from "./query";
 import { likePattern, tokenizeSearch } from "./search";
-import { isKolHandle, kolMode, listKolHandles } from "./kol";
+import { isKolHandle, kolMode, listKolHandles, parseHandleList, serializeHandleList, type KolSpec } from "./kol";
 import {
-  MIN_DESK_SCORE,
-  MIN_FOLLOWERS,
-  MIN_LIKES,
-  MIN_SIGNAL_SCORE,
-  passesSignalFilter,
-  type AuthorPrior,
-  type UserLabel,
-} from "./signal-filter";
+  parseBoolMeta,
+  parseDigestMinutes,
+  parseSignalLevel,
+  parseWhatsAppAlertMode,
+  SIGNAL_LEVELS,
+  type DeskFilterSettings,
+  type WhatsAppCadenceSettings,
+} from "./desk-settings";
+import { passesSignalFilter, type AuthorPrior, type UserLabel } from "./signal-filter";
 import { chunkTickersForQuery, compileCashtagQuery, normalizeTickers } from "./tickers";
 import type { Match, NormalizedTweet, Rule, RuleInput, StatusSnapshot, WatchlistSnapshot } from "./types";
 
@@ -111,7 +112,7 @@ function mapMatch(row: MatchRow): Match {
     signalScore: row.signal_score,
     userLabel: parseUserLabel(row.user_label),
     authorPrior: { high: 0, low: 0 },
-    kol: isKolHandle(row.author_handle),
+    kol: isKolHandle(row.author_handle, getKolSpec()),
   };
 }
 
@@ -257,13 +258,16 @@ function backfillMatchQuality(db: Database.Database) {
       text: row.text,
       authorHandle: row.author_handle,
     };
+    const filters = getDeskFilterSettings(db);
     const verdict = passesSignalFilter(quality, Date.now(), {
       userLabel: parseUserLabel(row.user_label),
       prior: priors.get(row.author_handle.toLowerCase()) ?? { high: 0, low: 0 },
+      kol: isKolHandle(row.author_handle, getKolSpec(db)),
+      ...filters,
     });
     const pass =
       followers == null && parseUserLabel(row.user_label) == null
-        ? likes != null && likes >= MIN_LIKES
+        ? likes != null && likes >= SIGNAL_LEVELS[filters.signalLevel].minLikes
           ? 1
           : likes != null
             ? 0
@@ -309,10 +313,38 @@ export function getTweetLabel(tweetId: string, db = getDb()): UserLabel | null {
   return parseUserLabel(row?.user_label);
 }
 
+export function getKolSpec(db = getDb()): KolSpec {
+  return {
+    KOL_HANDLES: process.env.KOL_HANDLES,
+    KOL_HANDLES_MODE: process.env.KOL_HANDLES_MODE,
+    added: parseHandleList(getMeta("kol_added", db)),
+    removed: parseHandleList(getMeta("kol_removed", db)),
+  };
+}
+
+export function getDeskFilterSettings(db = getDb()): DeskFilterSettings {
+  return {
+    kolOnly: parseBoolMeta(getMeta("desk_kol_only", db), false),
+    signalLevel: parseSignalLevel(getMeta("desk_signal_level", db)),
+    allowFresh: parseBoolMeta(getMeta("desk_allow_fresh", db), true),
+    requireEngagement: parseBoolMeta(getMeta("desk_require_engagement", db), false),
+  };
+}
+
+export function getWhatsAppCadenceSettings(db = getDb()): WhatsAppCadenceSettings {
+  return {
+    alertMode: parseWhatsAppAlertMode(getMeta("whatsapp_alert_mode", db)),
+    digestMinutes: parseDigestMinutes(getMeta("whatsapp_digest_minutes", db)),
+  };
+}
+
 export function evaluateTweetSignal(tweet: NormalizedTweet, db = getDb()) {
+  const filters = getDeskFilterSettings(db);
   return passesSignalFilter(tweet, Date.now(), {
     prior: getAuthorPrior(tweet.authorHandle, db),
     userLabel: getTweetLabel(tweet.id, db),
+    kol: isKolHandle(tweet.authorHandle, getKolSpec(db)),
+    ...filters,
   });
 }
 
@@ -356,6 +388,8 @@ function recomputeAuthorQuality(handle: string, db: Database.Database) {
     const metrics = metricsFromRaw(row.raw_json);
     const followers = row.author_followers ?? metrics.followersCount ?? 0;
     const likes = row.like_count ?? metrics.likeCount ?? 0;
+    const filters = getDeskFilterSettings(db);
+    const spec = getKolSpec(db);
     const verdict = passesSignalFilter(
       {
         followersCount: followers,
@@ -369,7 +403,12 @@ function recomputeAuthorQuality(handle: string, db: Database.Database) {
         authorHandle: row.author_handle,
       },
       Date.now(),
-      { userLabel: parseUserLabel(row.user_label), prior },
+      {
+        userLabel: parseUserLabel(row.user_label),
+        prior,
+        kol: isKolHandle(row.author_handle, spec),
+        ...filters,
+      },
     );
     update.run(verdict.score, verdict.pass ? 1 : 0, row.id);
   }
@@ -637,6 +676,19 @@ export function listMatches(
   return attachPriors(rows.map(mapMatch), db);
 }
 
+export function listMatchesSince(iso: string, limit = 40, db = getDb()): Match[] {
+  const rows = db.prepare(`
+    SELECT m.*, r.name AS rule_name
+    FROM matches m
+    JOIN rules r ON r.id = m.rule_id
+    WHERE m.matched_at > ?
+      AND (m.signal_pass IS NULL OR m.signal_pass = 1)
+    ORDER BY m.matched_at ASC
+    LIMIT ?
+  `).all(iso, Math.min(Math.max(limit, 1), 80)) as MatchRow[];
+  return attachPriors(rows.map(mapMatch), db);
+}
+
 export function setMatchRead(id: string, read: boolean, db = getDb()): Match | null {
   db.prepare("UPDATE matches SET read = ? WHERE id = ?").run(read ? 1 : 0, id);
   return getMatchById(id, db);
@@ -705,6 +757,45 @@ export function isWhatsAppEnabled(db = getDb()): boolean {
   return raw !== "0" && raw !== "false";
 }
 
+export function setDeskFilterSettings(input: Partial<DeskFilterSettings>, db = getDb()): DeskFilterSettings {
+  if (typeof input.kolOnly === "boolean") setMeta("desk_kol_only", input.kolOnly ? "1" : "0", db);
+  if (input.signalLevel) setMeta("desk_signal_level", parseSignalLevel(input.signalLevel), db);
+  if (typeof input.allowFresh === "boolean") setMeta("desk_allow_fresh", input.allowFresh ? "1" : "0", db);
+  if (typeof input.requireEngagement === "boolean") {
+    setMeta("desk_require_engagement", input.requireEngagement ? "1" : "0", db);
+  }
+  return getDeskFilterSettings(db);
+}
+
+export function addKolHandle(handle: string, db = getDb()): string[] {
+  const normalized = handle.replace(/^@/, "").trim();
+  if (!/^[A-Za-z0-9_]{1,15}$/.test(normalized)) {
+    throw new Error("Handle must be 1–15 letters, numbers, or underscores");
+  }
+  const spec = getKolSpec(db);
+  const added = [...new Set([...(spec.added ?? []), normalized.toLowerCase()])];
+  const removed = (spec.removed ?? []).filter((h) => h !== normalized.toLowerCase());
+  setMeta("kol_added", serializeHandleList(added), db);
+  setMeta("kol_removed", serializeHandleList(removed), db);
+  return listKolHandles(getKolSpec(db));
+}
+
+export function removeKolHandle(handle: string, db = getDb()): string[] {
+  const normalized = handle.replace(/^@/, "").trim().toLowerCase();
+  const spec = getKolSpec(db);
+  const added = (spec.added ?? []).filter((h) => h !== normalized);
+  const removed = [...new Set([...(spec.removed ?? []), normalized])];
+  setMeta("kol_added", serializeHandleList(added), db);
+  setMeta("kol_removed", serializeHandleList(removed), db);
+  return listKolHandles(getKolSpec(db));
+}
+
+export function resetKolHandles(db = getDb()): string[] {
+  setMeta("kol_added", "", db);
+  setMeta("kol_removed", "", db);
+  return listKolHandles(getKolSpec(db));
+}
+
 export function getStatus(opts: { demoMode: boolean; bearerPresent: boolean }, db = getDb()): StatusSnapshot {
   const lastHeartbeatAt = getMeta("poller_heartbeat_at", db);
   const startedAt = getMeta("poller_started_at", db);
@@ -739,7 +830,10 @@ export function getStatus(opts: { demoMode: boolean; bearerPresent: boolean }, d
   const idleBackoffMs = Number(getMeta("poller_idle_backoff_ms", db) ?? "0") || 0;
   const forceNow = getMeta("poller_force_now", db);
   const lastManualPollAt = getMeta("poller_manual_ack_at", db);
-  const kolHandles = listKolHandles();
+  const spec = getKolSpec(db);
+  const kolHandles = listKolHandles(spec);
+  const filters = getDeskFilterSettings(db);
+  const floors = SIGNAL_LEVELS[filters.signalLevel];
 
   return {
     demoMode: opts.demoMode,
@@ -762,14 +856,17 @@ export function getStatus(opts: { demoMode: boolean; bearerPresent: boolean }, d
       lastManualPollAt,
     },
     qualityFilter: {
-      minFollowers: MIN_FOLLOWERS,
-      minLikes: MIN_LIKES,
-      minScore: MIN_SIGNAL_SCORE,
-      minDeskScore: MIN_DESK_SCORE,
+      minFollowers: floors.minFollowers,
+      minLikes: floors.minLikes,
+      minScore: floors.minScore,
+      minDeskScore: floors.minDesk,
     },
+    deskFilters: filters,
     kol: {
       count: kolHandles.length,
       mode: kolMode(),
+      added: spec.added ?? [],
+      removed: spec.removed ?? [],
     },
     training: {
       high: Number(training.high),

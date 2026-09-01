@@ -112,12 +112,16 @@ export const DEFAULT_KOL_HANDLES: readonly string[] = [
   "BIS_org",
 ];
 
-function parseEnvHandles(raw: string | undefined): string[] {
+export function parseHandleList(raw: string | undefined | null): string[] {
   if (!raw?.trim()) return [];
   return raw
     .split(/[\s,;]+/)
     .map((h) => h.replace(/^@/, "").trim())
     .filter((h) => /^[A-Za-z0-9_]{1,15}$/.test(h));
+}
+
+export function serializeHandleList(handles: string[]): string {
+  return [...new Set(handles.map(normalizeHandle).filter(Boolean))].sort((a, b) => a.localeCompare(b)).join("\n");
 }
 
 export function normalizeHandle(handle: string): string {
@@ -129,38 +133,50 @@ export type KolEnv = {
   KOL_HANDLES_MODE?: string;
 };
 
-export function loadKolHandleSet(env: KolEnv = process.env as KolEnv): Set<string> {
-  const extra = parseEnvHandles(env.KOL_HANDLES);
-  const mode = (env.KOL_HANDLES_MODE ?? "append").trim().toLowerCase();
-  const seed = DEFAULT_KOL_HANDLES.map(normalizeHandle);
+export type KolSpec = KolEnv & {
+  added?: string[];
+  removed?: string[];
+};
+
+export function loadKolHandleSet(spec: KolSpec = {}): Set<string> {
+  const extra = parseHandleList(spec.KOL_HANDLES);
+  const added = (spec.added ?? []).map(normalizeHandle);
+  const removed = new Set((spec.removed ?? []).map(normalizeHandle).filter(Boolean));
+  const mode = (spec.KOL_HANDLES_MODE ?? "append").trim().toLowerCase();
+  const seed = DEFAULT_KOL_HANDLES.map(normalizeHandle).filter((h) => !removed.has(h));
   const merged =
     mode === "replace"
-      ? extra.map(normalizeHandle)
-      : [...seed, ...extra.map(normalizeHandle)];
-  return new Set(merged.filter(Boolean));
+      ? [...extra.map(normalizeHandle), ...added]
+      : [...seed, ...extra.map(normalizeHandle), ...added];
+  return new Set(merged.filter((h) => h && !removed.has(h)));
 }
 
 let cached: { key: string; set: Set<string> } | null = null;
 
-function cacheKey(env: KolEnv): string {
-  return `${env.KOL_HANDLES ?? ""}|${env.KOL_HANDLES_MODE ?? ""}`;
+function cacheKey(spec: KolSpec): string {
+  return [
+    spec.KOL_HANDLES ?? "",
+    spec.KOL_HANDLES_MODE ?? "",
+    (spec.added ?? []).join(","),
+    (spec.removed ?? []).join(","),
+  ].join("|");
 }
 
-export function getKolHandleSet(env: KolEnv = process.env as KolEnv): Set<string> {
-  const key = cacheKey(env);
+export function getKolHandleSet(spec: KolSpec = process.env as KolSpec): Set<string> {
+  const key = cacheKey(spec);
   if (!cached || cached.key !== key) {
-    cached = { key, set: loadKolHandleSet(env) };
+    cached = { key, set: loadKolHandleSet(spec) };
   }
   return cached.set;
 }
 
-export function isKolHandle(handle: string | null | undefined, env: KolEnv = process.env as KolEnv): boolean {
+export function isKolHandle(handle: string | null | undefined, spec: KolSpec = process.env as KolSpec): boolean {
   if (!handle) return false;
-  return getKolHandleSet(env).has(normalizeHandle(handle));
+  return getKolHandleSet(spec).has(normalizeHandle(handle));
 }
 
-export function listKolHandles(env: KolEnv = process.env as KolEnv): string[] {
-  return [...getKolHandleSet(env)].sort((a, b) => a.localeCompare(b));
+export function listKolHandles(spec: KolSpec = process.env as KolSpec): string[] {
+  return [...getKolHandleSet(spec)].sort((a, b) => a.localeCompare(b));
 }
 
 export function kolMode(env: KolEnv = process.env as KolEnv): "append" | "replace" {

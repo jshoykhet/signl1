@@ -26,7 +26,17 @@ describe("KOL list", () => {
     expect([...set]).toEqual(["onlyme"]);
   });
 
+  it("lets the user add and remove handles from the seed", () => {
+    const trimmed = loadKolHandleSet({ removed: ["zerohedge"], added: ["MyDesk"] });
+    expect(trimmed.has("zerohedge")).toBe(false);
+    expect(trimmed.has("mydesk")).toBe(true);
+    expect(trimmed.has("elonmusk")).toBe(true);
+  });
+
   it("matches handles case-insensitively", () => {
     expect(isKolHandle("ZeroHedge", { KOL_HANDLES: "", KOL_HANDLES_MODE: "append" })).toBe(true);
+    expect(isKolHandle("DeItaone")).toBe(true);
+    expect(isKolHandle("not_a_kol")).toBe(false);
+    expect(isKolHandle(null)).toBe(false);
   });
 });

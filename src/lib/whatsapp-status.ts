@@ -1,11 +1,12 @@
 import QRCode from "qrcode";
-import { getMeta, getWhatsAppTo, isWhatsAppEnabled } from "./db";
+import { getMeta, getWhatsAppCadenceSettings, getWhatsAppTo, isWhatsAppEnabled } from "./db";
 import { userFacingWhatsAppError } from "./whatsapp-disconnect";
 import { formatPairingCode, type WhatsAppLinkStatus, type WhatsAppSnapshot } from "./whatsapp";
+import type { WhatsAppCadenceSettings } from "./desk-settings";
 
 export type WhatsAppPublicStatus = WhatsAppSnapshot & {
   qrDataUrl: string | null;
-};
+} & WhatsAppCadenceSettings;
 
 function parseStatus(raw: string | null): WhatsAppLinkStatus {
   switch (raw) {
@@ -41,5 +42,6 @@ export async function getWhatsAppPublicStatus(): Promise<WhatsAppPublicStatus> {
     lastError: userFacingWhatsAppError(getMeta("whatsapp_error")),
     lastSentAt: getMeta("whatsapp_last_sent_at"),
     lastSentTo: getMeta("whatsapp_last_sent_to"),
+    ...getWhatsAppCadenceSettings(),
   };
 }

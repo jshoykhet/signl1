@@ -1,4 +1,5 @@
 import { scoreDeskRelevance } from "./desk-relevance";
+import { SIGNAL_LEVELS, type SignalLevel } from "./desk-settings";
 import { isKolHandle } from "./kol";
 
 export const MIN_FOLLOWERS = 50;
@@ -40,6 +41,11 @@ export type TweetQuality = {
 export type SignalContext = {
   userLabel?: UserLabel | null;
   prior?: AuthorPrior | null;
+  kolOnly?: boolean;
+  signalLevel?: SignalLevel;
+  allowFresh?: boolean;
+  requireEngagement?: boolean;
+  kol?: boolean;
 };
 
 export type PriorAdjustment = {
@@ -82,12 +88,12 @@ export function signalScore(q: TweetQuality): number {
   return Math.round(followScore + likeScore + spreadScore + replyScore + verifiedBonus);
 }
 
-export function isEstablishedFresh(q: TweetQuality, now = Date.now()): boolean {
+export function isEstablishedFresh(q: TweetQuality, now = Date.now(), freshMs = FRESH_TWEET_MS): boolean {
   if (q.followersCount < ESTABLISHED_FOLLOWERS) return false;
   const created = new Date(q.createdAt).getTime();
   if (!Number.isFinite(created)) return false;
   const age = now - created;
-  return age >= 0 && age < FRESH_TWEET_MS;
+  return age >= 0 && age < freshMs;
 }
 
 export function priorAdjustment(prior: AuthorPrior | null | undefined): PriorAdjustment {
@@ -107,11 +113,15 @@ export function priorAdjustment(prior: AuthorPrior | null | undefined): PriorAdj
   };
 }
 
-export function deskFloor(q: TweetQuality, opts: { kol: boolean; boost: boolean }): number {
-  if (opts.kol) return KOL_MIN_DESK_SCORE;
-  if (opts.boost) return BOOST_MIN_DESK_SCORE;
-  if (q.followersCount >= ESTABLISHED_FOLLOWERS || q.verified) return ESTABLISHED_MIN_DESK_SCORE;
-  return MIN_DESK_SCORE;
+export function deskFloor(
+  q: TweetQuality,
+  opts: { kol: boolean; boost: boolean; signalLevel?: SignalLevel },
+): number {
+  const level = SIGNAL_LEVELS[opts.signalLevel ?? "standard"];
+  if (opts.kol) return level.kolMinDesk;
+  if (opts.boost) return Math.min(BOOST_MIN_DESK_SCORE, level.minDesk);
+  if (q.followersCount >= ESTABLISHED_FOLLOWERS || q.verified) return level.establishedMinDesk;
+  return level.minDesk;
 }
 
 export function passesSignalFilter(
@@ -121,11 +131,15 @@ export function passesSignalFilter(
 ): SignalVerdict {
   const prior = priorAdjustment(ctx.prior);
   const userLabel = ctx.userLabel === "high" || ctx.userLabel === "low" ? ctx.userLabel : null;
-  const kol = isKolHandle(q.authorHandle);
+  const kol = ctx.kol ?? isKolHandle(q.authorHandle);
+  const level = SIGNAL_LEVELS[ctx.signalLevel ?? "standard"];
+  const allowFresh = ctx.allowFresh !== false;
+  const requireEngagement = ctx.requireEngagement === true;
+  const kolOnly = ctx.kolOnly === true;
   const desk = scoreDeskRelevance(q.text ?? "");
   const baseScore = signalScore(q);
   const score = clamp(baseScore + prior.scoreDelta + (kol ? KOL_SCORE_BONUS : 0), 0, 100);
-  const establishedFresh = isEstablishedFresh(q, now);
+  const establishedFresh = isEstablishedFresh(q, now, level.freshMs);
   const reasons: string[] = [];
 
   if (userLabel === "high") {
@@ -178,19 +192,34 @@ export function passesSignalFilter(
     };
   }
 
-  const skipFloors = establishedFresh || prior.boost || kol;
-  const minDesk = deskFloor(q, { kol, boost: prior.boost });
-
-  if (q.followersCount < MIN_FOLLOWERS && !prior.boost && !kol) {
-    reasons.push(`followers ${q.followersCount} < ${MIN_FOLLOWERS}`);
+  if (kolOnly && !kol) {
+    return {
+      pass: false,
+      score,
+      reasons: ["not a KOL"],
+      establishedFresh,
+      userLabel,
+      prior,
+      kol,
+      deskScore: desk.score,
+    };
   }
 
-  if (q.likeCount < MIN_LIKES && !skipFloors) {
-    reasons.push(`likes ${q.likeCount} < ${MIN_LIKES}`);
+  const skipFloors =
+    prior.boost ||
+    (!requireEngagement && ((allowFresh && establishedFresh) || kol));
+  const minDesk = deskFloor(q, { kol, boost: prior.boost, signalLevel: ctx.signalLevel });
+
+  if (q.followersCount < level.minFollowers && !prior.boost && !kol) {
+    reasons.push(`followers ${q.followersCount} < ${level.minFollowers}`);
   }
 
-  if (score < MIN_SIGNAL_SCORE && !skipFloors) {
-    reasons.push(`score ${score} < ${MIN_SIGNAL_SCORE}`);
+  if (q.likeCount < level.minLikes && !skipFloors) {
+    reasons.push(`likes ${q.likeCount} < ${level.minLikes}`);
+  }
+
+  if (score < level.minScore && !skipFloors) {
+    reasons.push(`score ${score} < ${level.minScore}`);
   }
 
   if (desk.score < minDesk) {

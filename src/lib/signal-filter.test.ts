@@ -131,7 +131,59 @@ describe("passesSignalFilter", () => {
     expect(verdict.pass).toBe(false);
   });
 
-  it("scores larger, more-engaged accounts above tiny ones", () => {
+  it("drops non-KOL authors when kolOnly is on", () => {
+    const verdict = passesSignalFilter(quality({ authorHandle: "middesk_tape", likeCount: 40 }), now, {
+      kolOnly: true,
+    });
+    expect(verdict.pass).toBe(false);
+    expect(verdict.reasons).toContain("not a KOL");
+  });
+
+  it("keeps a KOL catalyst when kolOnly is on", () => {
+    const verdict = passesSignalFilter(
+      quality({
+        authorHandle: "DeItaone",
+        followersCount: 40,
+        likeCount: 0,
+        text: "JUST IN: CPI 3.2% vs 3.1% expected",
+      }),
+      now,
+      { kolOnly: true },
+    );
+    expect(verdict.pass).toBe(true);
+  });
+
+  it("requires likes on a KOL when engagement is on", () => {
+    const verdict = passesSignalFilter(
+      quality({
+        authorHandle: "DeItaone",
+        followersCount: 40,
+        likeCount: 0,
+        text: "JUST IN: CPI 3.2% vs 3.1% expected",
+      }),
+      now,
+      { requireEngagement: true, signalLevel: "standard" },
+    );
+    expect(verdict.pass).toBe(false);
+    expect(verdict.reasons.some((r) => r.includes("likes"))).toBe(true);
+  });
+
+  it("raises floors on the higher signal level", () => {
+    const standard = passesSignalFilter(quality({ followersCount: 8_000, likeCount: 12 }), now, {
+      signalLevel: "standard",
+      allowFresh: false,
+    });
+    const high = passesSignalFilter(quality({ followersCount: 8_000, likeCount: 12 }), now, {
+      signalLevel: "high",
+      allowFresh: false,
+    });
+    expect(standard.pass).toBe(true);
+    expect(high.pass).toBe(false);
+  });
+});
+
+describe("signalScore", () => {
+  it("scores larger, more-engaged accounts higher", () => {
     const desk = signalScore(quality({ followersCount: 250_000, likeCount: 180, verified: true }));
     const noise = signalScore(quality({ followersCount: 60, likeCount: 5, retweetCount: 0, quoteCount: 0, replyCount: 0 }));
     expect(desk).toBeGreaterThan(noise);

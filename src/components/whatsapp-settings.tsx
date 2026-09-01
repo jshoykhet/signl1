@@ -5,7 +5,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { DIGEST_INTERVALS } from "@/lib/desk-settings";
 import { formatClock } from "@/lib/format";
 import type { WhatsAppPublicStatus } from "@/lib/whatsapp-status";
 
@@ -96,6 +98,23 @@ export function WhatsAppSettings() {
     }
   };
 
+  const saveCadence = async (patch: { alertMode?: string; digestMinutes?: number }) => {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/whatsapp", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) throw new Error("Could not update alert timing");
+      setWa(await res.json());
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not update alert timing");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const pair = async () => {
     setBusy(true);
     try {
@@ -167,6 +186,52 @@ export function WhatsAppSettings() {
             onCheckedChange={(checked) => void toggleEnabled(checked === true)}
           />
           <span className="text-muted-foreground">{wa?.enabled === false ? "Off" : "On"}</span>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-2 border-b border-border/60 px-4 py-2.5 text-[13px] sm:grid-cols-[160px_minmax(0,1fr)] sm:gap-4">
+        <div className="text-muted-foreground">Alert timing</div>
+        <div className="grid gap-2">
+          <div className="flex flex-wrap gap-1.5">
+            <Button
+              type="button"
+              size="sm"
+              variant={wa?.alertMode !== "digest" ? "default" : "outline"}
+              disabled={!wa || busy}
+              onClick={() => void saveCadence({ alertMode: "immediate" })}
+            >
+              Immediate
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={wa?.alertMode === "digest" ? "default" : "outline"}
+              disabled={!wa || busy}
+              onClick={() => void saveCadence({ alertMode: "digest" })}
+            >
+              Digest
+            </Button>
+          </div>
+          {wa?.alertMode === "digest" ? (
+            <Select
+              value={String(wa.digestMinutes ?? 60)}
+              onValueChange={(value) => void saveCadence({ digestMinutes: Number(value) })}
+            >
+              <SelectTrigger className="min-w-48" size="sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DIGEST_INTERVALS.map((item) => (
+                  <SelectItem key={item.minutes} value={String(item.minutes)}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
+          <p className="text-[12px] leading-relaxed text-muted-foreground">
+            Immediate sends one WhatsApp per inbox match. Digest batches them into a single summary on that interval.
+            Send test is always immediate.
+          </p>
         </div>
       </div>
       <div className="grid grid-cols-[160px_minmax(0,1fr)] gap-4 border-b border-border/60 px-4 py-2.5 text-[13px]">

@@ -16,7 +16,7 @@ import {
   evaluateTweetSignal,
 } from "../lib/db";
 import { DEMO_FIXTURES, fixtureToTweet } from "../lib/demo-fixtures";
-import { notifyMatch, registerWhatsAppSender } from "../lib/notify";
+import { notifyMatch, registerWhatsAppSender, flushWhatsAppDigest } from "../lib/notify";
 import { sendWhatsAppText, startWhatsAppBridge } from "./whatsapp-session";
 import { matchesQuery } from "../lib/query";
 import {
@@ -168,6 +168,14 @@ export async function runPollerLoop() {
   for (;;) {
     try {
       heartbeat(demo ? "demo" : "live");
+      try {
+        const sent = await flushWhatsAppDigest();
+        if (sent) console.log("[whatsapp] digest sent");
+      } catch (error) {
+        console.error(
+          `[whatsapp] digest failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
       const forced = takeManualPollRequest();
       if (forced) {
         setMeta("poller_idle_backoff_ms", "0");

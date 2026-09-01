@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { DeskFilters } from "@/components/desk-filters";
+import { KolEditor } from "@/components/kol-editor";
 import { WhatsAppSettings } from "@/components/whatsapp-settings";
 import { formatClock, formatRelative } from "@/lib/format";
 import type { StatusSnapshot } from "@/lib/types";
@@ -94,6 +96,8 @@ export function SettingsView() {
               <Row label="Mode">{status.demoMode ? "Demo (fixtures)" : "Live (X API v2 recent search)"}</Row>
             </section>
             <WhatsAppSettings />
+            <DeskFilters />
+            <KolEditor />
             <section className="overflow-hidden rounded-lg border border-border/80">
               <div className="border-b border-border/80 bg-muted/30 px-4 py-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
                 Poller
@@ -144,42 +148,11 @@ export function SettingsView() {
             </section>
             <section className="overflow-hidden rounded-lg border border-border/80">
               <div className="border-b border-border/80 bg-muted/30 px-4 py-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-                Quality filter
+                Training
               </div>
-              <Row label="Min followers">{status.qualityFilter.minFollowers}</Row>
-              <Row label="Min likes">{status.qualityFilter.minLikes}</Row>
-              <Row label="Min score">{status.qualityFilter.minScore} / 100</Row>
-              <Row label="Min desk score">{status.qualityFilter.minDeskScore}</Row>
-              <Row label="How it works">
-                <p className="text-[13px] leading-relaxed text-muted-foreground">
-                  The inbox keeps posts an event-driven trader, fundamental investor, or market maker would
-                  actually trade: catalysts (FOMC, earnings, M&A, filings), sized numbers, cashtags, and
-                  flow. Generic chatter fails even from mid-size accounts. Floors are ≥
-                  {status.qualityFilter.minFollowers} followers and ≥{status.qualityFilter.minLikes} likes unless
-                  the author is a KOL, you labeled them high, or a 10k+ account just posted. Promo spam is
-                  dropped. Inbox + / − labels train author priors: two net-low votes suppress that account; two
-                  net-high votes relax the floors.
-                </p>
-              </Row>
-              <Row label="Training labels">
-                {status.training.high} high / {status.training.low} low
-              </Row>
-            </section>
-            <section className="overflow-hidden rounded-lg border border-border/80">
-              <div className="border-b border-border/80 bg-muted/30 px-4 py-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-                KOL list
-              </div>
-              <Row label="Handles">{status.kol.count} loaded</Row>
-              <Row label="Mode">{status.kol.mode === "replace" ? "Replace seed" : "Append to seed"}</Row>
-              <Row label="How to edit">
-                <p className="text-[13px] leading-relaxed text-muted-foreground">
-                  Seeded with wires, squawk, All-In, CNBC/FT talent, and official desks. Add more with{" "}
-                  <code className="font-mono text-[12px]">KOL_HANDLES</code> (comma, space, or newline;{" "}
-                  <code className="font-mono text-[12px]">@</code> optional). Set{" "}
-                  <code className="font-mono text-[12px]">KOL_HANDLES_MODE=replace</code> to ignore the seed and
-                  use only the env list. KOLs skip the like floor and get a score bump; they still need a
-                  catalyst.
-                </p>
+              <Row label="Inbox labels">
+                {status.training.high} high / {status.training.low} low. Two net-low votes suppress that account; two
+                net-high votes relax the floors.
               </Row>
             </section>
             <section className="overflow-hidden rounded-lg border border-border/80">
