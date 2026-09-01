@@ -14,6 +14,13 @@ services:
       KOL_HANDLES_MODE: ${KOL_HANDLES_MODE:-append}
       WHATSAPP_TO: ${WHATSAPP_TO:-}
       WHATSAPP_AUTH_DIR: /data/whatsapp-auth
+      AUTH_SECRET: ${AUTH_SECRET:-signal1-dev-secret-not-for-production}
+      AUTH_URL: ${AUTH_URL:-http://127.0.0.1:3847}
+      AUTH_TRUST_HOST: "true"
+      AUTH_DEV_LOGIN: ${AUTH_DEV_LOGIN:-1}
+      AUTH_ALLOWED_EMAILS: ${AUTH_ALLOWED_EMAILS:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
     volumes:
       - signal-data:/data
     restart: unless-stopped

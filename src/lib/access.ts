@@ -1,0 +1,229 @@
+import type Database from "better-sqlite3";
+import { getDb } from "./db";
+
+export type DeskRole = "admin" | "operator";
+
+export type DeskUser = {
+  id: string;
+  email: string;
+  name: string | null;
+  image: string | null;
+  role: DeskRole;
+  createdAt: string;
+  lastLoginAt: string | null;
+};
+
+export type AllowedEmail = {
+  email: string;
+  invitedAt: string;
+  invitedBy: string | null;
+};
+
+export type TeamSnapshot = {
+  users: DeskUser[];
+  allowedEmails: AllowedEmail[];
+  pendingInvites: AllowedEmail[];
+};
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+type UserRow = {
+  id: string;
+  email: string;
+  name: string | null;
+  image: string | null;
+  role: string;
+  created_at: string;
+  last_login_at: string | null;
+};
+
+function use(db?: Database.Database): Database.Database {
+  return db ?? getDb();
+}
+
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
+export function normalizeEmail(value: string | null | undefined): string | null {
+  const email = value?.trim().toLowerCase() ?? "";
+  if (!EMAIL_RE.test(email)) return null;
+  return email;
+}
+
+export function parseAllowedEmailsEnv(raw = process.env.AUTH_ALLOWED_EMAILS): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const part of (raw ?? "").split(/[,;\s]+/)) {
+    const email = normalizeEmail(part);
+    if (!email || seen.has(email)) continue;
+    seen.add(email);
+    out.push(email);
+  }
+  return out;
+}
+
+export function isGoogleAuthConfigured(): boolean {
+  return Boolean(process.env.GOOGLE_CLIENT_ID?.trim() && process.env.GOOGLE_CLIENT_SECRET?.trim());
+}
+
+export function isDevLoginEnabled(): boolean {
+  return process.env.AUTH_DEV_LOGIN === "1";
+}
+
+function mapUser(row: UserRow): DeskUser {
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    image: row.image,
+    role: row.role === "admin" ? "admin" : "operator",
+    createdAt: row.created_at,
+    lastLoginAt: row.last_login_at,
+  };
+}
+
+export function countUsers(db?: Database.Database): number {
+  const row = use(db).prepare("SELECT COUNT(*) AS n FROM users").get() as { n: number };
+  return Number(row.n);
+}
+
+export function countAllowedEmails(db?: Database.Database): number {
+  const row = use(db).prepare("SELECT COUNT(*) AS n FROM allowed_emails").get() as { n: number };
+  return Number(row.n);
+}
+
+export function getUserByEmail(email: string, db?: Database.Database): DeskUser | null {
+  const normalized = normalizeEmail(email);
+  if (!normalized) return null;
+  const row = use(db).prepare("SELECT * FROM users WHERE email = ?").get(normalized) as UserRow | undefined;
+  return row ? mapUser(row) : null;
+}
+
+export function listUsers(db?: Database.Database): DeskUser[] {
+  const rows = use(db)
+    .prepare("SELECT * FROM users ORDER BY role ASC, created_at ASC")
+    .all() as UserRow[];
+  return rows.map(mapUser);
+}
+
+export function listAllowedEmails(db?: Database.Database): AllowedEmail[] {
+  const rows = use(db)
+    .prepare("SELECT email, invited_at, invited_by FROM allowed_emails ORDER BY invited_at ASC")
+    .all() as Array<{ email: string; invited_at: string; invited_by: string | null }>;
+  return rows.map((row) => ({
+    email: row.email,
+    invitedAt: row.invited_at,
+    invitedBy: row.invited_by,
+  }));
+}
+
+export function isEmailAllowed(email: string, db?: Database.Database): boolean {
+  const normalized = normalizeEmail(email);
+  if (!normalized) return false;
+  const row = use(db).prepare("SELECT 1 AS ok FROM allowed_emails WHERE email = ?").get(normalized) as
+    | { ok: number }
+    | undefined;
+  return Boolean(row);
+}
+
+export function addAllowedEmail(email: string, invitedBy: string, db?: Database.Database): AllowedEmail {
+  const normalized = normalizeEmail(email);
+  if (!normalized) throw new Error("Enter a valid email address.");
+  const ts = nowIso();
+  use(db)
+    .prepare(
+      `INSERT INTO allowed_emails (email, invited_at, invited_by) VALUES (?, ?, ?)
+       ON CONFLICT(email) DO UPDATE SET invited_by = excluded.invited_by`,
+    )
+    .run(normalized, ts, invitedBy);
+  const row = use(db)
+    .prepare("SELECT email, invited_at, invited_by FROM allowed_emails WHERE email = ?")
+    .get(normalized) as { email: string; invited_at: string; invited_by: string | null };
+  return { email: row.email, invitedAt: row.invited_at, invitedBy: row.invited_by };
+}
+
+export function removeAllowedEmail(email: string, db?: Database.Database): void {
+  const normalized = normalizeEmail(email);
+  if (!normalized) throw new Error("Enter a valid email address.");
+  const target = getUserByEmail(normalized, db);
+  if (target?.role === "admin") {
+    const activeAdmins = listUsers(db).filter((user) => user.role === "admin" && isEmailAllowed(user.email, db));
+    if (activeAdmins.length <= 1) {
+      throw new Error("Cannot revoke the last admin. Invite another admin first.");
+    }
+  }
+  use(db).prepare("DELETE FROM allowed_emails WHERE email = ?").run(normalized);
+}
+
+export function getTeamSnapshot(db?: Database.Database): TeamSnapshot {
+  const users = listUsers(db);
+  const allowedEmails = listAllowedEmails(db);
+  const userEmails = new Set(users.map((user) => user.email));
+  return {
+    users,
+    allowedEmails,
+    pendingInvites: allowedEmails.filter((row) => !userEmails.has(row.email)),
+  };
+}
+
+function touchLogin(
+  id: string,
+  input: { name?: string | null; image?: string | null },
+  db: Database.Database,
+) {
+  db.prepare(
+    `UPDATE users SET
+      last_login_at = ?,
+      name = COALESCE(?, name),
+      image = COALESCE(?, image)
+     WHERE id = ?`,
+  ).run(nowIso(), input.name?.trim() || null, input.image?.trim() || null, id);
+}
+
+/**
+ * Gate for Google / local desk login. Shared desk: every admitted operator
+ * sees the same inbox, rules, and WhatsApp session.
+ *
+ * First user becomes admin when the user table is empty. If the allowlist
+ * already has rows (including AUTH_ALLOWED_EMAILS), that first user must
+ * still be on the list.
+ */
+export function admitUser(
+  input: { email: string; name?: string | null; image?: string | null },
+  db?: Database.Database,
+): DeskUser | null {
+  const conn = use(db);
+  const email = normalizeEmail(input.email);
+  if (!email) return null;
+
+  const existing = getUserByEmail(email, conn);
+  const allowed = isEmailAllowed(email, conn);
+  const userCount = countUsers(conn);
+  const allowCount = countAllowedEmails(conn);
+
+  if (existing) {
+    if (allowCount > 0 && !allowed) return null;
+    touchLogin(existing.id, input, conn);
+    return getUserByEmail(email, conn);
+  }
+
+  const bootstrap = userCount === 0 && allowCount === 0;
+  if (!bootstrap && !allowed) return null;
+
+  const ts = nowIso();
+  const id = crypto.randomUUID();
+  const role: DeskRole = userCount === 0 ? "admin" : "operator";
+  conn
+    .prepare(
+      `INSERT INTO users (id, email, name, image, role, created_at, last_login_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(id, email, input.name?.trim() || null, input.image?.trim() || null, role, ts, ts);
+
+  if (bootstrap) {
+    addAllowedEmail(email, "bootstrap", conn);
+  }
+
+  return getUserByEmail(email, conn);
+}

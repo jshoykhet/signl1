@@ -181,7 +181,25 @@ function migrate(db: Database.Database) {
       symbol TEXT PRIMARY KEY,
       created_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      email TEXT NOT NULL UNIQUE,
+      name TEXT,
+      image TEXT,
+      role TEXT NOT NULL DEFAULT 'operator',
+      created_at TEXT NOT NULL,
+      last_login_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS allowed_emails (
+      email TEXT PRIMARY KEY,
+      invited_at TEXT NOT NULL,
+      invited_by TEXT
+    );
   `);
+
+  seedAllowedEmailsFromEnv(db);
 
   ensureColumn(db, "rules", "kind", "TEXT NOT NULL DEFAULT 'custom'");
   ensureColumn(db, "rules", "watchlist_chunk", "INTEGER");
@@ -469,6 +487,18 @@ const SEED_RULES: RuleInput[] = [
     genericWebhookUrl: null,
   },
 ];
+
+function seedAllowedEmailsFromEnv(db: Database.Database) {
+  const insert = db.prepare(
+    "INSERT OR IGNORE INTO allowed_emails (email, invited_at, invited_by) VALUES (?, ?, 'env')",
+  );
+  const ts = nowIso();
+  for (const part of (process.env.AUTH_ALLOWED_EMAILS ?? "").split(/[,;\s]+/)) {
+    const email = part.trim().toLowerCase();
+    if (!email || !email.includes("@") || !email.includes(".")) continue;
+    insert.run(email, ts);
+  }
+}
 
 function seedIfNeeded(db: Database.Database) {
   const inserted = db.prepare("INSERT OR IGNORE INTO meta (key, value) VALUES ('seeded', ?)").run(nowIso());

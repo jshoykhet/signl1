@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { DeskFilters } from "@/components/desk-filters";
 import { KolEditor } from "@/components/kol-editor";
+import { TeamSettings } from "@/components/team-settings";
 import { WhatsAppSettings } from "@/components/whatsapp-settings";
 import { formatClock, formatRelative } from "@/lib/format";
 import type { StatusSnapshot } from "@/lib/types";
@@ -48,7 +49,7 @@ export function SettingsView() {
       <header className="border-b border-border/80 px-5 py-3">
         <h1 className="text-sm font-semibold tracking-tight">Settings</h1>
         <p className="text-xs text-muted-foreground">
-          Secrets stay in the process environment. This page never prints the bearer token.
+          Secrets stay in the process environment. This page never prints the bearer token or Google client secret.
         </p>
       </header>
       <div className="mx-auto w-full max-w-3xl flex-1 px-5 py-6">
@@ -95,6 +96,7 @@ export function SettingsView() {
               </Row>
               <Row label="Mode">{status.demoMode ? "Demo (fixtures)" : "Live (X API v2 recent search)"}</Row>
             </section>
+            <TeamSettings />
             <WhatsAppSettings />
             <DeskFilters />
             <KolEditor />

@@ -16,6 +16,8 @@ ENV NODE_ENV=production
 ENV PORT=3847
 ENV HOSTNAME=0.0.0.0
 ENV DATABASE_PATH=/data/signal.db
+ENV AUTH_TRUST_HOST=true
+ENV AUTH_SECRET=build-placeholder
 
 RUN npm run build
 

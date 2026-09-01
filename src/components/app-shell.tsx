@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Activity, BadgeDollarSign, Inbox, Settings2, SlidersHorizontal } from "lucide-react";
+import { UserMenu } from "@/components/user-menu";
 import { cn } from "@/lib/utils";
 import type { StatusSnapshot } from "@/lib/types";
 
@@ -17,8 +18,10 @@ const NAV = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [status, setStatus] = useState<StatusSnapshot | null>(null);
+  const bare = pathname === "/login";
 
   useEffect(() => {
+    if (bare) return;
     let cancelled = false;
     const load = async () => {
       try {
@@ -36,7 +39,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       cancelled = true;
       clearInterval(timer);
     };
-  }, []);
+  }, [bare]);
+
+  if (bare) return <>{children}</>;
 
   return (
     <div className="flex min-h-full bg-background text-foreground">
@@ -86,26 +91,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-        <div className="hidden space-y-2 border-t border-border/80 p-3 md:block">
+        <div className="space-y-2 border-t border-border/80 p-2 md:p-3">
           {status?.demoMode ? (
-            <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5">
+            <div className="hidden rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 md:block">
               <div className="text-[10px] font-semibold tracking-wider text-amber-300 uppercase">Demo mode</div>
               <div className="text-[11px] leading-snug text-amber-100/70">
                 No X bearer token. Fixture tape is playing.
               </div>
             </div>
           ) : (
-            <div className="rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-1.5">
+            <div className="hidden rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-1.5 md:block">
               <div className="text-[10px] font-semibold tracking-wider text-emerald-300 uppercase">Live</div>
               <div className="text-[11px] text-emerald-100/70">X API v2 recent search</div>
             </div>
           )}
-          <div className="flex items-center gap-2 px-1 text-[11px] text-muted-foreground">
+          <div className="hidden items-center gap-2 px-1 text-[11px] text-muted-foreground md:flex">
             <Activity
               className={cn("size-3", status?.poller.healthy ? "text-emerald-400" : "text-zinc-500")}
             />
             <span>{status?.poller.healthy ? "Poller healthy" : "Poller waiting"}</span>
           </div>
+          <UserMenu />
         </div>
       </aside>
       <main className="flex min-w-0 flex-1 flex-col">{children}</main>

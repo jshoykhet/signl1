@@ -2,7 +2,9 @@
 
 Self-hosted X (Twitter) alerts for investment and research operators. You define watch rules in a web UI; a background poller hits the official X API v2 recent-search endpoint and writes matches into an inbox. Optional Slack and generic webhooks fire on each new tweet.
 
-There is no hosted service. You run it with Docker Compose (or `npm run dev`) against a local SQLite file.
+There is no hosted service. You run it with Docker Compose (or `npm run dev`) against a local SQLite file. Operators sign in with Google (or a local desk email in development). Everyone who gets in shares the same inbox, rules, KOL list, and WhatsApp session.
+
+To put Signal1 on a domain you purchased, use a VPS — not Vercel. See [DEPLOY.md](DEPLOY.md) for DNS, Caddy TLS, the Google OAuth client, and the first-admin allowlist.
 
 ## Quick start
 
@@ -26,6 +28,12 @@ Leave `X_BEARER_TOKEN` empty for **demo mode**. Signal1 injects fixture markets 
 | `KOL_HANDLES_MODE` | No | `append` (default) keeps the seed and adds `KOL_HANDLES`. `replace` uses only the env list. |
 | `WHATSAPP_TO` | No | Default WhatsApp destination (country code + digits, or a group JID). Editable on Settings. |
 | `WHATSAPP_AUTH_DIR` | No | Baileys session folder. Defaults next to the SQLite file; Compose uses `/data/whatsapp-auth`. |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Prod | Google OAuth Web client. Redirect URI is `https://<domain>/api/auth/callback/google`. |
+| `AUTH_SECRET` | Prod | Session secret (`openssl rand -base64 32`). Optional locally. |
+| `AUTH_URL` | Prod | Public desk URL, e.g. `https://signals.example.com`. |
+| `AUTH_DEV_LOGIN` | No | `1` enables a passwordless email field for local preview. Production Compose forces `0`. |
+| `AUTH_ALLOWED_EMAILS` | Recommended | Comma-separated Google accounts allowed to join. Set before exposing the box so a random first login cannot become admin. |
+| `DOMAIN` | Prod | Hostname for `docker-compose.prod.yml` + Caddy. |
 
 Copy `.env.example` to `.env` and fill in what you need. Compose interpolates those values; an empty token is demo mode.
 
@@ -37,6 +45,8 @@ DATABASE_PATH=./data/signal.db
 ```
 
 Do not commit `.env`. Per-rule Slack and generic webhook URLs live in SQLite on purpose so different desks can fan out without extra env vars.
+
+Sign-in is invite-only. The first admitted user becomes **admin** and can invite more Google accounts on **Settings → Team**. If `AUTH_ALLOWED_EMAILS` is set, even that first user must be on the list.
 
 ## X bearer token (live mode)
 
@@ -142,13 +152,13 @@ The inbox and rules pages are searchable. In the inbox, `/` or Ctrl/Cmd+K focuse
 - `poller` — continuous worker
 - `signal-data` volume — SQLite at `/data/signal.db`
 
-Both containers share the volume. WAL mode and a busy timeout are enabled so the UI and poller can write without extra services.
+Both containers share the volume. WAL mode and a busy timeout are enabled so the UI and poller can write without extra services. Production adds Caddy in front (`docker-compose.prod.yml`) and does not publish 3847.
 
 ```bash
 docker compose up --build
 docker compose logs -f poller
 docker compose down          # keeps the volume
-docker compose down -v       # wipes matches and rules
+docker compose down -v       # wipes matches, rules, and WhatsApp session
 ```
 
 ## Local development
@@ -209,7 +219,7 @@ Do not lower every interval to 15s on a live token. Signal1 floors live polls at
 npm test
 ```
 
-Covers query compilation (including the accounts helper), tweet/rule dedup against SQLite, demo fixture coverage of the sample rules, webhook payload shape, +/− training labels, watchlist cashtags, packed live-search query budgets, desk-relevance scoring, the KOL seed/editor, desk-tape floors, WhatsApp digest copy, and WhatsApp JID formatting.
+Covers query compilation (including the accounts helper), tweet/rule dedup against SQLite, demo fixture coverage of the sample rules, webhook payload shape, +/− training labels, watchlist cashtags, packed live-search query budgets, desk-relevance scoring, the KOL seed/editor, desk-tape floors, WhatsApp digest copy, WhatsApp JID formatting, and the Google/allowlist admission rules.
 
 ## Layout
 
