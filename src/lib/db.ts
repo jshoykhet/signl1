@@ -14,6 +14,12 @@ import {
   type KolSpec,
 } from "./kol";
 import {
+  isBlockedHandle,
+  isEnvBlockedHandle,
+  listBlockedHandles,
+  type BlockedSpec,
+} from "./blocked";
+import {
   parseBoolMeta,
   parseDigestMinutes,
   parseMinLikes,
@@ -271,7 +277,16 @@ function backfillMatchQuality(db: Database.Database) {
     const likes = row.like_count ?? metrics.likeCount;
     if (followers == null && likes == null) {
       const labeled = parseUserLabel(row.user_label);
-      const pass = labeled === "high" ? 1 : labeled === "low" ? 0 : row.tweet_id.startsWith("demo-") ? 1 : 0;
+      const blocked = isBlockedHandle(row.author_handle, getBlockedSpec(db));
+      const pass = blocked
+        ? 0
+        : labeled === "high"
+          ? 1
+          : labeled === "low"
+            ? 0
+            : row.tweet_id.startsWith("demo-")
+              ? 1
+              : 0;
       update.run(null, null, null, pass, row.id);
       continue;
     }
@@ -287,10 +302,11 @@ function backfillMatchQuality(db: Database.Database) {
       authorHandle: row.author_handle,
     };
     const filters = getDeskFilterSettings(db);
+    const flags = authorSignalFlags(row.author_handle, db);
     const verdict = passesSignalFilter(quality, Date.now(), {
       userLabel: parseUserLabel(row.user_label),
       prior: priors.get(row.author_handle.toLowerCase()) ?? { high: 0, low: 0 },
-      kol: isKolHandle(row.author_handle, getKolSpec(db)),
+      ...flags,
       ...filters,
     });
     const pass =
@@ -350,6 +366,21 @@ export function getKolSpec(db = getDb()): KolSpec {
   };
 }
 
+export function getBlockedSpec(db = getDb()): BlockedSpec {
+  return {
+    BLOCKED_HANDLES: process.env.BLOCKED_HANDLES,
+    added: parseHandleList(getMeta("blocked_added", db)),
+    removed: parseHandleList(getMeta("blocked_removed", db)),
+  };
+}
+
+function authorSignalFlags(handle: string, db: Database.Database) {
+  return {
+    kol: isKolHandle(handle, getKolSpec(db)),
+    blocked: isBlockedHandle(handle, getBlockedSpec(db)),
+  };
+}
+
 export function listAuthorFollowerCounts(db = getDb()): Map<string, number> {
   const rows = db.prepare(`
     SELECT lower(author_handle) AS handle, MAX(author_followers) AS followers
@@ -387,7 +418,7 @@ export function evaluateTweetSignal(tweet: NormalizedTweet, db = getDb()) {
   return passesSignalFilter(tweet, Date.now(), {
     prior: getAuthorPrior(tweet.authorHandle, db),
     userLabel: getTweetLabel(tweet.id, db),
-    kol: isKolHandle(tweet.authorHandle, getKolSpec(db)),
+    ...authorSignalFlags(tweet.authorHandle, db),
     ...filters,
   });
 }
@@ -433,7 +464,6 @@ function recomputeAuthorQuality(handle: string, db: Database.Database) {
     const followers = row.author_followers ?? metrics.followersCount ?? 0;
     const likes = row.like_count ?? metrics.likeCount ?? 0;
     const filters = getDeskFilterSettings(db);
-    const spec = getKolSpec(db);
     const verdict = passesSignalFilter(
       {
         followersCount: followers,
@@ -450,7 +480,7 @@ function recomputeAuthorQuality(handle: string, db: Database.Database) {
       {
         userLabel: parseUserLabel(row.user_label),
         prior,
-        kol: isKolHandle(row.author_handle, spec),
+        ...authorSignalFlags(row.author_handle, db),
         ...filters,
       },
     );
@@ -713,6 +743,11 @@ export function listMatches(
       clauses.push("m.tweet_id NOT LIKE 'demo-%'");
     }
   }
+  const blocked = listBlockedHandles(getBlockedSpec(db));
+  if (blocked.length > 0) {
+    clauses.push(`lower(m.author_handle) NOT IN (${blocked.map(() => "?").join(", ")})`);
+    params.push(...blocked);
+  }
   for (const token of tokenizeSearch(opts.q ?? "")) {
     clauses.push(
       `(lower(m.text) LIKE ? ESCAPE char(92) OR lower(m.author_handle) LIKE ? ESCAPE char(92) OR lower(m.author_name) LIKE ? ESCAPE char(92) OR lower(r.name) LIKE ? ESCAPE char(92) OR lower(m.tweet_id) LIKE ? ESCAPE char(92))`,
@@ -733,15 +768,19 @@ export function listMatches(
 }
 
 export function listMatchesSince(iso: string, limit = 400, db = getDb()): Match[] {
+  const blocked = listBlockedHandles(getBlockedSpec(db));
+  const blockedSql =
+    blocked.length > 0 ? `AND lower(m.author_handle) NOT IN (${blocked.map(() => "?").join(", ")})` : "";
   const rows = db.prepare(`
     SELECT m.*, r.name AS rule_name
     FROM matches m
     JOIN rules r ON r.id = m.rule_id
     WHERE m.matched_at > ?
       AND (m.signal_pass IS NULL OR m.signal_pass = 1)
+      ${blockedSql}
     ORDER BY m.matched_at ASC
     LIMIT ?
-  `).all(iso, Math.min(Math.max(limit, 1), 400)) as MatchRow[];
+  `).all(iso, ...blocked, Math.min(Math.max(limit, 1), 400)) as MatchRow[];
   return attachPriors(rows.map(mapMatch), db);
 }
 
@@ -859,6 +898,45 @@ export function resetKolHandles(db = getDb()): string[] {
   return listKolHandles(getKolSpec(db));
 }
 
+export function addBlockedHandle(handle: string, db = getDb()): string[] {
+  const normalized = handle.replace(/^@/, "").trim();
+  if (!/^[A-Za-z0-9_]{1,15}$/.test(normalized)) {
+    throw new Error("Handle must be 1–15 letters, numbers, or underscores");
+  }
+  const spec = getBlockedSpec(db);
+  const key = normalized.toLowerCase();
+  const added = isEnvBlockedHandle(key, spec)
+    ? (spec.added ?? []).filter((h) => h !== key)
+    : [...new Set([...(spec.added ?? []), key])];
+  const removed = (spec.removed ?? []).filter((h) => h !== key);
+  setMeta("blocked_added", serializeHandleList(added), db);
+  setMeta("blocked_removed", serializeHandleList(removed), db);
+  recomputeAuthorQuality(key, db);
+  return listBlockedHandles(getBlockedSpec(db));
+}
+
+export function removeBlockedHandle(handle: string, db = getDb()): string[] {
+  const normalized = handle.replace(/^@/, "").trim().toLowerCase();
+  const spec = getBlockedSpec(db);
+  const added = (spec.added ?? []).filter((h) => h !== normalized);
+  const removed = [...new Set([...(spec.removed ?? []), normalized])];
+  setMeta("blocked_added", serializeHandleList(added), db);
+  setMeta("blocked_removed", serializeHandleList(removed), db);
+  recomputeAuthorQuality(normalized, db);
+  return listBlockedHandles(getBlockedSpec(db));
+}
+
+export function resetBlockedHandles(db = getDb()): string[] {
+  const before = listBlockedHandles(getBlockedSpec(db));
+  setMeta("blocked_added", "", db);
+  setMeta("blocked_removed", "", db);
+  const after = listBlockedHandles(getBlockedSpec(db));
+  for (const handle of new Set([...before, ...after])) {
+    recomputeAuthorQuality(handle, db);
+  }
+  return after;
+}
+
 export function getStatus(opts: { demoMode: boolean; bearerPresent: boolean }, db = getDb()): StatusSnapshot {
   const lastHeartbeatAt = getMeta("poller_heartbeat_at", db);
   const startedAt = getMeta("poller_started_at", db);
@@ -895,6 +973,7 @@ export function getStatus(opts: { demoMode: boolean; bearerPresent: boolean }, d
   const lastManualPollAt = getMeta("poller_manual_ack_at", db);
   const spec = getKolSpec(db);
   const kolHandles = listKolHandles(spec);
+  const blockedSpec = getBlockedSpec(db);
   const filters = getDeskFilterSettings(db);
   const floors = SIGNAL_LEVELS[filters.signalLevel];
 
@@ -930,6 +1009,11 @@ export function getStatus(opts: { demoMode: boolean; bearerPresent: boolean }, d
       mode: kolMode(),
       added: spec.added ?? [],
       removed: spec.removed ?? [],
+    },
+    blocked: {
+      count: listBlockedHandles(blockedSpec).length,
+      added: blockedSpec.added ?? [],
+      removed: blockedSpec.removed ?? [],
     },
     training: {
       high: Number(training.high),

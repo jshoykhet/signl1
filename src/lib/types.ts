@@ -107,6 +107,11 @@ export type StatusSnapshot = {
     added: string[];
     removed: string[];
   };
+  blocked: {
+    count: number;
+    added: string[];
+    removed: string[];
+  };
   training: {
     high: number;
     low: number;

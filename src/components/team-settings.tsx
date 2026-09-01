@@ -68,7 +68,8 @@ export function TeamSettings() {
       </div>
       <div className="space-y-4 px-4 py-3 text-[13px]">
         <p className="text-muted-foreground">
-          Shared desk: every signed-in operator sees the same inbox, rules, KOL list, and WhatsApp session.
+          Shared desk: every signed-in operator sees the same inbox, rules, Key Network Nodes, blocked list, and WhatsApp
+          session.
           Google accounts must be invited here before they can sign in.
         </p>
         {error ? <p className="text-destructive">{error}</p> : null}

@@ -7,27 +7,26 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCompact } from "@/lib/format";
-import type { KolSource } from "@/lib/kol";
+import type { BlockedSource } from "@/lib/blocked";
 
-type KolItem = {
+type BlockedItem = {
   handle: string;
   custom: boolean;
-  source: KolSource;
+  source: BlockedSource;
   active: boolean;
   followers: number | null;
   profileUrl: string;
 };
 
-type KolSnapshot = {
+type BlockedSnapshot = {
   handles: string[];
   count: number;
   added: string[];
   removed: string[];
-  seedCount: number;
-  items: KolItem[];
+  items: BlockedItem[];
 };
 
-type SourceFilter = "all" | "seed" | "added" | "removed";
+type SourceFilter = "all" | "added" | "env" | "removed";
 type SortKey = "handle" | "followers" | "source" | "status";
 type SortDir = "asc" | "desc";
 
@@ -36,8 +35,8 @@ function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
   return dir === "asc" ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />;
 }
 
-export function KolEditor() {
-  const [kol, setKol] = useState<KolSnapshot | null>(null);
+export function BlockedEditor() {
+  const [blocked, setBlocked] = useState<BlockedSnapshot | null>(null);
   const [draft, setDraft] = useState("");
   const [query, setQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
@@ -46,30 +45,30 @@ export function KolEditor() {
   const [busy, setBusy] = useState(false);
 
   const load = async () => {
-    const res = await fetch("/api/kol", { cache: "no-store" });
-    if (!res.ok) throw new Error("Failed to load Key Network Nodes");
-    setKol((await res.json()) as KolSnapshot);
+    const res = await fetch("/api/blocked", { cache: "no-store" });
+    if (!res.ok) throw new Error("Failed to load blocked list");
+    setBlocked((await res.json()) as BlockedSnapshot);
   };
 
   useEffect(() => {
-    void load().catch((err) => toast.error(err instanceof Error ? err.message : "Failed to load Key Network Nodes"));
+    void load().catch((err) => toast.error(err instanceof Error ? err.message : "Failed to load blocked list"));
   }, []);
 
   const save = async (body: { add?: string; remove?: string; reset?: boolean }, success?: string) => {
     setBusy(true);
     try {
-      const res = await fetch("/api/kol", {
+      const res = await fetch("/api/blocked", {
         method: "PUT",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
       });
-      const data = (await res.json()) as KolSnapshot & { error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Could not update Key Network Nodes");
-      setKol(data);
+      const data = (await res.json()) as BlockedSnapshot & { error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Could not update blocked list");
+      setBlocked(data);
       if (body.add) setDraft("");
       if (success) toast.success(success);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not update Key Network Nodes");
+      toast.error(err instanceof Error ? err.message : "Could not update blocked list");
     } finally {
       setBusy(false);
     }
@@ -85,12 +84,12 @@ export function KolEditor() {
   };
 
   const rows = useMemo(() => {
-    if (!kol) return [];
+    if (!blocked) return [];
     const q = query.trim().toLowerCase().replace(/^@/, "");
-    const filtered = kol.items.filter((item) => {
+    const filtered = blocked.items.filter((item) => {
       if (q && !item.handle.includes(q)) return false;
-      if (sourceFilter === "seed") return item.source === "seed";
       if (sourceFilter === "added") return item.source === "added";
+      if (sourceFilter === "env") return item.source === "env";
       if (sourceFilter === "removed") return !item.active;
       return true;
     });
@@ -112,34 +111,34 @@ export function KolEditor() {
       }
       return a.handle.localeCompare(b.handle) * dir;
     });
-  }, [kol, query, sourceFilter, sortKey, sortDir]);
+  }, [blocked, query, sourceFilter, sortKey, sortDir]);
 
-  const activeCount = kol?.count ?? 0;
-  const removedCount = kol?.items.filter((item) => !item.active).length ?? 0;
-  const addedCount = kol?.items.filter((item) => item.source === "added" && item.active).length ?? 0;
+  const activeCount = blocked?.count ?? 0;
+  const removedCount = blocked?.items.filter((item) => !item.active).length ?? 0;
+  const addedCount = blocked?.items.filter((item) => item.source === "added" && item.active).length ?? 0;
+  const envCount = blocked?.items.filter((item) => item.source === "env" && item.active).length ?? 0;
 
   return (
     <section className="overflow-hidden rounded-lg border border-border/80">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/80 bg-muted/30 px-4 py-2">
-        <div className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-          Key Network Nodes
-        </div>
-        {kol ? (
+        <div className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Blocked</div>
+        {blocked ? (
           <div className="font-mono text-[11px] text-muted-foreground">
-            {activeCount} active
+            {activeCount} blocked
             {addedCount ? ` · ${addedCount} added` : ""}
-            {removedCount ? ` · ${removedCount} removed` : ""}
+            {envCount ? ` · ${envCount} env` : ""}
+            {removedCount ? ` · ${removedCount} restored` : ""}
           </div>
         ) : null}
       </div>
-      {!kol ? (
-        <div className="px-4 py-3 text-sm text-muted-foreground">Loading Key Network Nodes…</div>
+      {!blocked ? (
+        <div className="px-4 py-3 text-sm text-muted-foreground">Loading blocked list…</div>
       ) : (
         <div className="grid gap-3 px-4 py-3">
           <p className="text-[12px] leading-relaxed text-muted-foreground">
-            Seeded with {kol.seedCount} markets-desk handles. These accounts skip the like floor and get a desk bump
-            unless Require likes is on. Click a handle to open the X profile. Follower counts come from posts Signal1
-            has already ingested — accounts with no match yet show —.
+            Drop these accounts from the inbox and Slack/WhatsApp, even if they are Key Network Nodes or you labeled a
+            post high. Remove keeps the row so you can restore. Follower counts come from posts Signal1 has already
+            ingested.
           </p>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
@@ -148,11 +147,11 @@ export function KolEditor() {
                 onChange={(event) => setDraft(event.target.value)}
                 placeholder="@handle"
                 className="max-w-[14rem] font-mono"
-                aria-label="Add Key Network Node handle"
+                aria-label="Block handle"
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
                     event.preventDefault();
-                    if (draft.trim()) void save({ add: draft }, `@${draft.replace(/^@/, "").trim()} added`);
+                    if (draft.trim()) void save({ add: draft }, `@${draft.replace(/^@/, "").trim()} blocked`);
                   }
                 }}
               />
@@ -160,14 +159,20 @@ export function KolEditor() {
                 type="button"
                 size="sm"
                 disabled={busy || !draft.trim()}
-                onClick={() => void save({ add: draft }, `@${draft.replace(/^@/, "").trim()} added`)}
+                onClick={() => void save({ add: draft }, `@${draft.replace(/^@/, "").trim()} blocked`)}
               >
                 <Plus className="size-3.5" />
                 Add row
               </Button>
             </div>
-            <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => void save({ reset: true }, "Key Network Nodes reset")}>
-              Reset to defaults
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={busy}
+              onClick={() => void save({ reset: true }, "Blocked list cleared")}
+            >
+              Clear list
             </Button>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -178,16 +183,16 @@ export function KolEditor() {
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search handles"
                 className="pl-8 font-mono"
-                aria-label="Search Key Network Nodes"
+                aria-label="Search blocked list"
               />
             </div>
             <div className="flex flex-wrap gap-1">
               {(
                 [
                   ["all", "All"],
-                  ["seed", "Seed"],
                   ["added", "Added"],
-                  ["removed", "Removed"],
+                  ["env", "Env"],
+                  ["removed", "Restored"],
                 ] as const
               ).map(([id, label]) => (
                 <Button
@@ -256,7 +261,7 @@ export function KolEditor() {
                       <td colSpan={5} className="px-3 py-8 text-center text-sm text-muted-foreground">
                         {query.trim() || sourceFilter !== "all"
                           ? "No handles match that filter."
-                          : "No handles yet. Add a row to start the list."}
+                          : "No blocked accounts. Add a row to mute a handle."}
                       </td>
                     </tr>
                   ) : (
@@ -282,14 +287,14 @@ export function KolEditor() {
                         </td>
                         <td className="border-r border-b border-white/20 px-3 py-1.5 leading-6">
                           <Badge variant={item.source === "added" ? "default" : "outline"} className="font-normal">
-                            {item.source === "added" ? "Added" : "Seed"}
+                            {item.source === "env" ? "Env" : "Added"}
                           </Badge>
                         </td>
                         <td className="border-r border-b border-white/20 px-3 py-1.5 leading-6">
                           {item.active ? (
-                            <span className="text-emerald-400">Active</span>
+                            <span className="text-red-400">Blocked</span>
                           ) : (
-                            <span className="text-amber-300">Removed</span>
+                            <span className="text-amber-300">Restored</span>
                           )}
                         </td>
                         <td className="border-b border-white/20 px-2 py-1 text-right">
@@ -299,8 +304,8 @@ export function KolEditor() {
                               size="xs"
                               variant="ghost"
                               disabled={busy}
-                              aria-label={`Remove @${item.handle}`}
-                              onClick={() => void save({ remove: item.handle }, `@${item.handle} removed`)}
+                              aria-label={`Unblock @${item.handle}`}
+                              onClick={() => void save({ remove: item.handle }, `@${item.handle} restored`)}
                             >
                               <Trash2 className="size-3" />
                               Remove
@@ -311,8 +316,8 @@ export function KolEditor() {
                               size="xs"
                               variant="outline"
                               disabled={busy}
-                              aria-label={`Restore @${item.handle}`}
-                              onClick={() => void save({ add: item.handle }, `@${item.handle} restored`)}
+                              aria-label={`Block @${item.handle} again`}
+                              onClick={() => void save({ add: item.handle }, `@${item.handle} blocked`)}
                             >
                               <RotateCcw className="size-3" />
                               Restore
@@ -326,9 +331,9 @@ export function KolEditor() {
               </table>
             </div>
             <div className="border-t border-white/20 bg-muted/30 px-3 py-1.5 font-mono text-[11px] text-muted-foreground">
-              {rows.length === kol.items.length
+              {rows.length === blocked.items.length
                 ? `${rows.length} rows`
-                : `Showing ${rows.length} of ${kol.items.length} rows`}
+                : `Showing ${rows.length} of ${blocked.items.length} rows`}
             </div>
           </div>
         </div>

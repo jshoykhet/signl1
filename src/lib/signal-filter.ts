@@ -47,6 +47,7 @@ export type SignalContext = {
   requireEngagement?: boolean;
   minLikes?: number | null;
   kol?: boolean;
+  blocked?: boolean;
 };
 
 export type PriorAdjustment = {
@@ -133,6 +134,7 @@ export function passesSignalFilter(
   const prior = priorAdjustment(ctx.prior);
   const userLabel = ctx.userLabel === "high" || ctx.userLabel === "low" ? ctx.userLabel : null;
   const kol = ctx.kol ?? isKolHandle(q.authorHandle);
+  const blocked = ctx.blocked === true;
   const level = SIGNAL_LEVELS[ctx.signalLevel ?? "standard"];
   const allowFresh = ctx.allowFresh !== false;
   const requireEngagement = ctx.requireEngagement === true;
@@ -142,6 +144,19 @@ export function passesSignalFilter(
   const score = clamp(baseScore + prior.scoreDelta + (kol ? KOL_SCORE_BONUS : 0), 0, 100);
   const establishedFresh = isEstablishedFresh(q, now, level.freshMs);
   const reasons: string[] = [];
+
+  if (blocked) {
+    return {
+      pass: false,
+      score,
+      reasons: ["blocked"],
+      establishedFresh,
+      userLabel,
+      prior,
+      kol,
+      deskScore: desk.score,
+    };
+  }
 
   if (userLabel === "high") {
     return {
@@ -197,7 +212,7 @@ export function passesSignalFilter(
     return {
       pass: false,
       score,
-      reasons: ["not a KOL"],
+      reasons: ["not a key network node"],
       establishedFresh,
       userLabel,
       prior,
@@ -228,10 +243,10 @@ export function passesSignalFilter(
     reasons.push(`desk ${desk.score} < ${minDesk}`);
   }
 
-  if (kol) reasons.push("KOL");
+  if (kol) reasons.push("node");
 
   return {
-    pass: reasons.filter((r) => r !== "KOL").length === 0,
+    pass: reasons.filter((r) => r !== "node").length === 0,
     score,
     reasons,
     establishedFresh,

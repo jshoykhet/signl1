@@ -136,7 +136,7 @@ describe("passesSignalFilter", () => {
       kolOnly: true,
     });
     expect(verdict.pass).toBe(false);
-    expect(verdict.reasons).toContain("not a KOL");
+    expect(verdict.reasons).toContain("not a key network node");
   });
 
   it("keeps a KOL catalyst when kolOnly is on", () => {
@@ -188,6 +188,22 @@ describe("passesSignalFilter", () => {
     });
     expect(standard.pass).toBe(true);
     expect(high.pass).toBe(false);
+  });
+
+  it("drops a blocked account even when it is a node labeled high", () => {
+    const verdict = passesSignalFilter(
+      quality({
+        authorHandle: "DeItaone",
+        followersCount: 40,
+        likeCount: 0,
+        text: "JUST IN: CPI 3.2% vs 3.1% expected",
+      }),
+      now,
+      { blocked: true, userLabel: "high" },
+    );
+    expect(verdict.pass).toBe(false);
+    expect(verdict.reasons).toContain("blocked");
+    expect(verdict.kol).toBe(true);
   });
 });
 

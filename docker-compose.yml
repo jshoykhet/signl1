@@ -12,6 +12,7 @@ services:
       SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
       KOL_HANDLES: ${KOL_HANDLES:-}
       KOL_HANDLES_MODE: ${KOL_HANDLES_MODE:-append}
+      BLOCKED_HANDLES: ${BLOCKED_HANDLES:-}
       WHATSAPP_TO: ${WHATSAPP_TO:-}
       WHATSAPP_AUTH_DIR: /data/whatsapp-auth
       AUTH_SECRET: ${AUTH_SECRET:-signal1-dev-secret-not-for-production}
@@ -34,6 +35,7 @@ services:
       SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
       KOL_HANDLES: ${KOL_HANDLES:-}
       KOL_HANDLES_MODE: ${KOL_HANDLES_MODE:-append}
+      BLOCKED_HANDLES: ${BLOCKED_HANDLES:-}
       WHATSAPP_TO: ${WHATSAPP_TO:-}
       WHATSAPP_AUTH_DIR: /data/whatsapp-auth
     volumes:

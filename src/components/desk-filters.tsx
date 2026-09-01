@@ -71,7 +71,7 @@ export function DeskFilters() {
         <div className="px-4 py-3 text-sm text-muted-foreground">Loading filters…</div>
       ) : (
         <>
-          <Row label="KOL only">
+          <Row label="Nodes only">
             <div className="flex items-center gap-2">
               <Switch
                 checked={filters.kolOnly}
@@ -79,7 +79,7 @@ export function DeskFilters() {
                 onCheckedChange={(checked) => void save({ kolOnly: checked === true })}
               />
               <span className="text-muted-foreground">
-                {filters.kolOnly ? "Only seeded/custom KOL handles" : "All matching authors"}
+                {filters.kolOnly ? "Only Key Network Nodes (plus high labels)" : "All matching authors"}
               </span>
             </div>
           </Row>
@@ -186,12 +186,14 @@ export function DeskFilters() {
                   onCheckedChange={(checked) => void save({ requireEngagement: checked === true })}
                 />
                 <span className="text-muted-foreground">
-                  {filters.requireEngagement ? "Even KOLs and fresh desks" : "KOLs / fresh desks can skip this floor"}
+                  {filters.requireEngagement
+                    ? "Even Key Network Nodes and fresh desks"
+                    : "Nodes / fresh desks can skip this floor"}
                 </span>
               </div>
               <p className="text-[12px] leading-relaxed text-muted-foreground">
-                When on, the min-likes and score floors apply even to KOLs and brand-new posts. Use this for confirmed
-                tape instead of first-print breaking.
+                When on, the min-likes and score floors apply even to Key Network Nodes and brand-new posts. Use this
+                for confirmed tape instead of first-print breaking.
               </p>
             </div>
           </Row>

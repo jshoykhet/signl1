@@ -1,5 +1,5 @@
 /**
- * Key opinion leaders whose posts skip engagement floors and get a desk
+ * Key Network Nodes whose posts skip engagement floors and get a desk
  * priority bump. Seeded from a markets-desk follow list (wires, squawk,
  * All-In, CNBC/FT talent, official desks). Extra handles come from KOL_HANDLES.
  *

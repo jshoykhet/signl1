@@ -2,7 +2,7 @@
 
 Self-hosted X (Twitter) alerts for investment and research operators. You define watch rules in a web UI; a background poller hits the official X API v2 recent-search endpoint and writes matches into an inbox. Optional Slack and generic webhooks fire on each new tweet.
 
-There is no hosted service. You run it with Docker Compose (or `npm run dev`) against a local SQLite file. Operators sign in with Google (or a local desk email in development). Everyone who gets in shares the same inbox, rules, KOL list, and WhatsApp session.
+There is no hosted service. You run it with Docker Compose (or `npm run dev`) against a local SQLite file. Operators sign in with Google (or a local desk email in development). Everyone who gets in shares the same inbox, rules, Key Network Nodes, blocked list, and WhatsApp session.
 
 To put Signal1 on a domain you purchased, use a VPS — not Vercel. See [DEPLOY.md](DEPLOY.md) for DNS, Caddy TLS, the Google OAuth client, and the first-admin allowlist.
 
@@ -24,8 +24,9 @@ Leave `X_BEARER_TOKEN` empty for **demo mode**. Signal1 injects fixture markets 
 | `X_BEARER_TOKEN` | No | X API v2 app bearer token. If unset, demo mode runs. Never pasted into the UI. |
 | `SLACK_WEBHOOK_URL` | No | Global Slack incoming webhook. Per-rule Slack URLs in the database override nothing — a rule-level URL is used when set, otherwise this fallback. |
 | `DATABASE_PATH` | No | SQLite file path. Defaults to `./data/signal.db`. Compose sets `/data/signal.db` on a named volume. |
-| `KOL_HANDLES` | No | Extra key-opinion-leader handles (comma, space, or newline; `@` optional). Unioned with the seeded markets-desk list. |
+| `KOL_HANDLES` | No | Extra Key Network Node handles (comma, space, or newline; `@` optional). Unioned with the seeded markets-desk list. |
 | `KOL_HANDLES_MODE` | No | `append` (default) keeps the seed and adds `KOL_HANDLES`. `replace` uses only the env list. |
+| `BLOCKED_HANDLES` | No | Accounts to drop from inbox and alerts (comma, space, or newline; `@` optional). Also editable on Settings. |
 | `WHATSAPP_TO` | No | Default WhatsApp destination (country code + digits, or a group JID). Editable on Settings. |
 | `WHATSAPP_AUTH_DIR` | No | Baileys session folder. Defaults next to the SQLite file; Compose uses `/data/whatsapp-auth`. |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Prod | Google OAuth Web client. Redirect URI is `https://<domain>/api/auth/callback/google`. |
@@ -108,12 +109,13 @@ Poll interval defaults to **2 minutes**. Live mode **packs every enabled rule** 
 
 These apply at ingest, so they change what lands in the inbox and what can fire Slack/WhatsApp.
 
-- **KOL only:** keep posts from the KOL list (plus anything you labeled high).
-- **KOL list:** seeded markets-desk handles. Add, remove, or reset to defaults on Settings.
+- **Nodes only:** keep posts from Key Network Nodes (plus anything you labeled high).
+- **Key Network Nodes:** seeded markets-desk handles. Add, remove, or reset to defaults on Settings.
+- **Blocked:** mute handles so they never land in the inbox or fire Slack/WhatsApp, even if they are a node.
 - **Signal level:** Lower (more tape), Standard, or Higher (stricter follower/desk/score floors).
 - **Min likes:** set the engagement floor (0–10000, or inherit the level default). Independent of signal level.
 - **Recent tweets:** let brand-new posts from 10k+ accounts through before likes print.
-- **Require likes:** apply the min-likes and score floors even to KOLs and fresh desks.
+- **Require likes:** apply the min-likes and score floors even to Key Network Nodes and fresh desks.
 
 Inbox + / − labels still train author priors.
 
@@ -192,9 +194,9 @@ Floors still apply to unknown accounts:
 - A **signal score** (0–100) from follower scale, likes, retweets/quotes, replies, and verified status
 - A **desk-relevance score** from the tweet text (cashtags, catalysts, percent moves)
 
-**KOLs** (key opinion leaders) skip the like floor and get a score bump unless **Require likes** is on in Settings. They still need a catalyst. The seed list is wires, squawk, All-In, CNBC/FT talent, and official desks — edit it on Settings, or with `KOL_HANDLES` (append) / `KOL_HANDLES_MODE=replace`. Promo spam (giveaways, signal groups) is dropped even from a KOL.
+**Key Network Nodes** skip the like floor and get a score bump unless **Require likes** is on in Settings. They still need a catalyst. The seed list is wires, squawk, All-In, CNBC/FT talent, and official desks — edit it on Settings, or with `KOL_HANDLES` (append) / `KOL_HANDLES_MODE=replace`. Promo spam (giveaways, signal groups) is dropped even from a node. **Blocked** accounts are dropped entirely.
 
-A post from an account with **10k+ followers** that is less than the current fresh window (10 minutes on Standard) can still alert before likes accrue, if the text is desk-relevant and **Recent tweets** is on. Settings lists the live floors and the editable KOL list.
+A post from an account with **10k+ followers** that is less than the current fresh window (10 minutes on Standard) can still alert before likes accrue, if the text is desk-relevant and **Recent tweets** is on. Settings lists the live floors, the editable node list, and the blocked list.
 
 **Train the filter** with **+** (high signal) and **−** (low signal) on each match. Labels persist per tweet. After **two net-high** votes, that author is boosted (floors relax). After **two net-low** votes, new posts from that author are dropped. Click the same button again to clear. Keyboard: `+` / `-` on the selected match.
 
@@ -219,7 +221,7 @@ Do not lower every interval to 15s on a live token. Signal1 floors live polls at
 npm test
 ```
 
-Covers query compilation (including the accounts helper), tweet/rule dedup against SQLite, demo fixture coverage of the sample rules, webhook payload shape, +/− training labels, watchlist cashtags, packed live-search query budgets, desk-relevance scoring, the KOL seed/editor, desk-tape floors, WhatsApp digest copy, WhatsApp JID formatting, and the Google/allowlist admission rules.
+Covers query compilation (including the accounts helper), tweet/rule dedup against SQLite, demo fixture coverage of the sample rules, webhook payload shape, +/− training labels, watchlist cashtags, packed live-search query budgets, desk-relevance scoring, Key Network Nodes, the blocked list, desk-tape floors, WhatsApp digest copy, WhatsApp JID formatting, and the Google/allowlist admission rules.
 
 ## Layout
 

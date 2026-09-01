@@ -230,7 +230,8 @@ export function WhatsAppSettings() {
           ) : null}
           <p className="text-[12px] leading-relaxed text-muted-foreground">
             Immediate sends one WhatsApp per inbox match. Digest sends the top 20 most important tweets from that window
-            (score, likes, KOLs first), every 5 / 15 / 30 / 45 minutes or every 1 / 2 / 3 / 4 hours. Extra matches stay
+            (score, likes, Key Network Nodes first), every 5 / 15 / 30 / 45 minutes or every 1 / 2 / 3 / 4 hours. Extra
+            matches stay
             in the inbox. Send test is always immediate.
           </p>
         </div>

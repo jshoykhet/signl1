@@ -15,7 +15,7 @@ This file assumes you already bought a hostname. The stack never hard-codes it â
 | Google Cloud OAuth | Operator logins |
 | `AUTH_ALLOWED_EMAILS` | Invite list so a random Google account cannot become admin |
 
-All signed-in operators share one inbox, one rule set, one KOL list, and one WhatsApp session. Auth is a gate, not multi-tenant isolation.
+All signed-in operators share one inbox, one rule set, one Key Network Nodes list, one blocked list, and one WhatsApp session. Auth is a gate, not multi-tenant isolation.
 
 ## 1. VPS
 

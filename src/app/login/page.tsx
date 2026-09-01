@@ -38,7 +38,8 @@ export default async function LoginPage({
         <div className="rounded-xl border border-border/80 bg-card/40 p-5 shadow-sm">
           <h1 className="text-sm font-semibold tracking-tight">Sign in</h1>
           <p className="mt-1 mb-4 text-xs leading-relaxed text-muted-foreground">
-            Every operator shares the same inbox, rules, KOL list, and WhatsApp session. Access is invite-only —
+            Every operator shares the same inbox, rules, Key Network Nodes, blocked list, and WhatsApp session. Access is
+            invite-only —
             your Google account must be on the desk allowlist.
           </p>
           <LoginForm

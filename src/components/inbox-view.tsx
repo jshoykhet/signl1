@@ -272,7 +272,7 @@ export function InboxView() {
           <div className="min-w-0">
             <h1 className="text-sm font-semibold tracking-tight">Inbox</h1>
             <p className="text-xs text-muted-foreground">
-              Newest matches first. Catalysts, flow, and KOL desks land here — use + / − to train the rest.
+              Newest matches first. Catalysts, flow, and Key Network Nodes land here — use + / − to train the rest.
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -333,7 +333,7 @@ export function InboxView() {
             <div className="px-5 py-10 text-sm text-muted-foreground">
               {query.trim()
                 ? `No matches for “${query.trim()}”.`
-                : "No desk-relevant matches yet. Chatter without a catalyst is dropped. KOLs skip the like floor."}
+                : "No desk-relevant matches yet. Chatter without a catalyst is dropped. Key Network Nodes skip the like floor."}
             </div>
           ) : (
             <ul>
@@ -380,7 +380,7 @@ export function InboxView() {
                                 variant="outline"
                                 className="h-4 rounded-sm border-amber-500/40 px-1.5 text-[10px] font-semibold tracking-wide text-amber-300"
                               >
-                                KOL
+                                NODE
                               </Badge>
                             ) : null}
                             {match.followersCount != null ? (
@@ -449,8 +449,10 @@ export function InboxView() {
                 <dd>{formatCompact(selected.likeCount)}</dd>
                 <dt>Score</dt>
                 <dd>{selected.signalScore != null ? selected.signalScore : "—"}</dd>
-                <dt>KOL</dt>
-                <dd className="text-foreground">{selected.kol ? "Yes — seeded priority desk" : "No"}</dd>
+                <dt>Node</dt>
+                <dd className="text-foreground">
+                  {selected.kol ? "Yes — Key Network Node" : "No"}
+                </dd>
                 <dt>Label</dt>
                 <dd className="text-foreground">
                   {selected.userLabel === "high"

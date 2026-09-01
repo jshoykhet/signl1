@@ -3,18 +3,24 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  addBlockedHandle,
   addKolHandle,
   createRule,
   evaluateTweetSignal,
+  getBlockedSpec,
   getDeskFilterSettings,
   getKolSpec,
   listAuthorFollowerCounts,
+  listMatches,
   openDatabase,
+  removeBlockedHandle,
   removeKolHandle,
+  resetBlockedHandles,
   resetKolHandles,
   setDeskFilterSettings,
   tryInsertMatch,
 } from "./db";
+import { isBlockedHandle } from "./blocked";
 import { isKolHandle } from "./kol";
 import type { NormalizedTweet } from "./types";
 
@@ -167,5 +173,35 @@ describe("desk filters and KOL list persist in SQLite", () => {
       db,
     );
     expect(listAuthorFollowerCounts(db).get("reuters")).toBe(25_000_000);
+  });
+
+  it("blocks an account from the inbox even when it is a node", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-"));
+    tmpDirs.push(dir);
+    const db = openDatabase(path.join(dir, "test.db"));
+    const rule = createRule(
+      {
+        name: "A",
+        enabled: true,
+        queryInput: "FOMC",
+        accounts: [],
+        pollIntervalMs: 15_000,
+        slackWebhookUrl: null,
+        genericWebhookUrl: null,
+      },
+      db,
+    );
+    const tweet = catalyst("DeItaone", { id: "tw-block", followersCount: 80_000, likeCount: 40 });
+    tryInsertMatch(rule, tweet, db);
+    expect(listMatches({ quality: true }, db).some((m) => m.authorHandle === "DeItaone")).toBe(true);
+    addBlockedHandle("DeItaone", db);
+    expect(isBlockedHandle("DeItaone", getBlockedSpec(db))).toBe(true);
+    expect(evaluateTweetSignal(tweet, db).pass).toBe(false);
+    expect(listMatches({ quality: true }, db).some((m) => m.authorHandle.toLowerCase() === "deitaone")).toBe(false);
+    removeBlockedHandle("DeItaone", db);
+    expect(listMatches({ quality: true }, db).some((m) => m.authorHandle.toLowerCase() === "deitaone")).toBe(true);
+    addBlockedHandle("DeItaone", db);
+    resetBlockedHandles(db);
+    expect(isBlockedHandle("DeItaone", getBlockedSpec(db))).toBe(false);
   });
 });
