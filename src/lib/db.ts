@@ -863,6 +863,7 @@ export function setDeskFilterSettings(input: Partial<DeskFilterSettings>, db = g
     const parsed = parseMinLikes(input.minLikes);
     setMeta("desk_min_likes", parsed == null ? "" : String(parsed), db);
   }
+  backfillMatchQuality(db);
   return getDeskFilterSettings(db);
 }
 

@@ -147,6 +147,46 @@ describe("desk filters and KOL list persist in SQLite", () => {
     expect(evaluateTweetSignal(weak, db).pass).toBe(true);
   });
 
+  it("applies an explicit min-likes floor to a Key Network Node", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-"));
+    tmpDirs.push(dir);
+    const db = openDatabase(path.join(dir, "test.db"));
+    expect(evaluateTweetSignal(catalyst("DeItaone"), db).pass).toBe(true);
+    setDeskFilterSettings({ minLikes: 10 }, db);
+    expect(evaluateTweetSignal(catalyst("DeItaone"), db).pass).toBe(false);
+    setDeskFilterSettings({ minLikes: null }, db);
+    expect(evaluateTweetSignal(catalyst("DeItaone"), db).pass).toBe(true);
+  });
+
+  it("re-filters the inbox when min likes is raised", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-"));
+    tmpDirs.push(dir);
+    const db = openDatabase(path.join(dir, "test.db"));
+    const rule = createRule(
+      {
+        name: "A",
+        enabled: true,
+        queryInput: "FOMC",
+        accounts: [],
+        pollIntervalMs: 15_000,
+        slackWebhookUrl: null,
+        genericWebhookUrl: null,
+      },
+      db,
+    );
+    const tweet = catalyst("middesk_tape", {
+      id: "tw-likes",
+      followersCount: 8_000,
+      likeCount: 12,
+      text: "$AAPL beats EPS; FOMC-sensitive names bid as guidance is raised.",
+    });
+    expect(tryInsertMatch(rule, tweet, db).inserted).toBe(true);
+    expect(listMatches({ quality: true }, db).some((m) => m.tweetId === "tw-likes")).toBe(true);
+    setDeskFilterSettings({ minLikes: 50, allowFresh: false }, db);
+    expect(evaluateTweetSignal(tweet, db).pass).toBe(false);
+    expect(listMatches({ quality: true }, db).some((m) => m.tweetId === "tw-likes")).toBe(false);
+  });
+
   it("reads follower counts from ingested matches", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-"));
     tmpDirs.push(dir);

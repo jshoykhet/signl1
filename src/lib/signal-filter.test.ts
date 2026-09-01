@@ -177,6 +177,51 @@ describe("passesSignalFilter", () => {
     expect(verdict.reasons.some((r) => r.includes("likes 12 < 50"))).toBe(true);
   });
 
+  it("applies an explicit min-likes floor to Key Network Nodes and fresh desks", () => {
+    const node = passesSignalFilter(
+      quality({
+        authorHandle: "DeItaone",
+        followersCount: 40,
+        likeCount: 0,
+        text: "JUST IN: CPI 3.2% vs 3.1% expected",
+      }),
+      now,
+      { minLikes: 10 },
+    );
+    expect(node.kol).toBe(true);
+    expect(node.pass).toBe(false);
+    expect(node.reasons.some((r) => r.includes("likes 0 < 10"))).toBe(true);
+
+    const fresh = passesSignalFilter(
+      quality({
+        followersCount: ESTABLISHED_FOLLOWERS,
+        likeCount: 0,
+        retweetCount: 0,
+        createdAt: "2026-09-01T15:55:00.000Z",
+      }),
+      now,
+      { minLikes: 25, allowFresh: true },
+    );
+    expect(fresh.establishedFresh).toBe(true);
+    expect(fresh.pass).toBe(false);
+    expect(fresh.reasons.some((r) => r.includes("likes 0 < 25"))).toBe(true);
+  });
+
+  it("still lets nodes skip the inherited level like floor", () => {
+    const verdict = passesSignalFilter(
+      quality({
+        authorHandle: "DeItaone",
+        followersCount: 40,
+        likeCount: 0,
+        text: "JUST IN: CPI 3.2% vs 3.1% expected",
+      }),
+      now,
+      { minLikes: null },
+    );
+    expect(verdict.kol).toBe(true);
+    expect(verdict.pass).toBe(true);
+  });
+
   it("raises floors on the higher signal level", () => {
     const standard = passesSignalFilter(quality({ followersCount: 8_000, likeCount: 12 }), now, {
       signalLevel: "standard",

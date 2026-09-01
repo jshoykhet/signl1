@@ -107,15 +107,15 @@ Poll interval defaults to **2 minutes**. Live mode **packs every enabled rule** 
 
 ## Desk tape (Settings)
 
-These apply at ingest, so they change what lands in the inbox and what can fire Slack/WhatsApp.
+These apply at ingest and again whenever you change them, so the inbox and Slack/WhatsApp stay in sync with the live floors.
 
 - **Nodes only:** keep posts from Key Network Nodes (plus anything you labeled high).
 - **Key Network Nodes:** seeded markets-desk handles. Add, remove, or reset to defaults on Settings.
 - **Blocked:** mute handles so they never land in the inbox or fire Slack/WhatsApp, even if they are a node.
 - **Signal level:** Lower (more tape), Standard, or Higher (stricter follower/desk/score floors).
-- **Min likes:** set the engagement floor (0–10000, or inherit the level default). Independent of signal level.
+- **Min likes:** set the engagement floor (0–10000, or inherit the level default). A number you pick applies to every account, including Key Network Nodes. Changing it re-filters the inbox.
 - **Recent tweets:** let brand-new posts from 10k+ accounts through before likes print.
-- **Require likes:** apply the min-likes and score floors even to Key Network Nodes and fresh desks.
+- **Require likes:** also apply the score floor to Key Network Nodes and fresh desks. An explicit min-likes number already covers those accounts.
 
 Inbox + / − labels still train author priors.
 

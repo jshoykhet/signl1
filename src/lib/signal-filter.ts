@@ -225,13 +225,16 @@ export function passesSignalFilter(
     prior.boost ||
     (!requireEngagement && ((allowFresh && establishedFresh) || kol));
   const minDesk = deskFloor(q, { kol, boost: prior.boost, signalLevel: ctx.signalLevel });
-  const minLikes = ctx.minLikes ?? level.minLikes;
+  const minLikes = typeof ctx.minLikes === "number" ? ctx.minLikes : level.minLikes;
+  // Level default still lets nodes / fresh desks skip likes. A number the operator
+  // picks is a hard floor for everyone (except labeled-high / blocked).
+  const skipLikeFloor = skipFloors && typeof ctx.minLikes !== "number";
 
   if (q.followersCount < level.minFollowers && !prior.boost && !kol) {
     reasons.push(`followers ${q.followersCount} < ${level.minFollowers}`);
   }
 
-  if (q.likeCount < minLikes && !skipFloors) {
+  if (q.likeCount < minLikes && !skipLikeFloor) {
     reasons.push(`likes ${q.likeCount} < ${minLikes}`);
   }
 

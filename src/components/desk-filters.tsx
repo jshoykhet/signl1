@@ -172,8 +172,10 @@ export function DeskFilters() {
                 <span className="text-[12px] text-muted-foreground">Currently ≥{effective} likes</span>
               </div>
               <p className="text-[12px] leading-relaxed text-muted-foreground">
-                Engagement floor for the like count. Independent of signal level. 0 lets zero-like posts through if they
-                still clear the other floors.
+                Posts below this like count are dropped from the inbox and alerts. A number you pick applies to every
+                account, including Key Network Nodes and fresh desks. Level default ({floors.minLikes} on this signal
+                level) still lets nodes and brand-new 10k+ posts skip, unless Require likes is on. 0 allows zero-like
+                posts that still clear the other floors.
               </p>
             </div>
           </Row>
@@ -192,8 +194,8 @@ export function DeskFilters() {
                 </span>
               </div>
               <p className="text-[12px] leading-relaxed text-muted-foreground">
-                When on, the min-likes and score floors apply even to Key Network Nodes and brand-new posts. Use this
-                for confirmed tape instead of first-print breaking.
+                When on, the score floor also applies to Key Network Nodes and brand-new posts. Min likes you set above
+                already applies to those accounts.
               </p>
             </div>
           </Row>
