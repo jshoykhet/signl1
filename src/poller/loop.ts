@@ -11,6 +11,7 @@ import {
   listEnabledRules,
   markRulePolled,
   setMeta,
+  takeManualPollRequest,
   tryInsertMatch,
   evaluateTweetSignal,
 } from "../lib/db";
@@ -162,8 +163,13 @@ export async function runPollerLoop() {
   for (;;) {
     try {
       heartbeat(demo ? "demo" : "live");
+      const forced = takeManualPollRequest();
+      if (forced) {
+        setMeta("poller_idle_backoff_ms", "0");
+        console.log("[poller] manual re-poll requested");
+      }
       if (demo) {
-        if (Date.now() - lastDemoInject >= DEMO_INJECT_INTERVAL_MS) {
+        if (forced || Date.now() - lastDemoInject >= DEMO_INJECT_INTERVAL_MS) {
           await injectDemoMatches();
           lastDemoInject = Date.now();
           recordPoll();
@@ -172,8 +178,8 @@ export async function runPollerLoop() {
         const token = xBearerToken();
         if (!token) throw new Error("X_BEARER_TOKEN missing");
         const rules = listEnabledRules();
-        const idleBackoffMs = Number(getMeta("poller_idle_backoff_ms") ?? "0") || 0;
-        if (isLivePackDue(rules, Date.now(), idleBackoffMs)) {
+        const idleBackoffMs = forced ? 0 : Number(getMeta("poller_idle_backoff_ms") ?? "0") || 0;
+        if (forced || isLivePackDue(rules, Date.now(), idleBackoffMs)) {
           const batches = packRules(rules);
           setMeta("x_last_packed_queries", String(batches.length));
           let tweets = 0;

@@ -10,6 +10,8 @@ services:
       HOSTNAME: 0.0.0.0
       X_BEARER_TOKEN: ${X_BEARER_TOKEN:-}
       SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+      KOL_HANDLES: ${KOL_HANDLES:-}
+      KOL_HANDLES_MODE: ${KOL_HANDLES_MODE:-append}
     volumes:
       - signal-data:/data
     restart: unless-stopped
@@ -21,6 +23,8 @@ services:
       DATABASE_PATH: /data/signal.db
       X_BEARER_TOKEN: ${X_BEARER_TOKEN:-}
       SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+      KOL_HANDLES: ${KOL_HANDLES:-}
+      KOL_HANDLES_MODE: ${KOL_HANDLES_MODE:-append}
     volumes:
       - signal-data:/data
     restart: unless-stopped

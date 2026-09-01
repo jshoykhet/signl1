@@ -4,7 +4,9 @@ import Database from "better-sqlite3";
 import { clampPollIntervalMs, databasePath, DEFAULT_POLL_INTERVAL_MS, isDemoMode, MAX_WATCHLIST_TICKERS } from "./config";
 import { compileQuery, normalizeAccounts } from "./query";
 import { likePattern, tokenizeSearch } from "./search";
+import { isKolHandle, kolMode, listKolHandles } from "./kol";
 import {
+  MIN_DESK_SCORE,
   MIN_FOLLOWERS,
   MIN_LIKES,
   MIN_SIGNAL_SCORE,
@@ -109,6 +111,7 @@ function mapMatch(row: MatchRow): Match {
     signalScore: row.signal_score,
     userLabel: parseUserLabel(row.user_label),
     authorPrior: { high: 0, low: 0 },
+    kol: isKolHandle(row.author_handle),
   };
 }
 
@@ -217,13 +220,14 @@ function metricsFromRaw(rawJson: string): {
 function backfillMatchQuality(db: Database.Database) {
   const priors = listAuthorPriors(db);
   const rows = db.prepare(
-    "SELECT id, tweet_id, raw_json, tweet_created_at, author_handle, author_followers, like_count, signal_pass, user_label FROM matches",
+    "SELECT id, tweet_id, raw_json, tweet_created_at, author_handle, text, author_followers, like_count, signal_pass, user_label FROM matches",
   ).all() as Array<{
     id: string;
     tweet_id: string;
     raw_json: string;
     tweet_created_at: string;
     author_handle: string;
+    text: string;
     author_followers: number | null;
     like_count: number | null;
     signal_pass: number | null;
@@ -250,6 +254,8 @@ function backfillMatchQuality(db: Database.Database) {
       quoteCount: metrics.quoteCount,
       verified: metrics.verified,
       createdAt: row.tweet_created_at,
+      text: row.text,
+      authorHandle: row.author_handle,
     };
     const verdict = passesSignalFilter(quality, Date.now(), {
       userLabel: parseUserLabel(row.user_label),
@@ -332,7 +338,7 @@ function getMatchById(id: string, db: Database.Database): Match | null {
 function recomputeAuthorQuality(handle: string, db: Database.Database) {
   const prior = getAuthorPrior(handle, db);
   const rows = db.prepare(
-    `SELECT id, tweet_id, raw_json, tweet_created_at, author_handle, author_followers, like_count, user_label
+    `SELECT id, tweet_id, raw_json, tweet_created_at, author_handle, text, author_followers, like_count, user_label
      FROM matches WHERE lower(author_handle) = lower(?)`,
   ).all(handle) as Array<{
     id: string;
@@ -340,6 +346,7 @@ function recomputeAuthorQuality(handle: string, db: Database.Database) {
     raw_json: string;
     tweet_created_at: string;
     author_handle: string;
+    text: string;
     author_followers: number | null;
     like_count: number | null;
     user_label: string | null;
@@ -358,6 +365,8 @@ function recomputeAuthorQuality(handle: string, db: Database.Database) {
         quoteCount: metrics.quoteCount,
         verified: metrics.verified,
         createdAt: row.tweet_created_at,
+        text: row.text,
+        authorHandle: row.author_handle,
       },
       Date.now(),
       { userLabel: parseUserLabel(row.user_label), prior },
@@ -662,6 +671,21 @@ export function getMeta(key: string, db = getDb()): string | null {
   return row?.value ?? null;
 }
 
+export function requestManualPoll(db = getDb()): { requestedAt: string } {
+  const requestedAt = nowIso();
+  setMeta("poller_force_now", requestedAt, db);
+  setMeta("poller_manual_requested_at", requestedAt, db);
+  return { requestedAt };
+}
+
+export function takeManualPollRequest(db = getDb()): boolean {
+  const raw = getMeta("poller_force_now", db);
+  if (!raw) return false;
+  setMeta("poller_force_now", "", db);
+  setMeta("poller_manual_ack_at", nowIso(), db);
+  return true;
+}
+
 export function getStatus(opts: { demoMode: boolean; bearerPresent: boolean }, db = getDb()): StatusSnapshot {
   const lastHeartbeatAt = getMeta("poller_heartbeat_at", db);
   const startedAt = getMeta("poller_started_at", db);
@@ -694,6 +718,9 @@ export function getStatus(opts: { demoMode: boolean; bearerPresent: boolean }, d
   const limitRaw = getMeta("x_rate_limit_limit", db);
   const resetRaw = getMeta("x_rate_limit_reset_at", db);
   const idleBackoffMs = Number(getMeta("poller_idle_backoff_ms", db) ?? "0") || 0;
+  const forceNow = getMeta("poller_force_now", db);
+  const lastManualPollAt = getMeta("poller_manual_ack_at", db);
+  const kolHandles = listKolHandles();
 
   return {
     demoMode: opts.demoMode,
@@ -712,11 +739,18 @@ export function getStatus(opts: { demoMode: boolean; bearerPresent: boolean }, d
       rateLimitLimit: limitRaw != null && limitRaw !== "" ? Number(limitRaw) : null,
       rateLimitResetAt: resetRaw,
       idleBackoffMs,
+      manualPollPending: Boolean(forceNow),
+      lastManualPollAt,
     },
     qualityFilter: {
       minFollowers: MIN_FOLLOWERS,
       minLikes: MIN_LIKES,
       minScore: MIN_SIGNAL_SCORE,
+      minDeskScore: MIN_DESK_SCORE,
+    },
+    kol: {
+      count: kolHandles.length,
+      mode: kolMode(),
     },
     training: {
       high: Number(training.high),

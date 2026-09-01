@@ -41,6 +41,7 @@ export type Match = {
   signalScore: number | null;
   userLabel: UserLabel | null;
   authorPrior: AuthorPrior;
+  kol: boolean;
 };
 
 export type NormalizedTweet = {
@@ -89,11 +90,18 @@ export type StatusSnapshot = {
     rateLimitLimit: number | null;
     rateLimitResetAt: string | null;
     idleBackoffMs: number;
+    manualPollPending: boolean;
+    lastManualPollAt: string | null;
   };
   qualityFilter: {
     minFollowers: number;
     minLikes: number;
     minScore: number;
+    minDeskScore: number;
+  };
+  kol: {
+    count: number;
+    mode: "append" | "replace";
   };
   training: {
     high: number;

@@ -1,3 +1,6 @@
+import { scoreDeskRelevance } from "./desk-relevance";
+import { isKolHandle } from "./kol";
+
 export const MIN_FOLLOWERS = 50;
 export const MIN_LIKES = 5;
 export const MIN_SIGNAL_SCORE = 18;
@@ -9,6 +12,11 @@ export const SUPPRESS_LOW_LABELS = 2;
 /** After this many net-high labels, floors are relaxed for the author. */
 export const BOOST_HIGH_LABELS = 2;
 const PRIOR_SCORE_WEIGHT = 30;
+export const MIN_DESK_SCORE = 12;
+export const KOL_MIN_DESK_SCORE = 4;
+export const BOOST_MIN_DESK_SCORE = 8;
+export const ESTABLISHED_MIN_DESK_SCORE = 8;
+export const KOL_SCORE_BONUS = 22;
 
 export type UserLabel = "high" | "low";
 
@@ -25,6 +33,8 @@ export type TweetQuality = {
   quoteCount: number;
   verified: boolean;
   createdAt: string;
+  text?: string;
+  authorHandle?: string;
 };
 
 export type SignalContext = {
@@ -46,6 +56,8 @@ export type SignalVerdict = {
   establishedFresh: boolean;
   userLabel: UserLabel | null;
   prior: PriorAdjustment;
+  kol: boolean;
+  deskScore: number;
 };
 
 function clamp(n: number, min: number, max: number): number {
@@ -95,6 +107,13 @@ export function priorAdjustment(prior: AuthorPrior | null | undefined): PriorAdj
   };
 }
 
+export function deskFloor(q: TweetQuality, opts: { kol: boolean; boost: boolean }): number {
+  if (opts.kol) return KOL_MIN_DESK_SCORE;
+  if (opts.boost) return BOOST_MIN_DESK_SCORE;
+  if (q.followersCount >= ESTABLISHED_FOLLOWERS || q.verified) return ESTABLISHED_MIN_DESK_SCORE;
+  return MIN_DESK_SCORE;
+}
+
 export function passesSignalFilter(
   q: TweetQuality,
   now = Date.now(),
@@ -102,16 +121,36 @@ export function passesSignalFilter(
 ): SignalVerdict {
   const prior = priorAdjustment(ctx.prior);
   const userLabel = ctx.userLabel === "high" || ctx.userLabel === "low" ? ctx.userLabel : null;
+  const kol = isKolHandle(q.authorHandle);
+  const desk = scoreDeskRelevance(q.text ?? "");
   const baseScore = signalScore(q);
-  const score = clamp(baseScore + prior.scoreDelta, 0, 100);
+  const score = clamp(baseScore + prior.scoreDelta + (kol ? KOL_SCORE_BONUS : 0), 0, 100);
   const establishedFresh = isEstablishedFresh(q, now);
   const reasons: string[] = [];
 
   if (userLabel === "high") {
-    return { pass: true, score, reasons: ["labeled high"], establishedFresh, userLabel, prior };
+    return {
+      pass: true,
+      score,
+      reasons: ["labeled high"],
+      establishedFresh,
+      userLabel,
+      prior,
+      kol,
+      deskScore: desk.score,
+    };
   }
   if (userLabel === "low") {
-    return { pass: false, score, reasons: ["labeled low"], establishedFresh, userLabel, prior };
+    return {
+      pass: false,
+      score,
+      reasons: ["labeled low"],
+      establishedFresh,
+      userLabel,
+      prior,
+      kol,
+      deskScore: desk.score,
+    };
   }
   if (prior.suppress) {
     return {
@@ -121,12 +160,28 @@ export function passesSignalFilter(
       establishedFresh,
       userLabel,
       prior,
+      kol,
+      deskScore: desk.score,
     };
   }
 
-  const skipFloors = establishedFresh || prior.boost;
+  if (desk.spam) {
+    return {
+      pass: false,
+      score,
+      reasons: desk.reasons,
+      establishedFresh,
+      userLabel,
+      prior,
+      kol,
+      deskScore: 0,
+    };
+  }
 
-  if (q.followersCount < MIN_FOLLOWERS && !prior.boost) {
+  const skipFloors = establishedFresh || prior.boost || kol;
+  const minDesk = deskFloor(q, { kol, boost: prior.boost });
+
+  if (q.followersCount < MIN_FOLLOWERS && !prior.boost && !kol) {
     reasons.push(`followers ${q.followersCount} < ${MIN_FOLLOWERS}`);
   }
 
@@ -138,5 +193,20 @@ export function passesSignalFilter(
     reasons.push(`score ${score} < ${MIN_SIGNAL_SCORE}`);
   }
 
-  return { pass: reasons.length === 0, score, reasons, establishedFresh, userLabel, prior };
+  if (desk.score < minDesk) {
+    reasons.push(`desk ${desk.score} < ${minDesk}`);
+  }
+
+  if (kol) reasons.push("KOL");
+
+  return {
+    pass: reasons.filter((r) => r !== "KOL").length === 0,
+    score,
+    reasons,
+    establishedFresh,
+    userLabel,
+    prior,
+    kol,
+    deskScore: desk.score,
+  };
 }

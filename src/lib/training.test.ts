@@ -6,9 +6,12 @@ import {
   createRule,
   evaluateTweetSignal,
   getAuthorPrior,
+  getMeta,
   listMatches,
   openDatabase,
+  requestManualPoll,
   setMatchLabel,
+  takeManualPollRequest,
   tryInsertMatch,
 } from "./db";
 import type { NormalizedTweet } from "./types";
@@ -101,6 +104,7 @@ describe("signal labels train author priors", () => {
 
     const listed = listMatches({ quality: false }, db);
     expect(listed.every((m) => m.tweetId !== "tw-1" || m.userLabel === "low")).toBe(true);
+    expect(listed.filter((m) => m.tweetId === "tw-1").every((m) => m.kol)).toBe(true);
     expect(getAuthorPrior("reuters", db)).toEqual({ high: 0, low: 1 });
   });
 
@@ -179,5 +183,19 @@ describe("signal labels train author priors", () => {
     const cleared = setMatchLabel(inserted.matchId!, null, db);
     expect(cleared?.userLabel).toBeNull();
     expect(getAuthorPrior("reuters", db)).toEqual({ high: 0, low: 0 });
+  });
+});
+
+describe("manual re-poll flag", () => {
+  it("sets a force-now flag the poller can consume once", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-"));
+    tmpDirs.push(dir);
+    const db = openDatabase(path.join(dir, "test.db"));
+    const { requestedAt } = requestManualPoll(db);
+    expect(requestedAt).toBeTruthy();
+    expect(getMeta("poller_force_now", db)).toBe(requestedAt);
+    expect(takeManualPollRequest(db)).toBe(true);
+    expect(getMeta("poller_force_now", db)).toBe("");
+    expect(takeManualPollRequest(db)).toBe(false);
   });
 });

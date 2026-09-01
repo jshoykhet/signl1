@@ -8,6 +8,8 @@ import {
 } from "./signal-filter";
 
 const now = Date.parse("2026-09-01T16:00:00.000Z");
+const DESK_TEXT = "$AAPL beats EPS; FOMC-sensitive names bid as guidance is raised.";
+const CHATTER = "Beautiful morning in the city. Coffee with the team and a long walk.";
 
 function quality(partial: Partial<Parameters<typeof passesSignalFilter>[0]> = {}) {
   return {
@@ -18,6 +20,8 @@ function quality(partial: Partial<Parameters<typeof passesSignalFilter>[0]> = {}
     quoteCount: 1,
     verified: false,
     createdAt: "2026-09-01T15:50:00.000Z",
+    text: DESK_TEXT,
+    authorHandle: "middesk_tape",
     ...partial,
   };
 }
@@ -54,7 +58,7 @@ describe("passesSignalFilter", () => {
     expect(verdict.pass).toBe(false);
   });
 
-  it("lets a fresh post from an established desk through before likes accrue", () => {
+  it("lets a fresh catalyst post from an established desk through before likes accrue", () => {
     const verdict = passesSignalFilter(
       quality({
         followersCount: ESTABLISHED_FOLLOWERS,
@@ -80,6 +84,53 @@ describe("passesSignalFilter", () => {
     expect(verdict.pass).toBe(false);
   });
 
+  it("drops mid-size chatter even when follower and like floors clear", () => {
+    const verdict = passesSignalFilter(
+      quality({ followersCount: 8_000, likeCount: 12, text: CHATTER }),
+      now,
+    );
+    expect(verdict.pass).toBe(false);
+    expect(verdict.reasons.some((r) => r.startsWith("desk"))).toBe(true);
+  });
+
+  it("drops giveaway spam even from a KOL", () => {
+    const verdict = passesSignalFilter(
+      quality({
+        authorHandle: "zerohedge",
+        followersCount: 2_000_000,
+        likeCount: 400,
+        text: "Huge giveaway — follow and RT to win a free course",
+      }),
+      now,
+    );
+    expect(verdict.pass).toBe(false);
+    expect(verdict.kol).toBe(true);
+  });
+
+  it("lets a KOL through without likes when the post is a catalyst", () => {
+    const verdict = passesSignalFilter(
+      quality({
+        authorHandle: "DeItaone",
+        followersCount: 40,
+        likeCount: 0,
+        retweetCount: 0,
+        text: "JUST IN: CPI 3.2% vs 3.1% expected",
+      }),
+      now,
+    );
+    expect(verdict.kol).toBe(true);
+    expect(verdict.pass).toBe(true);
+  });
+
+  it("still drops KOL lifestyle chatter", () => {
+    const verdict = passesSignalFilter(
+      quality({ authorHandle: "elonmusk", followersCount: 200_000_000, likeCount: 80_000, text: CHATTER }),
+      now,
+    );
+    expect(verdict.kol).toBe(true);
+    expect(verdict.pass).toBe(false);
+  });
+
   it("scores larger, more-engaged accounts above tiny ones", () => {
     const desk = signalScore(quality({ followersCount: 250_000, likeCount: 180, verified: true }));
     const noise = signalScore(quality({ followersCount: 60, likeCount: 5, retweetCount: 0, quoteCount: 0, replyCount: 0 }));
@@ -90,7 +141,7 @@ describe("passesSignalFilter", () => {
 
 describe("user labels and author priors", () => {
   it("always keeps a tweet labeled high", () => {
-    const verdict = passesSignalFilter(quality({ followersCount: 12, likeCount: 0 }), now, {
+    const verdict = passesSignalFilter(quality({ followersCount: 12, likeCount: 0, text: CHATTER }), now, {
       userLabel: "high",
     });
     expect(verdict.pass).toBe(true);
@@ -122,7 +173,7 @@ describe("user labels and author priors", () => {
     expect(verdict.prior.boost).toBe(false);
   });
 
-  it("boosts an author after two net-high labels so low-engagement posts still pass", () => {
+  it("boosts an author after two net-high labels so low-engagement catalyst posts still pass", () => {
     const verdict = passesSignalFilter(
       quality({ followersCount: 40, likeCount: 0, retweetCount: 0, quoteCount: 0, replyCount: 0 }),
       now,

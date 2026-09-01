@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ExternalLink, Filter, Minus, Plus, Search } from "lucide-react";
+import { ExternalLink, Filter, Minus, Plus, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -79,6 +79,7 @@ export function InboxView() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [polling, setPolling] = useState(false);
 
   const load = async () => {
     try {
@@ -239,13 +240,43 @@ export function InboxView() {
     load();
   };
 
+  const repoll = async () => {
+    setPolling(true);
+    try {
+      const res = await fetch("/api/poll", { method: "POST" });
+      if (!res.ok) throw new Error("Failed to request re-poll");
+      const data = (await res.json()) as {
+        demoMode: boolean;
+        lastPollAt: string | null;
+      };
+      toast.success(
+        data.demoMode
+          ? "Injecting the next fixture…"
+          : "Re-poll requested. Waiting for the next search…",
+      );
+      const before = data.lastPollAt;
+      for (let i = 0; i < 10; i += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        const statusRes = await fetch("/api/status", { cache: "no-store" });
+        if (!statusRes.ok) continue;
+        const status = (await statusRes.json()) as { poller: { lastPollAt: string | null } };
+        if (status.poller.lastPollAt && status.poller.lastPollAt !== before) break;
+      }
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not re-poll");
+    } finally {
+      setPolling(false);
+    }
+  };
+
   return (
     <div className="flex min-h-full flex-col">
       <header className="flex flex-wrap items-center gap-3 border-b border-border/80 px-5 py-3">
         <div className="min-w-0">
           <h1 className="text-sm font-semibold tracking-tight">Inbox</h1>
           <p className="text-xs text-muted-foreground">
-            Newest matches first. Use + / − to train which accounts are high or low signal.
+            Newest matches first. Catalysts, flow, and KOL desks land here — use + / − to train the rest.
           </p>
         </div>
         <div className="relative min-w-56 flex-1">
@@ -281,6 +312,10 @@ export function InboxView() {
               ))}
             </SelectContent>
           </Select>
+          <Button variant="outline" size="sm" onClick={repoll} disabled={polling}>
+            <RefreshCw className={cn("size-3.5", polling && "animate-spin")} />
+            {polling ? "Polling…" : "Re-poll"}
+          </Button>
           <Button variant="outline" size="sm" onClick={markAll}>
             Mark all read
           </Button>
@@ -299,7 +334,7 @@ export function InboxView() {
             <div className="px-5 py-10 text-sm text-muted-foreground">
               {query.trim()
                 ? `No matches for “${query.trim()}”.`
-                : "No quality matches yet. Noise below 50 followers or 5 likes is dropped. Wait for the next live poll."}
+                : "No desk-relevant matches yet. Chatter without a catalyst is dropped. KOLs skip the like floor."}
             </div>
           ) : (
             <ul>
@@ -341,6 +376,14 @@ export function InboxView() {
                             <Badge variant="outline" className="h-4 rounded-sm px-1.5 text-[10px] font-normal">
                               {match.ruleName}
                             </Badge>
+                            {match.kol ? (
+                              <Badge
+                                variant="outline"
+                                className="h-4 rounded-sm border-amber-500/40 px-1.5 text-[10px] font-semibold tracking-wide text-amber-300"
+                              >
+                                KOL
+                              </Badge>
+                            ) : null}
                             {match.followersCount != null ? (
                               <span className="font-mono text-[10px] text-muted-foreground">
                                 {formatCompact(match.followersCount)} fol
@@ -413,6 +456,8 @@ export function InboxView() {
                 <dd>{formatCompact(selected.likeCount)}</dd>
                 <dt>Score</dt>
                 <dd>{selected.signalScore != null ? selected.signalScore : "—"}</dd>
+                <dt>KOL</dt>
+                <dd className="text-foreground">{selected.kol ? "Yes — seeded priority desk" : "No"}</dd>
                 <dt>Label</dt>
                 <dd className="text-foreground">
                   {selected.userLabel === "high"

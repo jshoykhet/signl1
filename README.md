@@ -22,6 +22,8 @@ Leave `X_BEARER_TOKEN` empty for **demo mode**. Signal1 injects fixture markets 
 | `X_BEARER_TOKEN` | No | X API v2 app bearer token. If unset, demo mode runs. Never pasted into the UI. |
 | `SLACK_WEBHOOK_URL` | No | Global Slack incoming webhook. Per-rule Slack URLs in the database override nothing — a rule-level URL is used when set, otherwise this fallback. |
 | `DATABASE_PATH` | No | SQLite file path. Defaults to `./data/signal.db`. Compose sets `/data/signal.db` on a named volume. |
+| `KOL_HANDLES` | No | Extra key-opinion-leader handles (comma, space, or newline; `@` optional). Unioned with the seeded markets-desk list. |
+| `KOL_HANDLES_MODE` | No | `append` (default) keeps the seed and adds `KOL_HANDLES`. `replace` uses only the env list. |
 
 Copy `.env.example` to `.env` and fill in what you need. Compose interpolates those values; an empty token is demo mode.
 
@@ -114,7 +116,7 @@ Every match lands in the in-app inbox.
 
 Webhook failures are logged on the poller; they do not drop the inbox row.
 
-The inbox and rules pages are searchable. In the inbox, `/` or Ctrl/Cmd+K focuses search; tokens match tweet text, @handle, display name, rule name, and tweet id.
+The inbox and rules pages are searchable. In the inbox, `/` or Ctrl/Cmd+K focuses search; tokens match tweet text, @handle, display name, rule name, and tweet id. **Re-poll** asks the worker to run the next packed search immediately (still rate-limited); in demo mode it injects the next fixture.
 
 ## Docker Compose
 
@@ -155,13 +157,18 @@ npm run poller
 
 ## Quality filter
 
-Live matches are dropped unless they look like a real desk, not a zero-engagement account:
+The inbox is tuned for an **event-driven trader**, **fundamental investor**, or **market maker**. A match has to look like a catalyst — FOMC/CPI, earnings and guidance, M&A, filings, OPEC/flow, cashtags, sized numbers — not lifestyle chatter.
+
+Floors still apply to unknown accounts:
 
 - **≥ 50 followers**
 - **≥ 5 likes** on the tweet
-- A **signal score** (0–100) from follower scale, likes, retweets/quotes, replies, and verified status. Tiny accounts that rarely draw engagement stay out even if they scrape past the floors.
+- A **signal score** (0–100) from follower scale, likes, retweets/quotes, replies, and verified status
+- A **desk-relevance score** from the tweet text (cashtags, catalysts, percent moves)
 
-A post from an account with **10k+ followers** that is less than 10 minutes old can still alert before likes accrue. Settings lists the current thresholds. The inbox shows follower and like counts on each row.
+**KOLs** (key opinion leaders) skip the like floor and get a score bump. They still need a catalyst. The seed list is wires, squawk, All-In, CNBC/FT talent, and official desks. Edit it with `KOL_HANDLES` (append) or `KOL_HANDLES_MODE=replace`. Promo spam (giveaways, signal groups) is dropped even from a KOL.
+
+A post from an account with **10k+ followers** that is less than 10 minutes old can still alert before likes accrue, if the text is desk-relevant. Settings lists the current thresholds and KOL count.
 
 **Train the filter** with **+** (high signal) and **−** (low signal) on each match. Labels persist per tweet. After **two net-high** votes, that author is boosted (floors relax). After **two net-low** votes, new posts from that author are dropped. Click the same button again to clear. Keyboard: `+` / `-` on the selected match.
 
@@ -186,7 +193,7 @@ Do not lower every interval to 15s on a live token. Signal1 floors live polls at
 npm test
 ```
 
-Covers query compilation (including the accounts helper), tweet/rule dedup against SQLite, demo fixture coverage of the sample rules, webhook payload shape, +/− training labels, watchlist cashtags, and packed live-search query budgets.
+Covers query compilation (including the accounts helper), tweet/rule dedup against SQLite, demo fixture coverage of the sample rules, webhook payload shape, +/− training labels, watchlist cashtags, packed live-search query budgets, desk-relevance scoring, and the KOL seed list.
 
 ## Layout
 
