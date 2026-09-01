@@ -186,8 +186,10 @@ export function WhatsAppSettings() {
           </div>
           <p className="text-[12px] leading-relaxed text-muted-foreground">
             Number that should receive alerts, with country code. Or paste a group JID ending in{" "}
-            <code className="font-mono text-[11px]">@g.us</code>. Leave blank to send to the linked WhatsApp
-            account. Also settable as <code className="font-mono text-[11px]">WHATSAPP_TO</code>.
+            <code className="font-mono text-[11px]">@g.us</code>. Sending to the <span className="text-foreground">linked</span>{" "}
+            number is a note to yourself — look for <span className="text-foreground">Message yourself</span> in WhatsApp;
+            it often will not push-notify. For a normal chat ping, save a different number or a group. Also settable as{" "}
+            <code className="font-mono text-[11px]">WHATSAPP_TO</code>.
           </p>
         </div>
       </div>
@@ -247,6 +249,12 @@ export function WhatsAppSettings() {
         <div className="text-muted-foreground">Last send</div>
         <div>{wa?.lastSentAt ? formatClock(wa.lastSentAt) : "None"}</div>
       </div>
+      {wa?.lastSentTo ? (
+        <div className="grid grid-cols-[160px_minmax(0,1fr)] gap-4 border-t border-border/60 px-4 py-2.5 text-[13px]">
+          <div className="text-muted-foreground">Sent to</div>
+          <div className="min-w-0 font-mono text-[12px] break-all">{wa.lastSentTo}</div>
+        </div>
+      ) : null}
       {wa?.lastError ? (
         <div className="border-t border-destructive/40 bg-destructive/10 px-4 py-2 text-sm text-destructive">{wa.lastError}</div>
       ) : null}

@@ -11,7 +11,7 @@ import {
   WA_LOGGED_OUT,
   WA_RESTART_REQUIRED,
 } from "../lib/whatsapp-disconnect";
-import { formatPairingCode, isWhatsAppSocketReady, toOwnChatJid, toWhatsAppJid, whatsappAuthDir } from "../lib/whatsapp";
+import { formatPairingCode, isSameWhatsAppUser, isWhatsAppSocketReady, toOwnChatJid, toWhatsAppJid, whatsappAuthDir } from "../lib/whatsapp";
 
 const log = pino({ level: process.env.WHATSAPP_DEBUG === "1" ? "debug" : "warn" });
 
@@ -262,16 +262,33 @@ async function connectWhatsApp() {
   }
 }
 
+function linkedIdentities(): string[] {
+  const ids = [sock?.user?.id, sock?.authState.creds.me?.id, sock?.authState.creds.me?.lid];
+  return ids.filter((id): id is string => Boolean(id));
+}
+
+function isSelfDestination(raw: string): boolean {
+  return linkedIdentities().some((id) => isSameWhatsAppUser(raw, id));
+}
+
 async function resolveDestinationJid(raw: string): Promise<string> {
-  const jid = raw.includes("@") ? raw : toWhatsAppJid(raw);
   if (!sock) throw new Error("WhatsApp is not linked");
-  if (jid.endsWith("@g.us") || jid.endsWith("@lid") || jid.endsWith("@newsletter")) {
+  if (isSelfDestination(raw)) {
+    const me = sock.user?.id ?? sock.authState.creds.me?.id;
+    if (!me) throw new Error("WhatsApp session identity is missing");
+    // Companion → same account must use the PN JID. onWhatsApp often returns
+    // an @lid address; Android then treats the send as fromMe and never shows it.
+    return toOwnChatJid(me);
+  }
+  const jid = raw.includes("@") ? raw : toWhatsAppJid(raw);
+  if (jid.endsWith("@g.us") || jid.endsWith("@newsletter")) {
     return jid;
   }
   try {
-    const results = await sock.onWhatsApp(jid.replace(/@.+$/, "").split(":")[0] ?? jid);
+    const query = jid.endsWith("@lid") ? jid : (jid.replace(/@.+$/, "").split(":")[0] ?? jid);
+    const results = await sock.onWhatsApp(query);
     const hit = results?.[0];
-    if (hit?.exists && hit.jid) return hit.jid;
+    if (hit?.exists && hit.jid && !isSelfDestination(hit.jid)) return hit.jid;
   } catch {
     /* send to constructed PN JID */
   }
@@ -306,8 +323,10 @@ export async function sendWhatsAppText(
     return;
   }
   const jid = await resolveDestinationJid(to);
-  await sock!.sendMessage(jid, { text });
+  const sent = await sock!.sendMessage(jid, { text });
+  console.log(`[whatsapp] sent to ${jid}${sent?.key?.id ? ` id=${sent.key.id}` : ""}`);
   setMeta("whatsapp_last_sent_at", isoNow());
+  setMeta("whatsapp_last_sent_to", jid);
   setMeta("whatsapp_error", "");
 }
 
@@ -341,9 +360,14 @@ async function pumpCommands() {
   const test = takeMetaValue("whatsapp_test");
   if (test) {
     try {
-      await sendWhatsAppText(test === "1" ? "Signal1 WhatsApp alerts are linked." : test, {
-        mustBeLinked: true,
-      });
+      await sendWhatsAppText(
+        test === "1"
+          ? "Signal1 WhatsApp alerts are linked. If you are reading this, destination routing works."
+          : test,
+        {
+          mustBeLinked: true,
+        },
+      );
       console.log("[whatsapp] test message sent");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

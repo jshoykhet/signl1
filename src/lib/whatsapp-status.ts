@@ -40,5 +40,6 @@ export async function getWhatsAppPublicStatus(): Promise<WhatsAppPublicStatus> {
     enabled: isWhatsAppEnabled(),
     lastError: userFacingWhatsAppError(getMeta("whatsapp_error")),
     lastSentAt: getMeta("whatsapp_last_sent_at"),
+    lastSentTo: getMeta("whatsapp_last_sent_to"),
   };
 }

@@ -19,6 +19,7 @@ export type WhatsAppSnapshot = {
   enabled: boolean;
   lastError: string | null;
   lastSentAt: string | null;
+  lastSentTo: string | null;
 };
 
 export function whatsappAuthDir(): string {
@@ -73,6 +74,20 @@ export function toOwnChatJid(userId: string): string {
     throw new Error("WhatsApp session identity is invalid");
   }
   return `${pn}@${server}`;
+}
+
+/** Compare two WhatsApp identities, ignoring device suffixes and JID servers. */
+export function whatsappUserPart(input: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) return "";
+  if (trimmed.includes("@")) return trimmed.split("@")[0]?.split(":")[0] ?? "";
+  return normalizeWhatsAppNumber(trimmed);
+}
+
+export function isSameWhatsAppUser(a: string, b: string): boolean {
+  const left = whatsappUserPart(a);
+  const right = whatsappUserPart(b);
+  return Boolean(left && right && left === right);
 }
 
 /** Open sockets expose `user` even when Baileys leaves `creds.registered` false. */

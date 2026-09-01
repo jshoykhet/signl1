@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildWhatsAppText, formatPairingCode, isWhatsAppSocketReady, normalizeWhatsAppNumber, toOwnChatJid, toWhatsAppJid } from "./whatsapp";
+import { buildWhatsAppText, formatPairingCode, isSameWhatsAppUser, isWhatsAppSocketReady, normalizeWhatsAppNumber, toOwnChatJid, toWhatsAppJid } from "./whatsapp";
 
 describe("WhatsApp JIDs", () => {
   it("strips punctuation and builds a PN JID with country code", () => {
@@ -25,6 +25,11 @@ describe("WhatsApp JIDs", () => {
     expect(isWhatsAppSocketReady({ user: { id: "19177334993:1@s.whatsapp.net" } })).toBe(true);
     expect(isWhatsAppSocketReady({ user: null })).toBe(false);
     expect(isWhatsAppSocketReady(null)).toBe(false);
+  });
+
+  it("matches the linked device JID to a destination number", () => {
+    expect(isSameWhatsAppUser("19177334993:2@s.whatsapp.net", "19177334993")).toBe(true);
+    expect(isSameWhatsAppUser("19177334993@s.whatsapp.net", "15551234567")).toBe(false);
   });
 });
 
