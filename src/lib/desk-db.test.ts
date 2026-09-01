@@ -77,6 +77,18 @@ describe("desk filters and KOL list persist in SQLite", () => {
     expect(isKolHandle("zerohedge", restored)).toBe(true);
   });
 
+  it("restores a removed seed handle without marking it custom", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-"));
+    tmpDirs.push(dir);
+    const db = openDatabase(path.join(dir, "test.db"));
+    removeKolHandle("zerohedge", db);
+    addKolHandle("zerohedge", db);
+    const spec = getKolSpec(db);
+    expect(isKolHandle("zerohedge", spec)).toBe(true);
+    expect(spec.added ?? []).not.toContain("zerohedge");
+    expect(spec.removed ?? []).not.toContain("zerohedge");
+  });
+
   it("rejects a malformed handle", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-"));
     tmpDirs.push(dir);

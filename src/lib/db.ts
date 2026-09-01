@@ -4,7 +4,15 @@ import Database from "better-sqlite3";
 import { clampPollIntervalMs, databasePath, DEFAULT_POLL_INTERVAL_MS, isDemoMode, MAX_WATCHLIST_TICKERS } from "./config";
 import { compileQuery, normalizeAccounts } from "./query";
 import { likePattern, tokenizeSearch } from "./search";
-import { isKolHandle, kolMode, listKolHandles, parseHandleList, serializeHandleList, type KolSpec } from "./kol";
+import {
+  isKolHandle,
+  isSeedOrEnvHandle,
+  kolMode,
+  listKolHandles,
+  parseHandleList,
+  serializeHandleList,
+  type KolSpec,
+} from "./kol";
 import {
   parseBoolMeta,
   parseDigestMinutes,
@@ -773,8 +781,11 @@ export function addKolHandle(handle: string, db = getDb()): string[] {
     throw new Error("Handle must be 1–15 letters, numbers, or underscores");
   }
   const spec = getKolSpec(db);
-  const added = [...new Set([...(spec.added ?? []), normalized.toLowerCase()])];
-  const removed = (spec.removed ?? []).filter((h) => h !== normalized.toLowerCase());
+  const key = normalized.toLowerCase();
+  const added = isSeedOrEnvHandle(key, spec)
+    ? (spec.added ?? []).filter((h) => h !== key)
+    : [...new Set([...(spec.added ?? []), key])];
+  const removed = (spec.removed ?? []).filter((h) => h !== key);
   setMeta("kol_added", serializeHandleList(added), db);
   setMeta("kol_removed", serializeHandleList(removed), db);
   return listKolHandles(getKolSpec(db));

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_KOL_HANDLES, isKolHandle, loadKolHandleSet, normalizeHandle } from "./kol";
+import { DEFAULT_KOL_HANDLES, isKolHandle, listKolRows, loadKolHandleSet, normalizeHandle } from "./kol";
 
 describe("KOL list", () => {
   it("seeds wires, squawk, All-In, and official desks", () => {
@@ -38,5 +38,20 @@ describe("KOL list", () => {
     expect(isKolHandle("DeItaone")).toBe(true);
     expect(isKolHandle("not_a_kol")).toBe(false);
     expect(isKolHandle(null)).toBe(false);
+  });
+
+  it("exposes removed seed handles as inactive table rows", () => {
+    const rows = listKolRows({ added: ["MyDesk"], removed: ["zerohedge"] });
+    expect(rows.find((row) => row.handle === "mydesk")).toEqual({
+      handle: "mydesk",
+      source: "added",
+      active: true,
+    });
+    expect(rows.find((row) => row.handle === "zerohedge")).toEqual({
+      handle: "zerohedge",
+      source: "seed",
+      active: false,
+    });
+    expect(rows.find((row) => row.handle === "elonmusk")?.active).toBe(true);
   });
 });

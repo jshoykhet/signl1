@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { addKolHandle, getKolSpec, removeKolHandle, resetKolHandles } from "@/lib/db";
-import { DEFAULT_KOL_HANDLES, kolMode, listKolHandles, normalizeHandle } from "@/lib/kol";
+import { DEFAULT_KOL_HANDLES, kolMode, listKolHandles, listKolRows, normalizeHandle } from "@/lib/kol";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,6 +9,7 @@ function snapshot() {
   const spec = getKolSpec();
   const handles = listKolHandles(spec);
   const seed = new Set(DEFAULT_KOL_HANDLES.map(normalizeHandle));
+  const rows = listKolRows(spec);
   return {
     handles,
     count: handles.length,
@@ -16,9 +17,11 @@ function snapshot() {
     removed: spec.removed ?? [],
     seedCount: seed.size,
     mode: kolMode(),
-    items: handles.map((handle) => ({
-      handle,
-      custom: !seed.has(handle),
+    items: rows.map((row) => ({
+      handle: row.handle,
+      custom: row.source === "added",
+      source: row.source,
+      active: row.active,
     })),
   };
 }

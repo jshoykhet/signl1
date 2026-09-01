@@ -179,6 +179,53 @@ export function listKolHandles(spec: KolSpec = process.env as KolSpec): string[]
   return [...getKolHandleSet(spec)].sort((a, b) => a.localeCompare(b));
 }
 
+export type KolSource = "seed" | "added";
+
+export type KolRow = {
+  handle: string;
+  source: KolSource;
+  active: boolean;
+};
+
+export function isSeedOrEnvHandle(handle: string, spec: KolSpec = {}): boolean {
+  const key = normalizeHandle(handle);
+  if (!key) return false;
+  const baseline = loadKolHandleSet({
+    KOL_HANDLES: spec.KOL_HANDLES,
+    KOL_HANDLES_MODE: spec.KOL_HANDLES_MODE,
+    added: [],
+    removed: [],
+  });
+  return baseline.has(key);
+}
+
+export function listKolRows(spec: KolSpec = process.env as KolSpec): KolRow[] {
+  const active = getKolHandleSet(spec);
+  const baseline = loadKolHandleSet({
+    KOL_HANDLES: spec.KOL_HANDLES,
+    KOL_HANDLES_MODE: spec.KOL_HANDLES_MODE,
+    added: [],
+    removed: [],
+  });
+  const rows = new Map<string, KolRow>();
+  for (const handle of active) {
+    rows.set(handle, {
+      handle,
+      source: baseline.has(handle) ? "seed" : "added",
+      active: true,
+    });
+  }
+  for (const handle of (spec.removed ?? []).map(normalizeHandle).filter(Boolean)) {
+    if (rows.has(handle)) continue;
+    rows.set(handle, {
+      handle,
+      source: baseline.has(handle) ? "seed" : "added",
+      active: false,
+    });
+  }
+  return [...rows.values()].sort((a, b) => a.handle.localeCompare(b.handle));
+}
+
 export function kolMode(env: KolEnv = process.env as KolEnv): "append" | "replace" {
   return (env.KOL_HANDLES_MODE ?? "append").trim().toLowerCase() === "replace"
     ? "replace"
