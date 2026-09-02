@@ -15,6 +15,7 @@ import {
 import { compileCashtagQuery } from "./tickers";
 
 const tmpDirs: string[] = [];
+const U = "desk-a";
 
 afterEach(() => {
   for (const dir of tmpDirs.splice(0)) {
@@ -32,7 +33,7 @@ describe("watchlist cashtag rules", () => {
   it("compiles tickers into an extra enabled rule with $ cashtags", () => {
     const db = tempDb();
     const before = listEnabledRules(db).length;
-    const watchlist = addTickers("nvda, $aapl, tsla", db);
+    const watchlist = addTickers(U, "nvda, $aapl, tsla", db);
     expect(watchlist.tickers).toEqual(["AAPL", "NVDA", "TSLA"]);
     expect(watchlist.compiledQueries).toEqual([compileCashtagQuery(["AAPL", "NVDA", "TSLA"])]);
     expect(watchlist.compiledQueries[0]).toContain("$NVDA");
@@ -46,25 +47,26 @@ describe("watchlist cashtag rules", () => {
 
   it("pauses screening without dropping the ticker list", () => {
     const db = tempDb();
-    replaceTickers(["SPY", "QQQ"], db);
-    const paused = setWatchlistSettings({ enabled: false }, db);
+    replaceTickers(U, ["SPY", "QQQ"], db);
+    const paused = setWatchlistSettings(U, { enabled: false }, db);
     expect(paused.tickers).toEqual(["QQQ", "SPY"]);
     expect(paused.enabled).toBe(false);
     expect(listEnabledRules(db).some((rule) => rule.kind === "watchlist")).toBe(false);
-    expect(getWatchlist(db).tickers).toEqual(["QQQ", "SPY"]);
+    expect(getWatchlist(U, db).tickers).toEqual(["QQQ", "SPY"]);
   });
 
   it("blocks editing watchlist rules from the generic rules API", () => {
     const db = tempDb();
-    addTickers(["NVDA"], db);
+    addTickers(U, ["NVDA"], db);
     const rule = listEnabledRules(db).find((item) => item.kind === "watchlist");
     expect(rule).toBeTruthy();
-    expect(() => deleteRule(rule!.id, db)).toThrow(/Watchlist/);
+    expect(() => deleteRule(rule!.id, U, db)).toThrow(/Watchlist/);
   });
 
   it("still allows ordinary custom rules", () => {
     const db = tempDb();
     const rule = createRule(
+      U,
       {
         name: "Custom",
         enabled: true,
@@ -77,6 +79,6 @@ describe("watchlist cashtag rules", () => {
       db,
     );
     expect(rule.kind).toBe("custom");
-    expect(deleteRule(rule.id, db)).toBe(true);
+    expect(deleteRule(rule.id, U, db)).toBe(true);
   });
 });

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { getMeta, setMeta } from "@/lib/db";
+import { getUserMeta, setUserMeta } from "@/lib/db";
 import { parseDigestMinutes, parseWhatsAppAlertMode } from "@/lib/desk-settings";
+import { requireDeskUser } from "@/lib/session";
 import { normalizeWhatsAppNumber, toWhatsAppJid } from "@/lib/whatsapp";
 import { getWhatsAppPublicStatus } from "@/lib/whatsapp-status";
 
@@ -8,10 +9,14 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return NextResponse.json(await getWhatsAppPublicStatus());
+  const desk = await requireDeskUser();
+  if (!desk.ok) return desk.response;
+  return NextResponse.json(await getWhatsAppPublicStatus(desk.userId, { canLink: desk.role === "admin" }));
 }
 
 export async function PUT(request: Request) {
+  const desk = await requireDeskUser();
+  if (!desk.ok) return desk.response;
   const body = (await request.json().catch(() => ({}))) as {
     to?: string;
     enabled?: boolean;
@@ -21,7 +26,7 @@ export async function PUT(request: Request) {
   if (typeof body.to === "string") {
     const trimmed = body.to.trim();
     if (!trimmed) {
-      setMeta("whatsapp_to", "");
+      setUserMeta(desk.userId, "whatsapp_to", "");
     } else {
       try {
         toWhatsAppJid(trimmed);
@@ -31,21 +36,21 @@ export async function PUT(request: Request) {
           { status: 400 },
         );
       }
-      setMeta("whatsapp_to", trimmed.includes("@") ? trimmed : normalizeWhatsAppNumber(trimmed));
+      setUserMeta(desk.userId, "whatsapp_to", trimmed.includes("@") ? trimmed : normalizeWhatsAppNumber(trimmed));
     }
   }
   if (typeof body.enabled === "boolean") {
-    setMeta("whatsapp_enabled", body.enabled ? "1" : "0");
+    setUserMeta(desk.userId, "whatsapp_enabled", body.enabled ? "1" : "0");
   }
   if (typeof body.alertMode === "string") {
     const mode = parseWhatsAppAlertMode(body.alertMode);
-    setMeta("whatsapp_alert_mode", mode);
-    if (mode === "digest" && !getMeta("whatsapp_digest_last_at")) {
-      setMeta("whatsapp_digest_last_at", new Date().toISOString());
+    setUserMeta(desk.userId, "whatsapp_alert_mode", mode);
+    if (mode === "digest" && !getUserMeta(desk.userId, "whatsapp_digest_last_at")) {
+      setUserMeta(desk.userId, "whatsapp_digest_last_at", new Date().toISOString());
     }
   }
   if (body.digestMinutes != null) {
-    setMeta("whatsapp_digest_minutes", String(parseDigestMinutes(String(body.digestMinutes))));
+    setUserMeta(desk.userId, "whatsapp_digest_minutes", String(parseDigestMinutes(String(body.digestMinutes))));
   }
-  return NextResponse.json(await getWhatsAppPublicStatus());
+  return NextResponse.json(await getWhatsAppPublicStatus(desk.userId, { canLink: desk.role === "admin" }));
 }

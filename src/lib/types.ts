@@ -7,6 +7,7 @@ export type RuleKind = "custom" | "watchlist";
 
 export type Rule = {
   id: string;
+  userId: string;
   name: string;
   enabled: boolean;
   query: string;

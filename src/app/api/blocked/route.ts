@@ -7,15 +7,16 @@ import {
   resetBlockedHandles,
 } from "@/lib/db";
 import { blockedProfileUrl, listBlockedHandles, listBlockedRows } from "@/lib/blocked";
+import { requireDeskUser } from "@/lib/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function snapshot() {
-  const spec = getBlockedSpec();
+function snapshot(userId: string) {
+  const spec = getBlockedSpec(userId);
   const handles = listBlockedHandles(spec);
   const rows = listBlockedRows(spec);
-  const followers = listAuthorFollowerCounts();
+  const followers = listAuthorFollowerCounts(userId);
   return {
     handles,
     count: handles.length,
@@ -33,10 +34,14 @@ function snapshot() {
 }
 
 export async function GET() {
-  return NextResponse.json(snapshot());
+  const desk = await requireDeskUser();
+  if (!desk.ok) return desk.response;
+  return NextResponse.json(snapshot(desk.userId));
 }
 
 export async function PUT(request: Request) {
+  const desk = await requireDeskUser();
+  if (!desk.ok) return desk.response;
   const body = (await request.json().catch(() => ({}))) as {
     add?: string;
     remove?: string;
@@ -44,11 +49,11 @@ export async function PUT(request: Request) {
   };
   try {
     if (body.reset) {
-      resetBlockedHandles();
+      resetBlockedHandles(desk.userId);
     } else if (typeof body.add === "string" && body.add.trim()) {
-      addBlockedHandle(body.add);
+      addBlockedHandle(desk.userId, body.add);
     } else if (typeof body.remove === "string" && body.remove.trim()) {
-      removeBlockedHandle(body.remove);
+      removeBlockedHandle(desk.userId, body.remove);
     }
   } catch (error) {
     return NextResponse.json(
@@ -56,5 +61,5 @@ export async function PUT(request: Request) {
       { status: 400 },
     );
   }
-  return NextResponse.json(snapshot());
+  return NextResponse.json(snapshot(desk.userId));
 }

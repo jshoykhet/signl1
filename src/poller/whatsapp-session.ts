@@ -2,7 +2,7 @@ import fs from "node:fs";
 import type { ConnectionState, WASocket } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
 import pino from "pino";
-import { getMeta, getWhatsAppTo, isWhatsAppEnabled, setMeta, takeMetaValue } from "../lib/db";
+import { getMeta, getWhatsAppTo, setMeta, takeMetaValue } from "../lib/db";
 import {
   hasCompletedPairHandshake,
   isTransientWhatsAppDisconnect,
@@ -295,9 +295,8 @@ async function resolveDestinationJid(raw: string): Promise<string> {
   return jid;
 }
 
-function destinationForSend(): string | null {
-  const configured = getWhatsAppTo();
-  if (configured) return configured;
+function destinationForSend(override?: string | null): string | null {
+  if (override?.trim()) return override.trim();
   const self = sock?.user?.id ?? sock?.authState.creds.me?.id;
   if (!self) return null;
   return toOwnChatJid(self);
@@ -319,12 +318,8 @@ function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promi
 
 async function sendWhatsAppTextNow(
   text: string,
-  options: { mustBeLinked?: boolean } = {},
+  options: { mustBeLinked?: boolean; to?: string | null } = {},
 ): Promise<void> {
-  if (!isWhatsAppEnabled()) {
-    if (options.mustBeLinked) throw new Error("WhatsApp alerts are turned off");
-    return;
-  }
   if (!sessionLinked()) {
     if (options.mustBeLinked) {
       throw new Error("WhatsApp is still connecting. Wait until status is Linked, then send the test.");
@@ -332,7 +327,7 @@ async function sendWhatsAppTextNow(
     reconnectNow();
     throw new Error("WhatsApp socket is not ready");
   }
-  const to = destinationForSend();
+  const to = destinationForSend(options.to);
   if (!to) {
     if (options.mustBeLinked) throw new Error("Set a WhatsApp destination number on Settings");
     return;
@@ -364,7 +359,7 @@ async function sendWhatsAppTextNow(
 
 export async function sendWhatsAppText(
   text: string,
-  options: { mustBeLinked?: boolean } = {},
+  options: { mustBeLinked?: boolean; to?: string | null } = {},
 ): Promise<void> {
   const run = sendTail.then(() => sendWhatsAppTextNow(text, options));
   sendTail = run.then(
@@ -403,13 +398,13 @@ async function pumpCommands() {
 
   const test = takeMetaValue("whatsapp_test");
   if (test) {
+    const to = test.startsWith("user:") ? getWhatsAppTo(test.slice(5)) : test === "1" ? null : test;
     try {
       await sendWhatsAppText(
-        test === "1"
-          ? "Signal1 WhatsApp alerts are linked. If you are reading this, destination routing works."
-          : test,
+        "Signal1 WhatsApp alerts are linked. If you are reading this, destination routing works.",
         {
           mustBeLinked: true,
+          to,
         },
       );
       console.log("[whatsapp] test message sent");

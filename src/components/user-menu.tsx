@@ -52,14 +52,14 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
         <DropdownMenuLabel className="font-normal">
           <div className="truncate text-[13px] text-foreground">{user.email}</div>
           <div className="text-[12px] text-muted-foreground">
-            Shared desk · {user.role === "admin" ? "admin" : "operator"}
+            Private desk · {user.role === "admin" ? "admin" : "operator"}
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           variant="destructive"
           onClick={() => {
-            void signOut({ callbackUrl: "/login" });
+            void signOut({ callbackUrl: "/" });
           }}
         >
           <LogOut />

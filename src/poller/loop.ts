@@ -60,7 +60,7 @@ function noteRateLimit(info: { remaining: number | null; limit: number | null; r
 }
 
 async function ingestTweet(rule: Rule, tweet: NormalizedTweet): Promise<boolean> {
-  const verdict = evaluateTweetSignal(tweet);
+  const verdict = evaluateTweetSignal(tweet, rule.userId || "");
   if (!verdict.pass) return false;
   const result = tryInsertMatch(rule, tweet);
   if (!result.inserted) return false;

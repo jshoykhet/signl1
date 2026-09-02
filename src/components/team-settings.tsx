@@ -13,6 +13,7 @@ type TeamResponse = {
   me: { email: string; name: string | null; image: string | null; role: DeskRole };
   googleConfigured: boolean;
   devLogin: boolean;
+  publicSignup: boolean;
   users: DeskUser[];
   pendingInvites: AllowedEmail[];
   error?: string;
@@ -28,11 +29,11 @@ export function TeamSettings() {
     try {
       const res = await fetch("/api/team", { cache: "no-store" });
       const data = (await res.json()) as TeamResponse;
-      if (!res.ok) throw new Error(data.error ?? "Failed to load team");
+      if (!res.ok) throw new Error(data.error ?? "Failed to load access");
       setTeam(data);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load team");
+      setError(err instanceof Error ? err.message : "Failed to load access");
     }
   }
 
@@ -52,7 +53,15 @@ export function TeamSettings() {
       if (!res.ok) throw new Error(data.error ?? "Update failed");
       setTeam(data);
       setEmail("");
-      toast.success(action === "invite" ? `Invited ${target}` : `Revoked ${target}`);
+      toast.success(
+        action === "invite"
+          ? data.publicSignup
+            ? `Restored ${target}`
+            : `Invited ${target}`
+          : data.publicSignup
+            ? `Disabled ${target}`
+            : `Revoked ${target}`,
+      );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Update failed");
     } finally {
@@ -61,22 +70,27 @@ export function TeamSettings() {
   }
 
   const admin = team?.me.role === "admin";
+  const publicSignup = team?.publicSignup ?? false;
 
   return (
-    <SettingsGroup title="Team">
+    <SettingsGroup title="Access">
       <div className="space-y-4 px-4 py-3.5 text-[15px]">
         <p className="text-[13px] leading-relaxed text-muted-foreground">
-          Shared desk: every signed-in operator sees the same inbox, rules, Key Network Nodes, blocked list, and WhatsApp
-          session. Google accounts must be invited here before they can sign in.
+          {publicSignup
+            ? "Anyone with Google can create a private desk. Inboxes are not shared. Instance admins can disable an account without deleting its data."
+            : "Invite-only: Google accounts must be added here before they can sign in. Each account still gets its own private desk."}
         </p>
         {error ? <p className="text-destructive">{error}</p> : null}
         {!team ? (
-          <p className="text-muted-foreground">Loading team…</p>
+          <p className="text-muted-foreground">Loading access…</p>
         ) : (
           <>
             <div className="flex flex-wrap gap-2 text-[13px]">
               <Badge variant={team.googleConfigured ? "secondary" : "outline"} className="rounded-full">
                 Google {team.googleConfigured ? "ready" : "not configured"}
+              </Badge>
+              <Badge variant="outline" className="rounded-full">
+                {publicSignup ? "Public signup" : "Invite-only"}
               </Badge>
               {team.devLogin ? (
                 <Badge variant="outline" className="rounded-full">
@@ -88,7 +102,7 @@ export function TeamSettings() {
               <table className="w-full text-left text-[15px]">
                 <thead className="text-[13px] text-muted-foreground">
                   <tr>
-                    <th className="px-3 py-2 font-normal">Operator</th>
+                    <th className="px-3 py-2 font-normal">Account</th>
                     <th className="px-3 py-2 font-normal">Role</th>
                     <th className="px-3 py-2 font-normal">Last login</th>
                     {admin ? <th className="px-3 py-2 font-normal"> </th> : null}
@@ -101,7 +115,9 @@ export function TeamSettings() {
                         <div className="font-medium">{user.name || user.email}</div>
                         <div className="text-[13px] text-muted-foreground">{user.email}</div>
                       </td>
-                      <td className="px-3 py-2.5 capitalize">{user.role}</td>
+                      <td className="px-3 py-2.5 capitalize">
+                        {user.disabled ? "Disabled" : user.role}
+                      </td>
                       <td className="px-3 py-2.5 text-muted-foreground" title={formatClock(user.lastLoginAt)}>
                         {formatRelative(user.lastLoginAt)}
                       </td>
@@ -112,44 +128,46 @@ export function TeamSettings() {
                             variant="ghost"
                             size="sm"
                             disabled={busy}
-                            onClick={() => mutate("revoke", user.email)}
+                            onClick={() => mutate(user.disabled ? "invite" : "revoke", user.email)}
                           >
-                            Revoke
+                            {user.disabled ? "Restore" : publicSignup ? "Disable" : "Revoke"}
                           </Button>
                         </td>
                       ) : null}
                     </tr>
                   ))}
-                  {team.pendingInvites.map((invite) => (
-                    <tr key={invite.email} className="border-t border-border">
-                      <td className="px-3 py-2.5">
-                        <div className="text-[15px]">{invite.email}</div>
-                        <div className="text-[13px] text-muted-foreground">
-                          Invited {formatRelative(invite.invitedAt)}
-                          {invite.invitedBy ? ` by ${invite.invitedBy}` : ""}
-                        </div>
-                      </td>
-                      <td className="px-3 py-2.5 text-muted-foreground">Pending</td>
-                      <td className="px-3 py-2.5 text-muted-foreground">—</td>
-                      {admin ? (
-                        <td className="px-3 py-2.5 text-right">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            disabled={busy}
-                            onClick={() => mutate("revoke", invite.email)}
-                          >
-                            Remove
-                          </Button>
-                        </td>
-                      ) : null}
-                    </tr>
-                  ))}
+                  {!publicSignup
+                    ? team.pendingInvites.map((invite) => (
+                        <tr key={invite.email} className="border-t border-border">
+                          <td className="px-3 py-2.5">
+                            <div className="text-[15px]">{invite.email}</div>
+                            <div className="text-[13px] text-muted-foreground">
+                              Invited {formatRelative(invite.invitedAt)}
+                              {invite.invitedBy ? ` by ${invite.invitedBy}` : ""}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2.5 text-muted-foreground">Pending</td>
+                          <td className="px-3 py-2.5 text-muted-foreground">—</td>
+                          {admin ? (
+                            <td className="px-3 py-2.5 text-right">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                disabled={busy}
+                                onClick={() => mutate("revoke", invite.email)}
+                              >
+                                Remove
+                              </Button>
+                            </td>
+                          ) : null}
+                        </tr>
+                      ))
+                    : null}
                 </tbody>
               </table>
             </div>
-            {admin ? (
+            {admin && !publicSignup ? (
               <form
                 className="flex flex-col gap-2 sm:flex-row"
                 onSubmit={(event) => {
@@ -169,8 +187,13 @@ export function TeamSettings() {
                   Invite Google account
                 </Button>
               </form>
+            ) : admin && publicSignup ? (
+              <p className="text-[13px] text-muted-foreground">
+                Public signup is on via <code className="font-mono text-[12px]">AUTH_PUBLIC_SIGNUP=1</code>.
+                Set it to <code className="font-mono text-[12px]">0</code> to require invites.
+              </p>
             ) : (
-              <p className="text-[13px] text-muted-foreground">Only admins can invite or revoke operators.</p>
+              <p className="text-[13px] text-muted-foreground">Only admins can change who may sign in.</p>
             )}
           </>
         )}

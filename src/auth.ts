@@ -51,7 +51,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const email = (user?.email ?? token.email) as string | undefined;
       if (!email) return token;
       const row = getUserByEmail(email);
-      if (!row) return token;
+      if (!row || row.disabled) {
+        token.userId = undefined;
+        token.role = undefined;
+        token.email = undefined;
+        return token;
+      }
       token.userId = row.id;
       token.role = row.role;
       token.email = row.email;

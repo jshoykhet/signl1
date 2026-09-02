@@ -25,6 +25,7 @@ import { isKolHandle } from "./kol";
 import type { NormalizedTweet } from "./types";
 
 const tmpDirs: string[] = [];
+const U = "desk-a";
 
 afterEach(() => {
   for (const dir of tmpDirs.splice(0)) {
@@ -61,7 +62,7 @@ describe("desk filters and KOL list persist in SQLite", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-"));
     tmpDirs.push(dir);
     const db = openDatabase(path.join(dir, "test.db"));
-    expect(getDeskFilterSettings(db)).toEqual({
+    expect(getDeskFilterSettings(U, db)).toEqual({
       kolOnly: false,
       signalLevel: "standard",
       allowFresh: true,
@@ -70,21 +71,21 @@ describe("desk filters and KOL list persist in SQLite", () => {
       hideCrypto: true,
       hideMessagingApps: true,
     });
-    expect(isKolHandle("DeItaone", getKolSpec(db))).toBe(true);
+    expect(isKolHandle("DeItaone", getKolSpec(U, db))).toBe(true);
   });
 
   it("adds and removes handles on top of the seed, then reset restores it", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-"));
     tmpDirs.push(dir);
     const db = openDatabase(path.join(dir, "test.db"));
-    addKolHandle("MyDesk", db);
-    removeKolHandle("zerohedge", db);
-    const spec = getKolSpec(db);
+    addKolHandle(U, "MyDesk", db);
+    removeKolHandle(U, "zerohedge", db);
+    const spec = getKolSpec(U, db);
     expect(isKolHandle("MyDesk", spec)).toBe(true);
     expect(isKolHandle("zerohedge", spec)).toBe(false);
     expect(isKolHandle("elonmusk", spec)).toBe(true);
-    resetKolHandles(db);
-    const restored = getKolSpec(db);
+    resetKolHandles(U, db);
+    const restored = getKolSpec(U, db);
     expect(isKolHandle("MyDesk", restored)).toBe(false);
     expect(isKolHandle("zerohedge", restored)).toBe(true);
   });
@@ -93,9 +94,9 @@ describe("desk filters and KOL list persist in SQLite", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-"));
     tmpDirs.push(dir);
     const db = openDatabase(path.join(dir, "test.db"));
-    removeKolHandle("zerohedge", db);
-    addKolHandle("zerohedge", db);
-    const spec = getKolSpec(db);
+    removeKolHandle(U, "zerohedge", db);
+    addKolHandle(U, "zerohedge", db);
+    const spec = getKolSpec(U, db);
     expect(isKolHandle("zerohedge", spec)).toBe(true);
     expect(spec.added ?? []).not.toContain("zerohedge");
     expect(spec.removed ?? []).not.toContain("zerohedge");
@@ -105,14 +106,14 @@ describe("desk filters and KOL list persist in SQLite", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-"));
     tmpDirs.push(dir);
     const db = openDatabase(path.join(dir, "test.db"));
-    expect(() => addKolHandle("not a handle!", db)).toThrow(/1–15/);
+    expect(() => addKolHandle(U, "not a handle!", db)).toThrow(/1–15/);
   });
 
   it("drops non-KOL authors when kol only is on", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-"));
     tmpDirs.push(dir);
     const db = openDatabase(path.join(dir, "test.db"));
-    setDeskFilterSettings({ kolOnly: true }, db);
+    setDeskFilterSettings(U, { kolOnly: true }, db);
     expect(
       evaluateTweetSignal(
         catalyst("middesk_tape", {
@@ -120,46 +121,47 @@ describe("desk filters and KOL list persist in SQLite", () => {
           likeCount: 40,
           text: "$AAPL beats EPS; FOMC-sensitive names bid as guidance is raised.",
         }),
+        U,
         db,
       ).pass,
     ).toBe(false);
-    expect(evaluateTweetSignal(catalyst("DeItaone"), db).pass).toBe(true);
+    expect(evaluateTweetSignal(catalyst("DeItaone"), U, db).pass).toBe(true);
   });
 
   it("requires likes when engagement is on", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-"));
     tmpDirs.push(dir);
     const db = openDatabase(path.join(dir, "test.db"));
-    setDeskFilterSettings({ requireEngagement: true }, db);
-    expect(evaluateTweetSignal(catalyst("DeItaone"), db).pass).toBe(false);
+    setDeskFilterSettings(U, { requireEngagement: true }, db);
+    expect(evaluateTweetSignal(catalyst("DeItaone"), U, db).pass).toBe(false);
   });
 
   it("applies a custom min-likes floor", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-"));
     tmpDirs.push(dir);
     const db = openDatabase(path.join(dir, "test.db"));
-    setDeskFilterSettings({ minLikes: 50, allowFresh: false }, db);
+    setDeskFilterSettings(U, { minLikes: 50, allowFresh: false }, db);
     const weak = catalyst("middesk_tape", {
       followersCount: 8_000,
       likeCount: 12,
       text: "$AAPL beats EPS; FOMC-sensitive names bid as guidance is raised.",
     });
-    expect(evaluateTweetSignal(weak, db).pass).toBe(false);
-    setDeskFilterSettings({ minLikes: 5 }, db);
-    expect(evaluateTweetSignal(weak, db).pass).toBe(true);
+    expect(evaluateTweetSignal(weak, U, db).pass).toBe(false);
+    setDeskFilterSettings(U, { minLikes: 5 }, db);
+    expect(evaluateTweetSignal(weak, U, db).pass).toBe(true);
   });
 
   it("does not apply min likes to a Key Network Node unless Require likes is on", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-"));
     tmpDirs.push(dir);
     const db = openDatabase(path.join(dir, "test.db"));
-    expect(evaluateTweetSignal(catalyst("DeItaone"), db).pass).toBe(true);
-    setDeskFilterSettings({ minLikes: 10 }, db);
-    expect(evaluateTweetSignal(catalyst("DeItaone"), db).pass).toBe(true);
-    setDeskFilterSettings({ requireEngagement: true }, db);
-    expect(evaluateTweetSignal(catalyst("DeItaone"), db).pass).toBe(false);
-    setDeskFilterSettings({ requireEngagement: false, minLikes: null }, db);
-    expect(evaluateTweetSignal(catalyst("DeItaone"), db).pass).toBe(true);
+    expect(evaluateTweetSignal(catalyst("DeItaone"), U, db).pass).toBe(true);
+    setDeskFilterSettings(U, { minLikes: 10 }, db);
+    expect(evaluateTweetSignal(catalyst("DeItaone"), U, db).pass).toBe(true);
+    setDeskFilterSettings(U, { requireEngagement: true }, db);
+    expect(evaluateTweetSignal(catalyst("DeItaone"), U, db).pass).toBe(false);
+    setDeskFilterSettings(U, { requireEngagement: false, minLikes: null }, db);
+    expect(evaluateTweetSignal(catalyst("DeItaone"), U, db).pass).toBe(true);
   });
 
   it("hides crypto noise and Telegram funnels by default", () => {
@@ -181,12 +183,12 @@ describe("desk filters and KOL list persist in SQLite", () => {
       likeCount: 40,
       text: "$COIN volume spike into the print",
     });
-    expect(evaluateTweetSignal(token, db).pass).toBe(false);
-    expect(evaluateTweetSignal(chat, db).pass).toBe(false);
-    expect(evaluateTweetSignal(stock, db).pass).toBe(true);
-    setDeskFilterSettings({ hideCrypto: false, hideMessagingApps: false }, db);
-    expect(evaluateTweetSignal(token, db).pass).toBe(true);
-    expect(evaluateTweetSignal(chat, db).pass).toBe(true);
+    expect(evaluateTweetSignal(token, U, db).pass).toBe(false);
+    expect(evaluateTweetSignal(chat, U, db).pass).toBe(false);
+    expect(evaluateTweetSignal(stock, U, db).pass).toBe(true);
+    setDeskFilterSettings(U, { hideCrypto: false, hideMessagingApps: false }, db);
+    expect(evaluateTweetSignal(token, U, db).pass).toBe(true);
+    expect(evaluateTweetSignal(chat, U, db).pass).toBe(true);
   });
 
   it("re-filters the inbox when min likes is raised", () => {
@@ -194,6 +196,7 @@ describe("desk filters and KOL list persist in SQLite", () => {
     tmpDirs.push(dir);
     const db = openDatabase(path.join(dir, "test.db"));
     const rule = createRule(
+      U,
       {
         name: "A",
         enabled: true,
@@ -212,10 +215,10 @@ describe("desk filters and KOL list persist in SQLite", () => {
       text: "$AAPL beats EPS; FOMC-sensitive names bid as guidance is raised.",
     });
     expect(tryInsertMatch(rule, tweet, db).inserted).toBe(true);
-    expect(listMatches({ quality: true }, db).some((m) => m.tweetId === "tw-likes")).toBe(true);
-    setDeskFilterSettings({ minLikes: 50, allowFresh: false }, db);
-    expect(evaluateTweetSignal(tweet, db).pass).toBe(false);
-    expect(listMatches({ quality: true }, db).some((m) => m.tweetId === "tw-likes")).toBe(false);
+    expect(listMatches(U, { quality: true }, db).some((m) => m.tweetId === "tw-likes")).toBe(true);
+    setDeskFilterSettings(U, { minLikes: 50, allowFresh: false }, db);
+    expect(evaluateTweetSignal(tweet, U, db).pass).toBe(false);
+    expect(listMatches(U, { quality: true }, db).some((m) => m.tweetId === "tw-likes")).toBe(false);
   });
 
   it("reads follower counts from ingested matches", () => {
@@ -223,6 +226,7 @@ describe("desk filters and KOL list persist in SQLite", () => {
     tmpDirs.push(dir);
     const db = openDatabase(path.join(dir, "test.db"));
     const rule = createRule(
+      U,
       {
         name: "A",
         enabled: true,
@@ -243,7 +247,7 @@ describe("desk filters and KOL list persist in SQLite", () => {
       }),
       db,
     );
-    expect(listAuthorFollowerCounts(db).get("reuters")).toBe(25_000_000);
+    expect(listAuthorFollowerCounts(U, db).get("reuters")).toBe(25_000_000);
   });
 
   it("blocks an account from the inbox even when it is a node", () => {
@@ -251,6 +255,7 @@ describe("desk filters and KOL list persist in SQLite", () => {
     tmpDirs.push(dir);
     const db = openDatabase(path.join(dir, "test.db"));
     const rule = createRule(
+      U,
       {
         name: "A",
         enabled: true,
@@ -264,15 +269,63 @@ describe("desk filters and KOL list persist in SQLite", () => {
     );
     const tweet = catalyst("DeItaone", { id: "tw-block", followersCount: 80_000, likeCount: 40 });
     tryInsertMatch(rule, tweet, db);
-    expect(listMatches({ quality: true }, db).some((m) => m.authorHandle === "DeItaone")).toBe(true);
-    addBlockedHandle("DeItaone", db);
-    expect(isBlockedHandle("DeItaone", getBlockedSpec(db))).toBe(true);
-    expect(evaluateTweetSignal(tweet, db).pass).toBe(false);
-    expect(listMatches({ quality: true }, db).some((m) => m.authorHandle.toLowerCase() === "deitaone")).toBe(false);
-    removeBlockedHandle("DeItaone", db);
-    expect(listMatches({ quality: true }, db).some((m) => m.authorHandle.toLowerCase() === "deitaone")).toBe(true);
-    addBlockedHandle("DeItaone", db);
-    resetBlockedHandles(db);
-    expect(isBlockedHandle("DeItaone", getBlockedSpec(db))).toBe(false);
+    expect(listMatches(U, { quality: true }, db).some((m) => m.authorHandle === "DeItaone")).toBe(true);
+    addBlockedHandle(U, "DeItaone", db);
+    expect(isBlockedHandle("DeItaone", getBlockedSpec(U, db))).toBe(true);
+    expect(evaluateTweetSignal(tweet, U, db).pass).toBe(false);
+    expect(listMatches(U, { quality: true }, db).some((m) => m.authorHandle.toLowerCase() === "deitaone")).toBe(false);
+    removeBlockedHandle(U, "DeItaone", db);
+    expect(listMatches(U, { quality: true }, db).some((m) => m.authorHandle.toLowerCase() === "deitaone")).toBe(true);
+    addBlockedHandle(U, "DeItaone", db);
+    resetBlockedHandles(U, db);
+    expect(isBlockedHandle("DeItaone", getBlockedSpec(U, db))).toBe(false);
+  });
+
+  it("keeps two desks' inboxes isolated", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-"));
+    tmpDirs.push(dir);
+    const db = openDatabase(path.join(dir, "test.db"));
+    const a = "desk-a";
+    const b = "desk-b";
+    const ruleA = createRule(
+      a,
+      {
+        name: "A",
+        enabled: true,
+        queryInput: "FOMC",
+        accounts: [],
+        pollIntervalMs: 15_000,
+        slackWebhookUrl: null,
+        genericWebhookUrl: null,
+      },
+      db,
+    );
+    const ruleB = createRule(
+      b,
+      {
+        name: "B",
+        enabled: true,
+        queryInput: "FOMC",
+        accounts: [],
+        pollIntervalMs: 15_000,
+        slackWebhookUrl: null,
+        genericWebhookUrl: null,
+      },
+      db,
+    );
+    const tweet = catalyst("middesk_tape", {
+      id: "tw-iso",
+      followersCount: 8_000,
+      likeCount: 12,
+      text: "$AAPL beats EPS; FOMC-sensitive names bid as guidance is raised.",
+    });
+    expect(tryInsertMatch(ruleA, tweet, db).inserted).toBe(true);
+    expect(listMatches(a, { quality: true }, db).some((m) => m.tweetId === "tw-iso")).toBe(true);
+    expect(listMatches(b, { quality: true }, db).some((m) => m.tweetId === "tw-iso")).toBe(false);
+    expect(tryInsertMatch(ruleB, tweet, db).inserted).toBe(true);
+    expect(listMatches(b, { quality: true }, db).some((m) => m.tweetId === "tw-iso")).toBe(true);
+    setDeskFilterSettings(a, { minLikes: 500, allowFresh: false }, db);
+    expect(listMatches(a, { quality: true }, db).some((m) => m.tweetId === "tw-iso")).toBe(false);
+    expect(listMatches(b, { quality: true }, db).some((m) => m.tweetId === "tw-iso")).toBe(true);
   });
 });

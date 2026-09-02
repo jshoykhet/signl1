@@ -7,6 +7,7 @@ import { createRule, openDatabase, tryInsertMatch } from "./db";
 import type { NormalizedTweet } from "./types";
 
 const tmpDirs: string[] = [];
+const U = "desk-a";
 
 afterEach(() => {
   for (const dir of tmpDirs.splice(0)) {
@@ -56,6 +57,7 @@ describe("sqlite unique (rule_id, tweet_id)", () => {
     tmpDirs.push(dir);
     const db = openDatabase(path.join(dir, "test.db"));
     const ruleA = createRule(
+      U,
       {
         name: "A",
         enabled: true,
@@ -68,6 +70,7 @@ describe("sqlite unique (rule_id, tweet_id)", () => {
       db,
     );
     const ruleB = createRule(
+      U,
       {
         name: "B",
         enabled: true,

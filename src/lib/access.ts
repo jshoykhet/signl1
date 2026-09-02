@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import { getDb } from "./db";
+import { ensureUserDesk, getDb } from "./db";
 
 export type DeskRole = "admin" | "operator";
 
@@ -9,6 +9,7 @@ export type DeskUser = {
   name: string | null;
   image: string | null;
   role: DeskRole;
+  disabled: boolean;
   createdAt: string;
   lastLoginAt: string | null;
 };
@@ -33,6 +34,7 @@ type UserRow = {
   name: string | null;
   image: string | null;
   role: string;
+  disabled: number | null;
   created_at: string;
   last_login_at: string | null;
 };
@@ -71,6 +73,11 @@ export function isDevLoginEnabled(): boolean {
   return process.env.AUTH_DEV_LOGIN === "1";
 }
 
+/** Anyone with Google (or local desk email) can create a private desk. */
+export function isPublicSignup(): boolean {
+  return process.env.AUTH_PUBLIC_SIGNUP === "1";
+}
+
 function mapUser(row: UserRow): DeskUser {
   return {
     id: row.id,
@@ -78,6 +85,7 @@ function mapUser(row: UserRow): DeskUser {
     name: row.name,
     image: row.image,
     role: row.role === "admin" ? "admin" : "operator",
+    disabled: Boolean(row.disabled),
     createdAt: row.created_at,
     lastLoginAt: row.last_login_at,
   };
@@ -148,12 +156,29 @@ export function removeAllowedEmail(email: string, db?: Database.Database): void 
   if (!normalized) throw new Error("Enter a valid email address.");
   const target = getUserByEmail(normalized, db);
   if (target?.role === "admin") {
-    const activeAdmins = listUsers(db).filter((user) => user.role === "admin" && isEmailAllowed(user.email, db));
+    const activeAdmins = listUsers(db).filter(
+      (user) => user.role === "admin" && !user.disabled && isEmailAllowed(user.email, db),
+    );
     if (activeAdmins.length <= 1) {
       throw new Error("Cannot revoke the last admin. Invite another admin first.");
     }
   }
   use(db).prepare("DELETE FROM allowed_emails WHERE email = ?").run(normalized);
+}
+
+export function setUserDisabled(email: string, disabled: boolean, db?: Database.Database): DeskUser {
+  const target = getUserByEmail(email, db);
+  if (!target) throw new Error("No account with that email.");
+  if (disabled && target.role === "admin") {
+    const activeAdmins = listUsers(db).filter((user) => user.role === "admin" && !user.disabled);
+    if (activeAdmins.length <= 1) {
+      throw new Error("Cannot disable the last admin.");
+    }
+  }
+  use(db).prepare("UPDATE users SET disabled = ? WHERE email = ?").run(disabled ? 1 : 0, target.email);
+  const updated = getUserByEmail(email, db);
+  if (!updated) throw new Error("No account with that email.");
+  return updated;
 }
 
 export function getTeamSnapshot(db?: Database.Database): TeamSnapshot {
@@ -182,12 +207,12 @@ function touchLogin(
 }
 
 /**
- * Gate for Google / local desk login. Shared desk: every admitted operator
- * sees the same inbox, rules, and WhatsApp session.
+ * Gate for Google / local desk login.
  *
- * First user becomes admin when the user table is empty. If the allowlist
- * already has rows (including AUTH_ALLOWED_EMAILS), that first user must
- * still be on the list.
+ * AUTH_PUBLIC_SIGNUP=1: any valid Google (or local desk) email gets a private desk.
+ * Otherwise access is invite-only. First user becomes instance admin. If the
+ * allowlist already has rows (including AUTH_ALLOWED_EMAILS), that first user
+ * must still be on the list.
  */
 export function admitUser(
   input: { email: string; name?: string | null; image?: string | null },
@@ -201,29 +226,35 @@ export function admitUser(
   const allowed = isEmailAllowed(email, conn);
   const userCount = countUsers(conn);
   const allowCount = countAllowedEmails(conn);
+  const publicSignup = isPublicSignup();
 
   if (existing) {
-    if (allowCount > 0 && !allowed) return null;
+    if (existing.disabled) return null;
+    if (!publicSignup && allowCount > 0 && !allowed) return null;
     touchLogin(existing.id, input, conn);
+    ensureUserDesk(existing.id, conn);
     return getUserByEmail(email, conn);
   }
 
-  const bootstrap = userCount === 0 && allowCount === 0;
-  if (!bootstrap && !allowed) return null;
+  if (!publicSignup) {
+    const bootstrap = userCount === 0 && allowCount === 0;
+    if (!bootstrap && !allowed) return null;
+  }
 
   const ts = nowIso();
   const id = crypto.randomUUID();
   const role: DeskRole = userCount === 0 ? "admin" : "operator";
   conn
     .prepare(
-      `INSERT INTO users (id, email, name, image, role, created_at, last_login_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO users (id, email, name, image, role, created_at, last_login_at, disabled)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
     )
     .run(id, email, input.name?.trim() || null, input.image?.trim() || null, role, ts, ts);
 
-  if (bootstrap) {
+  if (!publicSignup && userCount === 0 && allowCount === 0) {
     addAllowedEmail(email, "bootstrap", conn);
   }
 
+  ensureUserDesk(id, conn);
   return getUserByEmail(email, conn);
 }

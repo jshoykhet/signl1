@@ -6,6 +6,7 @@ import type { WhatsAppCadenceSettings } from "./desk-settings";
 
 export type WhatsAppPublicStatus = WhatsAppSnapshot & {
   qrDataUrl: string | null;
+  canLink: boolean;
 } & WhatsAppCadenceSettings;
 
 function parseStatus(raw: string | null): WhatsAppLinkStatus {
@@ -21,7 +22,10 @@ function parseStatus(raw: string | null): WhatsAppLinkStatus {
   }
 }
 
-export async function getWhatsAppPublicStatus(): Promise<WhatsAppPublicStatus> {
+export async function getWhatsAppPublicStatus(
+  userId: string,
+  opts: { canLink?: boolean } = {},
+): Promise<WhatsAppPublicStatus> {
   const qr = getMeta("whatsapp_qr");
   let qrDataUrl: string | null = null;
   if (qr) {
@@ -33,15 +37,16 @@ export async function getWhatsAppPublicStatus(): Promise<WhatsAppPublicStatus> {
   }
   return {
     status: parseStatus(getMeta("whatsapp_status")),
-    qr: qr,
-    qrDataUrl,
-    pairingCode: formatPairingCode(getMeta("whatsapp_pairing_code")),
+    qr: opts.canLink ? qr : null,
+    qrDataUrl: opts.canLink ? qrDataUrl : null,
+    pairingCode: opts.canLink ? formatPairingCode(getMeta("whatsapp_pairing_code")) : null,
     linkedAs: getMeta("whatsapp_linked_as"),
-    to: getWhatsAppTo(),
-    enabled: isWhatsAppEnabled(),
+    to: getWhatsAppTo(userId),
+    enabled: isWhatsAppEnabled(userId),
     lastError: userFacingWhatsAppError(getMeta("whatsapp_error")),
     lastSentAt: getMeta("whatsapp_last_sent_at"),
     lastSentTo: getMeta("whatsapp_last_sent_to"),
-    ...getWhatsAppCadenceSettings(),
+    canLink: Boolean(opts.canLink),
+    ...getWhatsAppCadenceSettings(userId),
   };
 }

@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   addAllowedEmail,
   admitUser,
@@ -10,14 +10,17 @@ import {
   isEmailAllowed,
   listUsers,
   removeAllowedEmail,
+  setUserDisabled,
 } from "./access";
 import { openDatabase } from "./db";
 
 const tmpDirs: string[] = [];
 const originalAllowed = process.env.AUTH_ALLOWED_EMAILS;
+const originalPublic = process.env.AUTH_PUBLIC_SIGNUP;
 
 afterEach(() => {
   process.env.AUTH_ALLOWED_EMAILS = originalAllowed;
+  process.env.AUTH_PUBLIC_SIGNUP = originalPublic;
   for (const dir of tmpDirs.splice(0)) {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -30,6 +33,10 @@ function tempDb() {
 }
 
 describe("admitUser and allowlist", () => {
+  beforeEach(() => {
+    delete process.env.AUTH_PUBLIC_SIGNUP;
+  });
+
   it("makes the first user admin when the allowlist is empty and records their email", () => {
     delete process.env.AUTH_ALLOWED_EMAILS;
     const db = tempDb();
@@ -38,6 +45,7 @@ describe("admitUser and allowlist", () => {
       email: "desk.lead@example.com",
       name: "Lead",
       role: "admin",
+      disabled: false,
     });
     expect(isEmailAllowed("desk.lead@example.com", db)).toBe(true);
     expect(countAllowedEmails(db)).toBe(1);
@@ -91,5 +99,27 @@ describe("admitUser and allowlist", () => {
     expect(again.id).toBe(first.id);
     expect(again.name).toBe("Lead");
     expect(again.lastLoginAt).toBeTruthy();
+  });
+
+  it("lets any Google account create a private desk when AUTH_PUBLIC_SIGNUP=1", () => {
+    process.env.AUTH_PUBLIC_SIGNUP = "1";
+    delete process.env.AUTH_ALLOWED_EMAILS;
+    const db = tempDb();
+    const lead = admitUser({ email: "lead@desk.com" }, db);
+    const stranger = admitUser({ email: "stranger@gmail.com" }, db);
+    expect(lead?.role).toBe("admin");
+    expect(stranger?.role).toBe("operator");
+    expect(stranger?.disabled).toBe(false);
+    expect(listUsers(db)).toHaveLength(2);
+  });
+
+  it("refuses a disabled account even with public signup", () => {
+    process.env.AUTH_PUBLIC_SIGNUP = "1";
+    delete process.env.AUTH_ALLOWED_EMAILS;
+    const db = tempDb();
+    admitUser({ email: "lead@desk.com" }, db);
+    admitUser({ email: "intern@desk.com" }, db);
+    setUserDisabled("intern@desk.com", true, db);
+    expect(admitUser({ email: "intern@desk.com" }, db)).toBeNull();
   });
 });

@@ -60,7 +60,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           />
           <div className="min-w-0 leading-tight">
             <div className="text-[17px] font-semibold tracking-[-0.02em]">Signal1</div>
-            <div className="text-[12px] text-muted-foreground">X alerts · self-hosted</div>
+            <div className="text-[12px] text-muted-foreground">X alerts · private desk</div>
           </div>
         </div>
         <nav className="flex flex-1 flex-col gap-0.5 px-3">

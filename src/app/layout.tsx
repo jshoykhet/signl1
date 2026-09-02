@@ -20,22 +20,29 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Signal1",
-  description: "Self-hosted X (Twitter) alerts for research operators.",
+  description: "Private X (Twitter) alert desks for research operators.",
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const session = await auth();
+  const signedIn = Boolean(session?.user);
   return (
     <html
       lang="en"
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="h-full overflow-hidden bg-background text-foreground">
+      <body
+        className={
+          signedIn
+            ? "h-full overflow-hidden bg-background text-foreground"
+            : "min-h-full bg-background text-foreground"
+        }
+      >
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           <AuthSessionProvider session={session}>
             <TooltipProvider>
-              <AppShell>{children}</AppShell>
+              {signedIn ? <AppShell>{children}</AppShell> : children}
               <Toaster />
             </TooltipProvider>
           </AuthSessionProvider>

@@ -1,10 +1,10 @@
 # Signal1
 
-Self-hosted X (Twitter) alerts for investment and research operators. You define watch rules in a web UI; a background poller hits the official X API v2 recent-search endpoint and writes matches into an inbox. Optional Slack and generic webhooks fire on each new tweet.
+X (Twitter) alerts for investment and research operators. You define watch rules in a web UI; a background poller hits the official X API v2 recent-search endpoint and writes matches into an inbox. Optional Slack and WhatsApp fire on each new tweet.
 
-There is no hosted service. You run it with Docker Compose (or `npm run dev`) against a local SQLite file. Operators sign in with Google (or a local desk email in development). Everyone who gets in shares the same inbox, rules, Key Network Nodes, blocked list, and WhatsApp session.
+Each Google account gets a **private desk** (inbox, rules, watchlist, filters, destination number). The host still runs one poller and one X bearer token. Set `AUTH_PUBLIC_SIGNUP=1` so anyone can sign in with Google, or `0` for an invite-only allowlist.
 
-To put Signal1 on a domain you purchased, use a VPS — not Vercel. See [DEPLOY.md](DEPLOY.md) for DNS, Caddy TLS, the Google OAuth client, and the first-admin allowlist.
+You run it with Docker Compose (or `npm run dev`) against a local SQLite file. To put Signal1 on a domain you purchased, use a VPS — not Vercel. See [DEPLOY.md](DEPLOY.md) for DNS, Caddy TLS, a public Google OAuth client, and signup mode.
 
 ## Quick start
 
@@ -33,7 +33,8 @@ Leave `X_BEARER_TOKEN` empty for **demo mode**. Signal1 injects fixture markets 
 | `AUTH_SECRET` | Prod | Session secret (`openssl rand -base64 32`). Optional locally. |
 | `AUTH_URL` | Prod | Public desk URL, e.g. `https://signals.example.com`. |
 | `AUTH_DEV_LOGIN` | No | `1` enables a passwordless email field for local preview. Production Compose forces `0`. |
-| `AUTH_ALLOWED_EMAILS` | Recommended | Comma-separated Google accounts allowed to join. Set before exposing the box so a random first login cannot become admin. |
+| `AUTH_PUBLIC_SIGNUP` | Prod | `1` (default in Compose) lets any Google account create a private desk. `0` is invite-only. |
+| `AUTH_ALLOWED_EMAILS` | Invite-only | Comma-separated Google accounts allowed to join when `AUTH_PUBLIC_SIGNUP=0`. |
 | `DOMAIN` | Prod | Hostname for `docker-compose.prod.yml` + Caddy. |
 
 Copy `.env.example` to `.env` and fill in what you need. Compose interpolates those values; an empty token is demo mode.
@@ -47,7 +48,7 @@ DATABASE_PATH=./data/signal.db
 
 Do not commit `.env`. Per-rule Slack and generic webhook URLs live in SQLite on purpose so different desks can fan out without extra env vars.
 
-Sign-in is invite-only. The first admitted user becomes **admin** and can invite more Google accounts on **Settings → Team**. If `AUTH_ALLOWED_EMAILS` is set, even that first user must be on the list.
+Sign-in defaults to **public Google signup**. The first account to sign in becomes the instance **admin** (they link WhatsApp for the host). Everyone else gets their own desk. Set `AUTH_PUBLIC_SIGNUP=0` and `AUTH_ALLOWED_EMAILS` for invite-only. The first admitted user still becomes admin. Later operators can be invited on **Settings → Access**.
 
 ## X bearer token (live mode)
 
@@ -221,7 +222,7 @@ Do not lower every interval to 15s on a live token. Signal1 floors live polls at
 npm test
 ```
 
-Covers query compilation (including the accounts helper), tweet/rule dedup against SQLite, demo fixture coverage of the sample rules, webhook payload shape, +/− training labels, watchlist cashtags, packed live-search query budgets, desk-relevance scoring, Key Network Nodes, the blocked list, desk-tape floors, WhatsApp digest copy, WhatsApp JID formatting, and the Google/allowlist admission rules.
+Covers query compilation (including the accounts helper), tweet/rule dedup against SQLite, demo fixture coverage of the sample rules, webhook payload shape, +/− training labels, watchlist cashtags, packed live-search query budgets, desk-relevance scoring, Key Network Nodes, the blocked list, desk-tape floors, WhatsApp digest copy, WhatsApp JID formatting, Google admission, public signup, and per-desk isolation.
 
 ## Layout
 

@@ -1,10 +1,12 @@
 import { globalSlackWebhookUrl } from "./config";
 import {
-  getMeta,
+  getUserMeta,
   getWhatsAppCadenceSettings,
+  getWhatsAppTo,
   isWhatsAppEnabled,
+  listDeskUserIds,
   listMatchesSince,
-  setMeta,
+  setUserMeta,
 } from "./db";
 import { DIGEST_CANDIDATE_LIMIT, isDigestDue } from "./desk-settings";
 import { buildGenericWebhookPayload, buildSlackWebhookPayload, postJson } from "./webhooks";
@@ -12,7 +14,7 @@ import { buildWhatsAppDigest } from "./whatsapp-digest";
 import { buildWhatsAppText } from "./whatsapp";
 import type { NormalizedTweet, Rule } from "./types";
 
-type WhatsAppSender = (text: string) => Promise<void>;
+type WhatsAppSender = (text: string, options?: { mustBeLinked?: boolean; to?: string | null }) => Promise<void>;
 
 let whatsappSender: WhatsAppSender | null = null;
 
@@ -37,10 +39,12 @@ export async function notifyMatch(rule: Rule, tweet: NormalizedTweet): Promise<s
       errors.push(`webhook: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
-  const cadence = getWhatsAppCadenceSettings();
-  if (whatsappSender && isWhatsAppEnabled() && cadence.alertMode === "immediate") {
+  const userId = rule.userId || "";
+  const to = getWhatsAppTo(userId);
+  const cadence = getWhatsAppCadenceSettings(userId);
+  if (whatsappSender && to && isWhatsAppEnabled(userId) && cadence.alertMode === "immediate") {
     const text = buildWhatsAppText(rule, tweet);
-    void whatsappSender(text).catch((error) => {
+    void whatsappSender(text, { to }).catch((error) => {
       console.warn(
         `[poller] notify failed for ${rule.name}: whatsapp: ${error instanceof Error ? error.message : String(error)}`,
       );
@@ -50,31 +54,38 @@ export async function notifyMatch(rule: Rule, tweet: NormalizedTweet): Promise<s
 }
 
 export async function flushWhatsAppDigest(now = new Date()): Promise<boolean> {
-  if (!whatsappSender || !isWhatsAppEnabled()) return false;
-  const cadence = getWhatsAppCadenceSettings();
-  if (cadence.alertMode !== "digest") return false;
-  const lastAt = getMeta("whatsapp_digest_last_at");
-  if (!isDigestDue(lastAt, cadence.digestMinutes, now.getTime())) return false;
-  const matches = lastAt ? listMatchesSince(lastAt, DIGEST_CANDIDATE_LIMIT) : [];
-  if (matches.length) {
-    const text = buildWhatsAppDigest(
-      matches.map((match) => ({
-        rule: { name: match.ruleName },
-        tweet: {
-          id: match.tweetId,
-          authorHandle: match.authorHandle,
-          authorName: match.authorName,
-          text: match.text,
-          permalink: match.permalink,
-        },
-        score: match.signalScore,
-        likes: match.likeCount,
-        kol: match.kol,
-      })),
-      cadence.digestMinutes,
-    );
-    await whatsappSender(text);
+  if (!whatsappSender) return false;
+  let sentAny = false;
+  for (const userId of listDeskUserIds()) {
+    if (!isWhatsAppEnabled(userId)) continue;
+    const to = getWhatsAppTo(userId);
+    if (!to) continue;
+    const cadence = getWhatsAppCadenceSettings(userId);
+    if (cadence.alertMode !== "digest") continue;
+    const lastAt = getUserMeta(userId, "whatsapp_digest_last_at");
+    if (!isDigestDue(lastAt, cadence.digestMinutes, now.getTime())) continue;
+    const matches = lastAt ? listMatchesSince(userId, lastAt, DIGEST_CANDIDATE_LIMIT) : [];
+    if (matches.length) {
+      const text = buildWhatsAppDigest(
+        matches.map((match) => ({
+          rule: { name: match.ruleName },
+          tweet: {
+            id: match.tweetId,
+            authorHandle: match.authorHandle,
+            authorName: match.authorName,
+            text: match.text,
+            permalink: match.permalink,
+          },
+          score: match.signalScore,
+          likes: match.likeCount,
+          kol: match.kol,
+        })),
+        cadence.digestMinutes,
+      );
+      await whatsappSender(text, { to });
+      sentAny = true;
+    }
+    setUserMeta(userId, "whatsapp_digest_last_at", now.toISOString());
   }
-  setMeta("whatsapp_digest_last_at", now.toISOString());
-  return matches.length > 0;
+  return sentAny;
 }

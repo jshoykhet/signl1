@@ -27,7 +27,7 @@ function requestOrigin(request: { nextUrl: URL; headers: Headers }): string {
 }
 
 function isPublicPath(pathname: string): boolean {
-  return pathname === "/login" || pathname.startsWith("/api/auth");
+  return pathname === "/" || pathname === "/login" || pathname.startsWith("/api/auth");
 }
 
 /**
@@ -44,7 +44,7 @@ export const authConfig = {
     authorized({ auth, request }) {
       const { pathname } = request.nextUrl;
       if (isPublicPath(pathname)) return true;
-      if (auth?.user) return true;
+      if (auth?.user?.id) return true;
       if (pathname.startsWith("/api/")) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }

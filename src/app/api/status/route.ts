@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import { isDemoMode, xBearerToken } from "@/lib/config";
 import { getStatus } from "@/lib/db";
+import { requireDeskUser } from "@/lib/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return NextResponse.json(getStatus({ demoMode: isDemoMode(), bearerPresent: xBearerToken() !== null }));
+  const desk = await requireDeskUser();
+  if (!desk.ok) return desk.response;
+  return NextResponse.json(
+    getStatus(desk.userId, { demoMode: isDemoMode(), bearerPresent: xBearerToken() !== null }),
+  );
 }

@@ -249,17 +249,20 @@ export function WhatsAppSettings() {
             </Button>
           </div>
           <p className="text-[13px] leading-relaxed text-muted-foreground">
-            Number that should receive alerts, with country code. Or paste a group JID ending in{" "}
-            <code className="font-mono text-[12px]">@g.us</code>. Sending to the <span className="text-foreground">linked</span>{" "}
-            number is a note to yourself — look for <span className="text-foreground">Message yourself</span> in WhatsApp;
-            it often will not push-notify. For a normal chat ping, save a different number or a group. Also settable as{" "}
-            <code className="font-mono text-[12px]">WHATSAPP_TO</code>.
+            Number that should receive <span className="text-foreground">your</span> alerts, with country
+            code. Or paste a group JID ending in{" "}
+            <code className="font-mono text-[12px]">@g.us</code>. The instance admin links one sending
+            WhatsApp; alerts to you come from that number. Sending to the linked account is a note to
+            yourself — look for <span className="text-foreground">Message yourself</span>; it often will
+            not push-notify.
           </p>
         </div>
       </GroupedRow>
       <GroupedRow className="items-start">
         <div className="w-full shrink-0 text-[15px] text-muted-foreground sm:w-[9.5rem]">Link device</div>
         <div className="grid min-w-0 flex-1 gap-3">
+          {wa?.canLink ? (
+            <>
           <p className="text-[13px] leading-relaxed text-muted-foreground">
             Uses the unofficial WhatsApp Web API from{" "}
             <a className="text-amber-700 underline-offset-4 hover:underline dark:text-amber-300" href="https://baileys.wiki/" target="_blank" rel="noreferrer">
@@ -307,6 +310,20 @@ export function WhatsAppSettings() {
               Unlink
             </Button>
           </div>
+            </>
+          ) : (
+            <>
+              <p className="text-[13px] leading-relaxed text-muted-foreground">
+                The instance admin links one sending WhatsApp. Save your destination above, then send a
+                test once status is <span className="text-foreground">Linked</span>.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" size="sm" disabled={busy || wa?.status !== "connected"} onClick={() => void test()}>
+                  Send test
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       </GroupedRow>
       <GroupedRow>

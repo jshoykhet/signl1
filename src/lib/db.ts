@@ -38,6 +38,7 @@ import type { Match, NormalizedTweet, Rule, RuleInput, StatusSnapshot, Watchlist
 
 type RuleRow = {
   id: string;
+  user_id: string | null;
   name: string;
   enabled: number;
   query: string;
@@ -57,6 +58,7 @@ type RuleRow = {
 
 type MatchRow = {
   id: string;
+  user_id: string | null;
   tweet_id: string;
   rule_id: string;
   rule_name: string;
@@ -93,6 +95,7 @@ function parseAccounts(json: string): string[] {
 function mapRule(row: RuleRow): Rule {
   return {
     id: row.id,
+    userId: row.user_id || "",
     name: row.name,
     enabled: Boolean(row.enabled),
     query: row.query,
@@ -111,7 +114,8 @@ function mapRule(row: RuleRow): Rule {
   };
 }
 
-function mapMatch(row: MatchRow): Match {
+function mapMatch(row: MatchRow, db: Database.Database): Match {
+  const userId = row.user_id || "";
   return {
     id: row.id,
     tweetId: row.tweet_id,
@@ -130,7 +134,7 @@ function mapMatch(row: MatchRow): Match {
     signalScore: row.signal_score,
     userLabel: parseUserLabel(row.user_label),
     authorPrior: { high: 0, low: 0 },
-    kol: isKolHandle(row.author_handle, getKolSpec()),
+    kol: isKolHandle(row.author_handle, getKolSpec(userId, db)),
   };
 }
 
@@ -196,6 +200,7 @@ function migrate(db: Database.Database) {
       name TEXT,
       image TEXT,
       role TEXT NOT NULL DEFAULT 'operator',
+      disabled INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
       last_login_at TEXT
     );
@@ -205,17 +210,33 @@ function migrate(db: Database.Database) {
       invited_at TEXT NOT NULL,
       invited_by TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS user_meta (
+      user_id TEXT NOT NULL,
+      key TEXT NOT NULL,
+      value TEXT NOT NULL,
+      PRIMARY KEY (user_id, key)
+    );
   `);
 
   seedAllowedEmailsFromEnv(db);
 
   ensureColumn(db, "rules", "kind", "TEXT NOT NULL DEFAULT 'custom'");
   ensureColumn(db, "rules", "watchlist_chunk", "INTEGER");
+  ensureColumn(db, "rules", "user_id", "TEXT NOT NULL DEFAULT ''");
   ensureColumn(db, "matches", "author_followers", "INTEGER");
   ensureColumn(db, "matches", "like_count", "INTEGER");
   ensureColumn(db, "matches", "signal_score", "REAL");
   ensureColumn(db, "matches", "signal_pass", "INTEGER");
   ensureColumn(db, "matches", "user_label", "TEXT");
+  ensureColumn(db, "matches", "user_id", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(db, "users", "disabled", "INTEGER NOT NULL DEFAULT 0");
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS rules_user_id_idx ON rules(user_id);
+    CREATE INDEX IF NOT EXISTS matches_user_id_idx ON matches(user_id);
+  `);
+  migrateTickersToDesk(db);
+  backfillMatchUserIds(db);
   backfillMatchQuality(db);
 }
 
@@ -223,6 +244,63 @@ function ensureColumn(db: Database.Database, table: string, column: string, spec
   const cols = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
   if (cols.some((col) => col.name === column)) return;
   db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${spec}`);
+}
+
+const DESK_META_KEYS = [
+  "desk_kol_only",
+  "desk_signal_level",
+  "desk_allow_fresh",
+  "desk_require_engagement",
+  "desk_min_likes",
+  "desk_hide_crypto",
+  "desk_hide_messaging",
+  "kol_added",
+  "kol_removed",
+  "blocked_added",
+  "blocked_removed",
+  "whatsapp_to",
+  "whatsapp_enabled",
+  "whatsapp_alert_mode",
+  "whatsapp_digest_minutes",
+  "whatsapp_digest_last_at",
+  "watchlist_enabled",
+  "watchlist_poll_interval_ms",
+] as const;
+
+function migrateTickersToDesk(db: Database.Database) {
+  const cols = db.prepare("PRAGMA table_info(tickers)").all() as Array<{ name: string }>;
+  if (cols.length === 0) {
+    db.exec(`
+      CREATE TABLE tickers (
+        user_id TEXT NOT NULL,
+        symbol TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (user_id, symbol)
+      );
+    `);
+    return;
+  }
+  if (cols.some((col) => col.name === "user_id")) return;
+  db.exec(`
+    CREATE TABLE tickers_desk (
+      user_id TEXT NOT NULL,
+      symbol TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      PRIMARY KEY (user_id, symbol)
+    );
+    INSERT INTO tickers_desk (user_id, symbol, created_at)
+      SELECT '', symbol, created_at FROM tickers;
+    DROP TABLE tickers;
+    ALTER TABLE tickers_desk RENAME TO tickers;
+  `);
+}
+
+function backfillMatchUserIds(db: Database.Database) {
+  db.exec(`
+    UPDATE matches
+    SET user_id = COALESCE((SELECT user_id FROM rules WHERE rules.id = matches.rule_id), user_id)
+    WHERE user_id = '' OR user_id IS NULL
+  `);
 }
 
 function metricsFromRaw(rawJson: string): {
@@ -254,12 +332,21 @@ function metricsFromRaw(rawJson: string): {
   }
 }
 
-function backfillMatchQuality(db: Database.Database) {
-  const priors = listAuthorPriors(db);
-  const rows = db.prepare(
-    "SELECT id, tweet_id, raw_json, tweet_created_at, author_handle, text, author_followers, like_count, signal_pass, user_label FROM matches",
-  ).all() as Array<{
+function backfillMatchQuality(db: Database.Database, userId?: string) {
+  const priorCache = new Map<string, Map<string, AuthorPrior>>();
+  const priorsFor = (uid: string) => {
+    const cached = priorCache.get(uid);
+    if (cached) return cached;
+    const next = listAuthorPriors(uid, db);
+    priorCache.set(uid, next);
+    return next;
+  };
+  const sql =
+    "SELECT id, user_id, tweet_id, raw_json, tweet_created_at, author_handle, text, author_followers, like_count, signal_pass, user_label FROM matches" +
+    (userId ? " WHERE user_id = ?" : "");
+  const rows = (userId ? db.prepare(sql).all(userId) : db.prepare(sql).all()) as Array<{
     id: string;
+    user_id: string | null;
     tweet_id: string;
     raw_json: string;
     tweet_created_at: string;
@@ -274,12 +361,14 @@ function backfillMatchQuality(db: Database.Database) {
     "UPDATE matches SET author_followers = ?, like_count = ?, signal_score = ?, signal_pass = ? WHERE id = ?",
   );
   for (const row of rows) {
+    const uid = row.user_id || userId || "";
     const metrics = metricsFromRaw(row.raw_json);
     const followers = row.author_followers ?? metrics.followersCount;
     const likes = row.like_count ?? metrics.likeCount;
+    const filters = getDeskFilterSettings(uid, db);
     if (followers == null && likes == null) {
       const labeled = parseUserLabel(row.user_label);
-      const blocked = isBlockedHandle(row.author_handle, getBlockedSpec(db));
+      const blocked = isBlockedHandle(row.author_handle, getBlockedSpec(uid, db));
       const pass = blocked
         ? 0
         : labeled === "high"
@@ -303,11 +392,10 @@ function backfillMatchQuality(db: Database.Database) {
       text: row.text,
       authorHandle: row.author_handle,
     };
-    const filters = getDeskFilterSettings(db);
-    const flags = authorSignalFlags(row.author_handle, db);
+    const flags = authorSignalFlags(row.author_handle, uid, db);
     const verdict = passesSignalFilter(quality, Date.now(), {
       userLabel: parseUserLabel(row.user_label),
-      prior: priors.get(row.author_handle.toLowerCase()) ?? { high: 0, low: 0 },
+      prior: priorsFor(uid).get(row.author_handle.toLowerCase()) ?? { high: 0, low: 0 },
       ...flags,
       ...filters,
     });
@@ -325,15 +413,15 @@ function backfillMatchQuality(db: Database.Database) {
   }
 }
 
-export function listAuthorPriors(db = getDb()): Map<string, AuthorPrior> {
+export function listAuthorPriors(userId: string, db = getDb()): Map<string, AuthorPrior> {
   const rows = db.prepare(`
     SELECT lower(author_handle) AS handle,
       COUNT(DISTINCT CASE WHEN user_label = 'high' THEN tweet_id END) AS high,
       COUNT(DISTINCT CASE WHEN user_label = 'low' THEN tweet_id END) AS low
     FROM matches
-    WHERE user_label IN ('high', 'low')
+    WHERE user_id = ? AND user_label IN ('high', 'low')
     GROUP BY lower(author_handle)
-  `).all() as Array<{ handle: string; high: number; low: number }>;
+  `).all(userId) as Array<{ handle: string; high: number; low: number }>;
   const map = new Map<string, AuthorPrior>();
   for (const row of rows) {
     map.set(row.handle, { high: Number(row.high), low: Number(row.low) });
@@ -341,55 +429,55 @@ export function listAuthorPriors(db = getDb()): Map<string, AuthorPrior> {
   return map;
 }
 
-export function getAuthorPrior(handle: string, db = getDb()): AuthorPrior {
+export function getAuthorPrior(handle: string, userId: string, db = getDb()): AuthorPrior {
   const row = db.prepare(`
     SELECT
       COUNT(DISTINCT CASE WHEN user_label = 'high' THEN tweet_id END) AS high,
       COUNT(DISTINCT CASE WHEN user_label = 'low' THEN tweet_id END) AS low
     FROM matches
-    WHERE lower(author_handle) = lower(?) AND user_label IN ('high', 'low')
-  `).get(handle) as { high: number; low: number };
+    WHERE user_id = ? AND lower(author_handle) = lower(?) AND user_label IN ('high', 'low')
+  `).get(userId, handle) as { high: number; low: number };
   return { high: Number(row.high), low: Number(row.low) };
 }
 
-export function getTweetLabel(tweetId: string, db = getDb()): UserLabel | null {
+export function getTweetLabel(tweetId: string, userId: string, db = getDb()): UserLabel | null {
   const row = db.prepare(
-    "SELECT user_label FROM matches WHERE tweet_id = ? AND user_label IN ('high', 'low') LIMIT 1",
-  ).get(tweetId) as { user_label: string } | undefined;
+    "SELECT user_label FROM matches WHERE tweet_id = ? AND user_id = ? AND user_label IN ('high', 'low') LIMIT 1",
+  ).get(tweetId, userId) as { user_label: string } | undefined;
   return parseUserLabel(row?.user_label);
 }
 
-export function getKolSpec(db = getDb()): KolSpec {
+export function getKolSpec(userId: string, db = getDb()): KolSpec {
   return {
     KOL_HANDLES: process.env.KOL_HANDLES,
     KOL_HANDLES_MODE: process.env.KOL_HANDLES_MODE,
-    added: parseHandleList(getMeta("kol_added", db)),
-    removed: parseHandleList(getMeta("kol_removed", db)),
+    added: parseHandleList(getUserMeta(userId, "kol_added", db)),
+    removed: parseHandleList(getUserMeta(userId, "kol_removed", db)),
   };
 }
 
-export function getBlockedSpec(db = getDb()): BlockedSpec {
+export function getBlockedSpec(userId: string, db = getDb()): BlockedSpec {
   return {
     BLOCKED_HANDLES: process.env.BLOCKED_HANDLES,
-    added: parseHandleList(getMeta("blocked_added", db)),
-    removed: parseHandleList(getMeta("blocked_removed", db)),
+    added: parseHandleList(getUserMeta(userId, "blocked_added", db)),
+    removed: parseHandleList(getUserMeta(userId, "blocked_removed", db)),
   };
 }
 
-function authorSignalFlags(handle: string, db: Database.Database) {
+function authorSignalFlags(handle: string, userId: string, db: Database.Database) {
   return {
-    kol: isKolHandle(handle, getKolSpec(db)),
-    blocked: isBlockedHandle(handle, getBlockedSpec(db)),
+    kol: isKolHandle(handle, getKolSpec(userId, db)),
+    blocked: isBlockedHandle(handle, getBlockedSpec(userId, db)),
   };
 }
 
-export function listAuthorFollowerCounts(db = getDb()): Map<string, number> {
+export function listAuthorFollowerCounts(userId: string, db = getDb()): Map<string, number> {
   const rows = db.prepare(`
     SELECT lower(author_handle) AS handle, MAX(author_followers) AS followers
     FROM matches
-    WHERE author_followers IS NOT NULL
+    WHERE user_id = ? AND author_followers IS NOT NULL
     GROUP BY lower(author_handle)
-  `).all() as Array<{ handle: string; followers: number }>;
+  `).all(userId) as Array<{ handle: string; followers: number }>;
   const map = new Map<string, number>();
   for (const row of rows) {
     if (!row.handle) continue;
@@ -398,60 +486,60 @@ export function listAuthorFollowerCounts(db = getDb()): Map<string, number> {
   return map;
 }
 
-export function getDeskFilterSettings(db = getDb()): DeskFilterSettings {
+export function getDeskFilterSettings(userId: string, db = getDb()): DeskFilterSettings {
   return {
-    kolOnly: parseBoolMeta(getMeta("desk_kol_only", db), false),
-    signalLevel: parseSignalLevel(getMeta("desk_signal_level", db)),
-    allowFresh: parseBoolMeta(getMeta("desk_allow_fresh", db), true),
-    requireEngagement: parseBoolMeta(getMeta("desk_require_engagement", db), false),
-    minLikes: resolvedMinLikes(getMeta("desk_min_likes", db)),
-    hideCrypto: parseBoolMeta(getMeta("desk_hide_crypto", db), true),
-    hideMessagingApps: parseBoolMeta(getMeta("desk_hide_messaging", db), true),
+    kolOnly: parseBoolMeta(getUserMeta(userId, "desk_kol_only", db), false),
+    signalLevel: parseSignalLevel(getUserMeta(userId, "desk_signal_level", db)),
+    allowFresh: parseBoolMeta(getUserMeta(userId, "desk_allow_fresh", db), true),
+    requireEngagement: parseBoolMeta(getUserMeta(userId, "desk_require_engagement", db), false),
+    minLikes: resolvedMinLikes(getUserMeta(userId, "desk_min_likes", db)),
+    hideCrypto: parseBoolMeta(getUserMeta(userId, "desk_hide_crypto", db), true),
+    hideMessagingApps: parseBoolMeta(getUserMeta(userId, "desk_hide_messaging", db), true),
   };
 }
 
-export function getWhatsAppCadenceSettings(db = getDb()): WhatsAppCadenceSettings {
+export function getWhatsAppCadenceSettings(userId: string, db = getDb()): WhatsAppCadenceSettings {
   return {
-    alertMode: parseWhatsAppAlertMode(getMeta("whatsapp_alert_mode", db)),
-    digestMinutes: parseDigestMinutes(getMeta("whatsapp_digest_minutes", db)),
+    alertMode: parseWhatsAppAlertMode(getUserMeta(userId, "whatsapp_alert_mode", db)),
+    digestMinutes: parseDigestMinutes(getUserMeta(userId, "whatsapp_digest_minutes", db)),
   };
 }
 
-export function evaluateTweetSignal(tweet: NormalizedTweet, db = getDb()) {
-  const filters = getDeskFilterSettings(db);
+export function evaluateTweetSignal(tweet: NormalizedTweet, userId: string, db = getDb()) {
+  const filters = getDeskFilterSettings(userId, db);
   return passesSignalFilter(tweet, Date.now(), {
-    prior: getAuthorPrior(tweet.authorHandle, db),
-    userLabel: getTweetLabel(tweet.id, db),
-    ...authorSignalFlags(tweet.authorHandle, db),
+    prior: getAuthorPrior(tweet.authorHandle, userId, db),
+    userLabel: getTweetLabel(tweet.id, userId, db),
+    ...authorSignalFlags(tweet.authorHandle, userId, db),
     ...filters,
   });
 }
 
-function attachPriors(matches: Match[], db: Database.Database): Match[] {
-  const priors = listAuthorPriors(db);
+function attachPriors(matches: Match[], userId: string, db: Database.Database): Match[] {
+  const priors = listAuthorPriors(userId, db);
   return matches.map((match) => ({
     ...match,
     authorPrior: priors.get(match.authorHandle.toLowerCase()) ?? { high: 0, low: 0 },
   }));
 }
 
-function getMatchById(id: string, db: Database.Database): Match | null {
+function getMatchById(id: string, userId: string, db: Database.Database): Match | null {
   const row = db.prepare(`
     SELECT m.*, r.name AS rule_name
     FROM matches m
     JOIN rules r ON r.id = m.rule_id
-    WHERE m.id = ?
-  `).get(id) as MatchRow | undefined;
+    WHERE m.id = ? AND m.user_id = ?
+  `).get(id, userId) as MatchRow | undefined;
   if (!row) return null;
-  return attachPriors([mapMatch(row)], db)[0] ?? null;
+  return attachPriors([mapMatch(row, db)], userId, db)[0] ?? null;
 }
 
-function recomputeAuthorQuality(handle: string, db: Database.Database) {
-  const prior = getAuthorPrior(handle, db);
+function recomputeAuthorQuality(handle: string, userId: string, db: Database.Database) {
+  const prior = getAuthorPrior(handle, userId, db);
   const rows = db.prepare(
     `SELECT id, tweet_id, raw_json, tweet_created_at, author_handle, text, author_followers, like_count, user_label
-     FROM matches WHERE lower(author_handle) = lower(?)`,
-  ).all(handle) as Array<{
+     FROM matches WHERE user_id = ? AND lower(author_handle) = lower(?)`,
+  ).all(userId, handle) as Array<{
     id: string;
     tweet_id: string;
     raw_json: string;
@@ -467,7 +555,7 @@ function recomputeAuthorQuality(handle: string, db: Database.Database) {
     const metrics = metricsFromRaw(row.raw_json);
     const followers = row.author_followers ?? metrics.followersCount ?? 0;
     const likes = row.like_count ?? metrics.likeCount ?? 0;
-    const filters = getDeskFilterSettings(db);
+    const filters = getDeskFilterSettings(userId, db);
     const verdict = passesSignalFilter(
       {
         followersCount: followers,
@@ -484,7 +572,7 @@ function recomputeAuthorQuality(handle: string, db: Database.Database) {
       {
         userLabel: parseUserLabel(row.user_label),
         prior,
-        ...authorSignalFlags(row.author_handle, db),
+        ...authorSignalFlags(row.author_handle, userId, db),
         ...filters,
       },
     );
@@ -535,14 +623,16 @@ function seedAllowedEmailsFromEnv(db: Database.Database) {
 }
 
 function seedIfNeeded(db: Database.Database) {
-  const inserted = db.prepare("INSERT OR IGNORE INTO meta (key, value) VALUES ('seeded', ?)").run(nowIso());
-  if (inserted.changes !== 1) return;
+  db.prepare("INSERT OR IGNORE INTO meta (key, value) VALUES ('instance_initialized', ?)").run(nowIso());
+}
+
+function insertSeedRules(userId: string, db: Database.Database) {
   const insert = db.prepare(`
     INSERT INTO rules (
-      id, name, enabled, query, query_input, accounts_json, poll_interval_ms,
+      id, user_id, name, enabled, query, query_input, accounts_json, poll_interval_ms,
       slack_webhook_url, generic_webhook_url, created_at, updated_at
     ) VALUES (
-      @id, @name, @enabled, @query, @query_input, @accounts_json, @poll_interval_ms,
+      @id, @user_id, @name, @enabled, @query, @query_input, @accounts_json, @poll_interval_ms,
       @slack_webhook_url, @generic_webhook_url, @created_at, @updated_at
     )
   `);
@@ -551,6 +641,7 @@ function seedIfNeeded(db: Database.Database) {
     const accounts = normalizeAccounts(rule.accounts);
     insert.run({
       id: crypto.randomUUID(),
+      user_id: userId,
       name: rule.name,
       enabled: 1,
       query: compileQuery({ query: rule.queryInput, accounts }),
@@ -563,6 +654,43 @@ function seedIfNeeded(db: Database.Database) {
       updated_at: ts,
     });
   }
+}
+
+export function adoptOrphanDesk(userId: string, db = getDb()) {
+  if (!userId) return;
+  db.prepare("UPDATE rules SET user_id = ? WHERE user_id = ''").run(userId);
+  db.prepare("UPDATE matches SET user_id = ? WHERE user_id = ''").run(userId);
+  db.prepare("UPDATE tickers SET user_id = ? WHERE user_id = ''").run(userId);
+  const insert = db.prepare(
+    "INSERT OR IGNORE INTO user_meta (user_id, key, value) VALUES (?, ?, ?)",
+  );
+  for (const key of DESK_META_KEYS) {
+    const value = getMeta(key, db);
+    if (value != null && value !== "") insert.run(userId, key, value);
+  }
+  const envTo = process.env.WHATSAPP_TO?.trim();
+  if (envTo) insert.run(userId, "whatsapp_to", envTo);
+}
+
+export function ensureUserDesk(userId: string, db = getDb()) {
+  if (!userId) return;
+  const first = db.prepare("SELECT id FROM users ORDER BY created_at ASC LIMIT 1").get() as
+    | { id: string }
+    | undefined;
+  if (first?.id === userId) {
+    adoptOrphanDesk(userId, db);
+  }
+  if (getUserMeta(userId, "desk_seeded", db)) return;
+  const count = db.prepare("SELECT COUNT(*) AS n FROM rules WHERE user_id = ?").get(userId) as { n: number };
+  if (Number(count.n) === 0) {
+    insertSeedRules(userId, db);
+  }
+  setUserMeta(userId, "desk_seeded", nowIso(), db);
+}
+
+export function listDeskUserIds(db = getDb()): string[] {
+  const rows = db.prepare("SELECT id FROM users WHERE COALESCE(disabled, 0) = 0").all() as Array<{ id: string }>;
+  return rows.map((row) => row.id);
 }
 
 export function openDatabase(dbPath = databasePath()): Database.Database {
@@ -581,22 +709,32 @@ export function getDb(): Database.Database {
   return globalForDb.signalDb;
 }
 
-export function listRules(db = getDb()): Rule[] {
-  const rows = db.prepare("SELECT * FROM rules ORDER BY created_at ASC").all() as RuleRow[];
+export function listRules(userId: string, db = getDb()): Rule[] {
+  const rows = db.prepare("SELECT * FROM rules WHERE user_id = ? ORDER BY created_at ASC").all(userId) as RuleRow[];
   return rows.map(mapRule);
 }
 
+/** Every enabled rule across desks. The poller packs these into X searches. */
 export function listEnabledRules(db = getDb()): Rule[] {
-  const rows = db.prepare("SELECT * FROM rules WHERE enabled = 1 ORDER BY created_at ASC").all() as RuleRow[];
+  const rows = db.prepare(`
+    SELECT r.* FROM rules r
+    WHERE r.enabled = 1
+      AND (r.user_id = '' OR r.user_id NOT IN (SELECT id FROM users WHERE COALESCE(disabled, 0) = 1))
+    ORDER BY r.created_at ASC
+  `).all() as RuleRow[];
   return rows.map(mapRule);
 }
 
-export function getRule(id: string, db = getDb()): Rule | null {
-  const row = db.prepare("SELECT * FROM rules WHERE id = ?").get(id) as RuleRow | undefined;
+export function getRule(id: string, userId?: string, db = getDb()): Rule | null {
+  const row = (
+    userId
+      ? db.prepare("SELECT * FROM rules WHERE id = ? AND user_id = ?").get(id, userId)
+      : db.prepare("SELECT * FROM rules WHERE id = ?").get(id)
+  ) as RuleRow | undefined;
   return row ? mapRule(row) : null;
 }
 
-export function createRule(input: RuleInput, db = getDb()): Rule {
+export function createRule(userId: string, input: RuleInput, db = getDb()): Rule {
   const accounts = normalizeAccounts(input.accounts);
   const query = compileQuery({ query: input.queryInput, accounts });
   if (!query) {
@@ -606,11 +744,12 @@ export function createRule(input: RuleInput, db = getDb()): Rule {
   const id = crypto.randomUUID();
   db.prepare(`
     INSERT INTO rules (
-      id, name, enabled, query, query_input, accounts_json, poll_interval_ms,
+      id, user_id, name, enabled, query, query_input, accounts_json, poll_interval_ms,
       slack_webhook_url, generic_webhook_url, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
+    userId,
     input.name.trim(),
     input.enabled ? 1 : 0,
     query,
@@ -622,11 +761,11 @@ export function createRule(input: RuleInput, db = getDb()): Rule {
     ts,
     ts,
   );
-  return getRule(id, db)!;
+  return getRule(id, userId, db)!;
 }
 
-export function updateRule(id: string, input: Partial<RuleInput>, db = getDb()): Rule {
-  const existing = getRule(id, db);
+export function updateRule(id: string, input: Partial<RuleInput>, userId: string, db = getDb()): Rule {
+  const existing = getRule(id, userId, db);
   if (!existing) throw new Error("Rule not found");
   if (existing.kind === "watchlist") {
     throw new Error("Watchlist cashtag rules are edited on the Watchlist page.");
@@ -648,7 +787,7 @@ export function updateRule(id: string, input: Partial<RuleInput>, db = getDb()):
     UPDATE rules SET
       name = ?, enabled = ?, query = ?, query_input = ?, accounts_json = ?,
       poll_interval_ms = ?, slack_webhook_url = ?, generic_webhook_url = ?, updated_at = ?
-    WHERE id = ?
+    WHERE id = ? AND user_id = ?
   `).run(
     merged.name.trim(),
     merged.enabled ? 1 : 0,
@@ -660,17 +799,18 @@ export function updateRule(id: string, input: Partial<RuleInput>, db = getDb()):
     merged.genericWebhookUrl,
     ts,
     id,
+    userId,
   );
-  return getRule(id, db)!;
+  return getRule(id, userId, db)!;
 }
 
-export function deleteRule(id: string, db = getDb()): boolean {
-  const existing = getRule(id, db);
+export function deleteRule(id: string, userId: string, db = getDb()): boolean {
+  const existing = getRule(id, userId, db);
   if (!existing) return false;
   if (existing.kind === "watchlist") {
     throw new Error("Watchlist cashtag rules are edited on the Watchlist page.");
   }
-  const result = db.prepare("DELETE FROM rules WHERE id = ?").run(id);
+  const result = db.prepare("DELETE FROM rules WHERE id = ? AND user_id = ?").run(id, userId);
   return result.changes > 0;
 }
 
@@ -687,21 +827,23 @@ export function markRulePolled(
 }
 
 export function tryInsertMatch(
-  rule: Pick<Rule, "id" | "name">,
+  rule: Pick<Rule, "id" | "name" | "userId">,
   tweet: NormalizedTweet,
   db = getDb(),
 ): { inserted: boolean; matchId: string | null } {
   const id = crypto.randomUUID();
-  const verdict = evaluateTweetSignal(tweet, db);
+  const userId = rule.userId || "";
+  const verdict = evaluateTweetSignal(tweet, userId, db);
   try {
     db.prepare(`
       INSERT INTO matches (
-        id, tweet_id, rule_id, author_handle, author_name, text,
+        id, user_id, tweet_id, rule_id, author_handle, author_name, text,
         tweet_created_at, permalink, raw_json, read, matched_at,
         author_followers, like_count, signal_score, signal_pass, user_label
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)
     `).run(
       id,
+      userId,
       tweet.id,
       rule.id,
       tweet.authorHandle,
@@ -728,12 +870,13 @@ export function tryInsertMatch(
 }
 
 export function listMatches(
+  userId: string,
   opts: { ruleId?: string; unread?: boolean; limit?: number; quality?: boolean; q?: string } = {},
   db = getDb(),
 ): Match[] {
   const limit = Math.min(Math.max(opts.limit ?? 200, 1), 500);
-  const clauses: string[] = [];
-  const params: unknown[] = [];
+  const clauses: string[] = ["m.user_id = ?"];
+  const params: unknown[] = [userId];
   if (opts.ruleId) {
     clauses.push("m.rule_id = ?");
     params.push(opts.ruleId);
@@ -747,7 +890,7 @@ export function listMatches(
       clauses.push("m.tweet_id NOT LIKE 'demo-%'");
     }
   }
-  const blocked = listBlockedHandles(getBlockedSpec(db));
+  const blocked = listBlockedHandles(getBlockedSpec(userId, db));
   if (blocked.length > 0) {
     clauses.push(`lower(m.author_handle) NOT IN (${blocked.map(() => "?").join(", ")})`);
     params.push(...blocked);
@@ -759,7 +902,7 @@ export function listMatches(
     const pattern = likePattern(token);
     params.push(pattern, pattern, pattern, pattern, pattern);
   }
-  const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
+  const where = `WHERE ${clauses.join(" AND ")}`;
   const rows = db.prepare(`
     SELECT m.*, r.name AS rule_name
     FROM matches m
@@ -768,46 +911,54 @@ export function listMatches(
     ORDER BY m.matched_at DESC, m.tweet_created_at DESC
     LIMIT ?
   `).all(...params, limit) as MatchRow[];
-  return attachPriors(rows.map(mapMatch), db);
+  return attachPriors(rows.map((row) => mapMatch(row, db)), userId, db);
 }
 
-export function listMatchesSince(iso: string, limit = 400, db = getDb()): Match[] {
-  const blocked = listBlockedHandles(getBlockedSpec(db));
+export function listMatchesSince(userId: string, iso: string, limit = 400, db = getDb()): Match[] {
+  const blocked = listBlockedHandles(getBlockedSpec(userId, db));
   const blockedSql =
     blocked.length > 0 ? `AND lower(m.author_handle) NOT IN (${blocked.map(() => "?").join(", ")})` : "";
   const rows = db.prepare(`
     SELECT m.*, r.name AS rule_name
     FROM matches m
     JOIN rules r ON r.id = m.rule_id
-    WHERE m.matched_at > ?
+    WHERE m.user_id = ? AND m.matched_at > ?
       AND (m.signal_pass IS NULL OR m.signal_pass = 1)
       ${blockedSql}
     ORDER BY m.matched_at ASC
     LIMIT ?
-  `).all(iso, ...blocked, Math.min(Math.max(limit, 1), 400)) as MatchRow[];
-  return attachPriors(rows.map(mapMatch), db);
+  `).all(userId, iso, ...blocked, Math.min(Math.max(limit, 1), 400)) as MatchRow[];
+  return attachPriors(rows.map((row) => mapMatch(row, db)), userId, db);
 }
 
-export function setMatchRead(id: string, read: boolean, db = getDb()): Match | null {
-  db.prepare("UPDATE matches SET read = ? WHERE id = ?").run(read ? 1 : 0, id);
-  return getMatchById(id, db);
+export function setMatchRead(id: string, read: boolean, userId: string, db = getDb()): Match | null {
+  db.prepare("UPDATE matches SET read = ? WHERE id = ? AND user_id = ?").run(read ? 1 : 0, id, userId);
+  return getMatchById(id, userId, db);
 }
 
-export function setMatchLabel(id: string, label: UserLabel | null, db = getDb()): Match | null {
-  const existing = db.prepare("SELECT id, tweet_id, author_handle FROM matches WHERE id = ?").get(id) as
-    | { id: string; tweet_id: string; author_handle: string }
-    | undefined;
+export function setMatchLabel(id: string, label: UserLabel | null, userId: string, db = getDb()): Match | null {
+  const existing = db.prepare("SELECT id, tweet_id, author_handle FROM matches WHERE id = ? AND user_id = ?").get(
+    id,
+    userId,
+  ) as { id: string; tweet_id: string; author_handle: string } | undefined;
   if (!existing) return null;
-  db.prepare("UPDATE matches SET user_label = ? WHERE tweet_id = ?").run(label, existing.tweet_id);
-  recomputeAuthorQuality(existing.author_handle, db);
-  return getMatchById(id, db);
+  db.prepare("UPDATE matches SET user_label = ? WHERE tweet_id = ? AND user_id = ?").run(
+    label,
+    existing.tweet_id,
+    userId,
+  );
+  recomputeAuthorQuality(existing.author_handle, userId, db);
+  return getMatchById(id, userId, db);
 }
 
-export function markAllMatchesRead(ruleId?: string, db = getDb()): number {
+export function markAllMatchesRead(userId: string, ruleId?: string, db = getDb()): number {
   if (ruleId) {
-    return db.prepare("UPDATE matches SET read = 1 WHERE read = 0 AND rule_id = ?").run(ruleId).changes;
+    return db.prepare("UPDATE matches SET read = 1 WHERE read = 0 AND user_id = ? AND rule_id = ?").run(
+      userId,
+      ruleId,
+    ).changes;
   }
-  return db.prepare("UPDATE matches SET read = 1 WHERE read = 0").run().changes;
+  return db.prepare("UPDATE matches SET read = 1 WHERE read = 0 AND user_id = ?").run(userId).changes;
 }
 
 export function setMeta(key: string, value: string, db = getDb()) {
@@ -819,6 +970,23 @@ export function setMeta(key: string, value: string, db = getDb()) {
 
 export function getMeta(key: string, db = getDb()): string | null {
   const row = db.prepare("SELECT value FROM meta WHERE key = ?").get(key) as { value: string } | undefined;
+  return row?.value ?? null;
+}
+
+export function setUserMeta(userId: string, key: string, value: string, db = getDb()) {
+  db.prepare(
+    `INSERT INTO user_meta (user_id, key, value) VALUES (?, ?, ?)
+     ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value`,
+  ).run(userId, key, value);
+}
+
+export function getUserMeta(userId: string, key: string, db = getDb()): string | null {
+  if (!userId) {
+    return getMeta(key, db);
+  }
+  const row = db.prepare("SELECT value FROM user_meta WHERE user_id = ? AND key = ?").get(userId, key) as
+    | { value: string }
+    | undefined;
   return row?.value ?? null;
 }
 
@@ -844,109 +1012,112 @@ export function takeMetaValue(key: string, db = getDb()): string | null {
   return raw;
 }
 
-export function getWhatsAppTo(db = getDb()): string | null {
-  const stored = getMeta("whatsapp_to", db)?.trim();
+export function getWhatsAppTo(userId: string, db = getDb()): string | null {
+  const stored = getUserMeta(userId, "whatsapp_to", db)?.trim();
   if (stored) return stored;
-  const fromEnv = process.env.WHATSAPP_TO?.trim();
-  return fromEnv || null;
+  if (!userId) {
+    const fromEnv = process.env.WHATSAPP_TO?.trim();
+    return fromEnv || null;
+  }
+  return null;
 }
 
-export function isWhatsAppEnabled(db = getDb()): boolean {
-  const raw = getMeta("whatsapp_enabled", db);
+export function isWhatsAppEnabled(userId: string, db = getDb()): boolean {
+  const raw = getUserMeta(userId, "whatsapp_enabled", db);
   return raw !== "0" && raw !== "false";
 }
 
-export function setDeskFilterSettings(input: DeskFilterPatch, db = getDb()): DeskFilterSettings {
-  if (typeof input.kolOnly === "boolean") setMeta("desk_kol_only", input.kolOnly ? "1" : "0", db);
-  if (input.signalLevel) setMeta("desk_signal_level", parseSignalLevel(input.signalLevel), db);
-  if (typeof input.allowFresh === "boolean") setMeta("desk_allow_fresh", input.allowFresh ? "1" : "0", db);
+export function setDeskFilterSettings(userId: string, input: DeskFilterPatch, db = getDb()): DeskFilterSettings {
+  if (typeof input.kolOnly === "boolean") setUserMeta(userId, "desk_kol_only", input.kolOnly ? "1" : "0", db);
+  if (input.signalLevel) setUserMeta(userId, "desk_signal_level", parseSignalLevel(input.signalLevel), db);
+  if (typeof input.allowFresh === "boolean") setUserMeta(userId, "desk_allow_fresh", input.allowFresh ? "1" : "0", db);
   if (typeof input.requireEngagement === "boolean") {
-    setMeta("desk_require_engagement", input.requireEngagement ? "1" : "0", db);
+    setUserMeta(userId, "desk_require_engagement", input.requireEngagement ? "1" : "0", db);
   }
   if ("minLikes" in input) {
     const parsed = parseMinLikes(input.minLikes);
-    setMeta("desk_min_likes", parsed == null ? "" : String(parsed), db);
+    setUserMeta(userId, "desk_min_likes", parsed == null ? "" : String(parsed), db);
   }
-  if (typeof input.hideCrypto === "boolean") setMeta("desk_hide_crypto", input.hideCrypto ? "1" : "0", db);
+  if (typeof input.hideCrypto === "boolean") setUserMeta(userId, "desk_hide_crypto", input.hideCrypto ? "1" : "0", db);
   if (typeof input.hideMessagingApps === "boolean") {
-    setMeta("desk_hide_messaging", input.hideMessagingApps ? "1" : "0", db);
+    setUserMeta(userId, "desk_hide_messaging", input.hideMessagingApps ? "1" : "0", db);
   }
-  backfillMatchQuality(db);
-  return getDeskFilterSettings(db);
+  backfillMatchQuality(db, userId);
+  return getDeskFilterSettings(userId, db);
 }
 
-export function addKolHandle(handle: string, db = getDb()): string[] {
+export function addKolHandle(userId: string, handle: string, db = getDb()): string[] {
   const normalized = handle.replace(/^@/, "").trim();
   if (!/^[A-Za-z0-9_]{1,15}$/.test(normalized)) {
     throw new Error("Handle must be 1–15 letters, numbers, or underscores");
   }
-  const spec = getKolSpec(db);
+  const spec = getKolSpec(userId, db);
   const key = normalized.toLowerCase();
   const added = isSeedOrEnvHandle(key, spec)
     ? (spec.added ?? []).filter((h) => h !== key)
     : [...new Set([...(spec.added ?? []), key])];
   const removed = (spec.removed ?? []).filter((h) => h !== key);
-  setMeta("kol_added", serializeHandleList(added), db);
-  setMeta("kol_removed", serializeHandleList(removed), db);
-  return listKolHandles(getKolSpec(db));
+  setUserMeta(userId, "kol_added", serializeHandleList(added), db);
+  setUserMeta(userId, "kol_removed", serializeHandleList(removed), db);
+  return listKolHandles(getKolSpec(userId, db));
 }
 
-export function removeKolHandle(handle: string, db = getDb()): string[] {
+export function removeKolHandle(userId: string, handle: string, db = getDb()): string[] {
   const normalized = handle.replace(/^@/, "").trim().toLowerCase();
-  const spec = getKolSpec(db);
+  const spec = getKolSpec(userId, db);
   const added = (spec.added ?? []).filter((h) => h !== normalized);
   const removed = [...new Set([...(spec.removed ?? []), normalized])];
-  setMeta("kol_added", serializeHandleList(added), db);
-  setMeta("kol_removed", serializeHandleList(removed), db);
-  return listKolHandles(getKolSpec(db));
+  setUserMeta(userId, "kol_added", serializeHandleList(added), db);
+  setUserMeta(userId, "kol_removed", serializeHandleList(removed), db);
+  return listKolHandles(getKolSpec(userId, db));
 }
 
-export function resetKolHandles(db = getDb()): string[] {
-  setMeta("kol_added", "", db);
-  setMeta("kol_removed", "", db);
-  return listKolHandles(getKolSpec(db));
+export function resetKolHandles(userId: string, db = getDb()): string[] {
+  setUserMeta(userId, "kol_added", "", db);
+  setUserMeta(userId, "kol_removed", "", db);
+  return listKolHandles(getKolSpec(userId, db));
 }
 
-export function addBlockedHandle(handle: string, db = getDb()): string[] {
+export function addBlockedHandle(userId: string, handle: string, db = getDb()): string[] {
   const normalized = handle.replace(/^@/, "").trim();
   if (!/^[A-Za-z0-9_]{1,15}$/.test(normalized)) {
     throw new Error("Handle must be 1–15 letters, numbers, or underscores");
   }
-  const spec = getBlockedSpec(db);
+  const spec = getBlockedSpec(userId, db);
   const key = normalized.toLowerCase();
   const added = isEnvBlockedHandle(key, spec)
     ? (spec.added ?? []).filter((h) => h !== key)
     : [...new Set([...(spec.added ?? []), key])];
   const removed = (spec.removed ?? []).filter((h) => h !== key);
-  setMeta("blocked_added", serializeHandleList(added), db);
-  setMeta("blocked_removed", serializeHandleList(removed), db);
-  recomputeAuthorQuality(key, db);
-  return listBlockedHandles(getBlockedSpec(db));
+  setUserMeta(userId, "blocked_added", serializeHandleList(added), db);
+  setUserMeta(userId, "blocked_removed", serializeHandleList(removed), db);
+  recomputeAuthorQuality(key, userId, db);
+  return listBlockedHandles(getBlockedSpec(userId, db));
 }
 
-export function removeBlockedHandle(handle: string, db = getDb()): string[] {
+export function removeBlockedHandle(userId: string, handle: string, db = getDb()): string[] {
   const normalized = handle.replace(/^@/, "").trim().toLowerCase();
-  const spec = getBlockedSpec(db);
+  const spec = getBlockedSpec(userId, db);
   const added = (spec.added ?? []).filter((h) => h !== normalized);
   const removed = [...new Set([...(spec.removed ?? []), normalized])];
-  setMeta("blocked_added", serializeHandleList(added), db);
-  setMeta("blocked_removed", serializeHandleList(removed), db);
-  recomputeAuthorQuality(normalized, db);
-  return listBlockedHandles(getBlockedSpec(db));
+  setUserMeta(userId, "blocked_added", serializeHandleList(added), db);
+  setUserMeta(userId, "blocked_removed", serializeHandleList(removed), db);
+  recomputeAuthorQuality(normalized, userId, db);
+  return listBlockedHandles(getBlockedSpec(userId, db));
 }
 
-export function resetBlockedHandles(db = getDb()): string[] {
-  const before = listBlockedHandles(getBlockedSpec(db));
-  setMeta("blocked_added", "", db);
-  setMeta("blocked_removed", "", db);
-  const after = listBlockedHandles(getBlockedSpec(db));
+export function resetBlockedHandles(userId: string, db = getDb()): string[] {
+  const before = listBlockedHandles(getBlockedSpec(userId, db));
+  setUserMeta(userId, "blocked_added", "", db);
+  setUserMeta(userId, "blocked_removed", "", db);
+  const after = listBlockedHandles(getBlockedSpec(userId, db));
   for (const handle of new Set([...before, ...after])) {
-    recomputeAuthorQuality(handle, db);
+    recomputeAuthorQuality(handle, userId, db);
   }
   return after;
 }
 
-export function getStatus(opts: { demoMode: boolean; bearerPresent: boolean }, db = getDb()): StatusSnapshot {
+export function getStatus(userId: string, opts: { demoMode: boolean; bearerPresent: boolean }, db = getDb()): StatusSnapshot {
   const lastHeartbeatAt = getMeta("poller_heartbeat_at", db);
   const startedAt = getMeta("poller_started_at", db);
   const lastPollAt = getMeta("poller_last_poll_at", db);
@@ -958,19 +1129,26 @@ export function getStatus(opts: { demoMode: boolean; bearerPresent: boolean }, d
     : false;
   const counts = db.prepare(`
     SELECT
-      (SELECT COUNT(*) FROM rules) AS rules,
-      (SELECT COUNT(*) FROM rules WHERE enabled = 1) AS enabled_rules,
-      (SELECT COUNT(*) FROM matches WHERE (signal_pass IS NULL OR signal_pass = 1) ${opts.demoMode ? "" : "AND tweet_id NOT LIKE 'demo-%'"}) AS matches,
-      (SELECT COUNT(*) FROM matches WHERE read = 0 AND (signal_pass IS NULL OR signal_pass = 1) ${opts.demoMode ? "" : "AND tweet_id NOT LIKE 'demo-%'"}) AS unread,
-      (SELECT COUNT(*) FROM tickers) AS tickers
-  `).get() as { rules: number; enabled_rules: number; matches: number; unread: number; tickers: number };
+      (SELECT COUNT(*) FROM rules WHERE user_id = ?) AS rules,
+      (SELECT COUNT(*) FROM rules WHERE user_id = ? AND enabled = 1) AS enabled_rules,
+      (SELECT COUNT(*) FROM matches WHERE user_id = ? AND (signal_pass IS NULL OR signal_pass = 1) ${opts.demoMode ? "" : "AND tweet_id NOT LIKE 'demo-%'"}) AS matches,
+      (SELECT COUNT(*) FROM matches WHERE user_id = ? AND read = 0 AND (signal_pass IS NULL OR signal_pass = 1) ${opts.demoMode ? "" : "AND tweet_id NOT LIKE 'demo-%'"}) AS unread,
+      (SELECT COUNT(*) FROM tickers WHERE user_id = ?) AS tickers
+  `).get(userId, userId, userId, userId, userId) as {
+    rules: number;
+    enabled_rules: number;
+    matches: number;
+    unread: number;
+    tickers: number;
+  };
 
   const training = db.prepare(`
     SELECT
       COUNT(DISTINCT CASE WHEN user_label = 'high' THEN tweet_id END) AS high,
       COUNT(DISTINCT CASE WHEN user_label = 'low' THEN tweet_id END) AS low
     FROM matches
-  `).get() as { high: number; low: number };
+    WHERE user_id = ?
+  `).get(userId) as { high: number; low: number };
 
   const searchRequests = Number(getMeta("x_search_requests", db) ?? "0") || 0;
   const lastPackedQueries = Number(getMeta("x_last_packed_queries", db) ?? "0") || 0;
@@ -980,10 +1158,10 @@ export function getStatus(opts: { demoMode: boolean; bearerPresent: boolean }, d
   const idleBackoffMs = Number(getMeta("poller_idle_backoff_ms", db) ?? "0") || 0;
   const forceNow = getMeta("poller_force_now", db);
   const lastManualPollAt = getMeta("poller_manual_ack_at", db);
-  const spec = getKolSpec(db);
+  const spec = getKolSpec(userId, db);
   const kolHandles = listKolHandles(spec);
-  const blockedSpec = getBlockedSpec(db);
-  const filters = getDeskFilterSettings(db);
+  const blockedSpec = getBlockedSpec(userId, db);
+  const filters = getDeskFilterSettings(userId, db);
   const floors = SIGNAL_LEVELS[filters.signalLevel];
 
   return {
@@ -1038,33 +1216,35 @@ export function getStatus(opts: { demoMode: boolean; bearerPresent: boolean }, d
   };
 }
 
-export function listTickers(db = getDb()): string[] {
-  const rows = db.prepare("SELECT symbol FROM tickers ORDER BY symbol ASC").all() as Array<{ symbol: string }>;
+export function listTickers(userId: string, db = getDb()): string[] {
+  const rows = db.prepare("SELECT symbol FROM tickers WHERE user_id = ? ORDER BY symbol ASC").all(userId) as Array<{
+    symbol: string;
+  }>;
   return rows.map((row) => row.symbol);
 }
 
-function listWatchlistRules(db: Database.Database): Rule[] {
+function listWatchlistRules(userId: string, db: Database.Database): Rule[] {
   const rows = db.prepare(
-    "SELECT * FROM rules WHERE kind = 'watchlist' ORDER BY COALESCE(watchlist_chunk, 0) ASC, created_at ASC",
-  ).all() as RuleRow[];
+    "SELECT * FROM rules WHERE kind = 'watchlist' AND user_id = ? ORDER BY COALESCE(watchlist_chunk, 0) ASC, created_at ASC",
+  ).all(userId) as RuleRow[];
   return rows.map(mapRule);
 }
 
-function watchlistEnabled(db: Database.Database): boolean {
-  return (getMeta("watchlist_enabled", db) ?? "1") !== "0";
+function watchlistEnabled(userId: string, db: Database.Database): boolean {
+  return (getUserMeta(userId, "watchlist_enabled", db) ?? "1") !== "0";
 }
 
-function watchlistPollIntervalMs(db: Database.Database): number {
-  return clampPollIntervalMs(Number(getMeta("watchlist_poll_interval_ms", db) ?? DEFAULT_POLL_INTERVAL_MS));
+function watchlistPollIntervalMs(userId: string, db: Database.Database): number {
+  return clampPollIntervalMs(Number(getUserMeta(userId, "watchlist_poll_interval_ms", db) ?? DEFAULT_POLL_INTERVAL_MS));
 }
 
-export function getWatchlist(db = getDb()): WatchlistSnapshot {
-  const tickers = listTickers(db);
-  const rules = listWatchlistRules(db);
+export function getWatchlist(userId: string, db = getDb()): WatchlistSnapshot {
+  const tickers = listTickers(userId, db);
+  const rules = listWatchlistRules(userId, db);
   return {
     tickers,
-    enabled: watchlistEnabled(db),
-    pollIntervalMs: watchlistPollIntervalMs(db),
+    enabled: watchlistEnabled(userId, db),
+    pollIntervalMs: watchlistPollIntervalMs(userId, db),
     compiledQueries: chunkTickersForQuery(tickers).map((chunk) => compileCashtagQuery(chunk)),
     rules: rules.map((rule) => ({
       id: rule.id,
@@ -1077,18 +1257,18 @@ export function getWatchlist(db = getDb()): WatchlistSnapshot {
   };
 }
 
-export function syncWatchlistRules(db = getDb()) {
-  const tickers = listTickers(db);
-  const enabled = watchlistEnabled(db) && tickers.length > 0;
-  const interval = watchlistPollIntervalMs(db);
+export function syncWatchlistRules(userId: string, db = getDb()) {
+  const tickers = listTickers(userId, db);
+  const enabled = watchlistEnabled(userId, db) && tickers.length > 0;
+  const interval = watchlistPollIntervalMs(userId, db);
   const chunks = chunkTickersForQuery(tickers);
-  const existing = listWatchlistRules(db);
+  const existing = listWatchlistRules(userId, db);
   const ts = nowIso();
 
   const apply = db.transaction(() => {
     if (chunks.length === 0) {
       for (const rule of existing) {
-        db.prepare("DELETE FROM rules WHERE id = ?").run(rule.id);
+        db.prepare("DELETE FROM rules WHERE id = ? AND user_id = ?").run(rule.id, userId);
       }
       return;
     }
@@ -1101,62 +1281,64 @@ export function syncWatchlistRules(db = getDb()) {
           UPDATE rules SET
             name = ?, enabled = ?, query = ?, query_input = ?,
             poll_interval_ms = ?, watchlist_chunk = ?, kind = 'watchlist', updated_at = ?
-          WHERE id = ?
-        `).run(name, enabled ? 1 : 0, query, query, interval, i, ts, current.id);
+          WHERE id = ? AND user_id = ?
+        `).run(name, enabled ? 1 : 0, query, query, interval, i, ts, current.id, userId);
       } else {
         db.prepare(`
           INSERT INTO rules (
-            id, name, enabled, query, query_input, accounts_json, poll_interval_ms,
+            id, user_id, name, enabled, query, query_input, accounts_json, poll_interval_ms,
             slack_webhook_url, generic_webhook_url, created_at, updated_at, kind, watchlist_chunk
-          ) VALUES (?, ?, ?, ?, ?, '[]', ?, NULL, NULL, ?, ?, 'watchlist', ?)
-        `).run(crypto.randomUUID(), name, enabled ? 1 : 0, query, query, interval, ts, ts, i);
+          ) VALUES (?, ?, ?, ?, ?, ?, '[]', ?, NULL, NULL, ?, ?, 'watchlist', ?)
+        `).run(crypto.randomUUID(), userId, name, enabled ? 1 : 0, query, query, interval, ts, ts, i);
       }
     }
     for (const extra of existing.slice(chunks.length)) {
-      db.prepare("DELETE FROM rules WHERE id = ?").run(extra.id);
+      db.prepare("DELETE FROM rules WHERE id = ? AND user_id = ?").run(extra.id, userId);
     }
   });
   apply();
 }
 
-export function replaceTickers(input: string[] | string, db = getDb()): WatchlistSnapshot {
+export function replaceTickers(userId: string, input: string[] | string, db = getDb()): WatchlistSnapshot {
   const symbols = normalizeTickers(input);
   if (symbols.length > MAX_WATCHLIST_TICKERS) {
     throw new Error(`Watchlist is capped at ${MAX_WATCHLIST_TICKERS} tickers.`);
   }
   const write = db.transaction(() => {
-    db.prepare("DELETE FROM tickers").run();
-    const insert = db.prepare("INSERT INTO tickers (symbol, created_at) VALUES (?, ?)");
+    db.prepare("DELETE FROM tickers WHERE user_id = ?").run(userId);
+    const insert = db.prepare("INSERT INTO tickers (user_id, symbol, created_at) VALUES (?, ?, ?)");
     const ts = nowIso();
-    for (const symbol of symbols) insert.run(symbol, ts);
-    syncWatchlistRules(db);
+    for (const symbol of symbols) insert.run(userId, symbol, ts);
+    syncWatchlistRules(userId, db);
   });
   write();
-  return getWatchlist(db);
+  return getWatchlist(userId, db);
 }
 
-export function addTickers(input: string[] | string, db = getDb()): WatchlistSnapshot {
-  return replaceTickers([...listTickers(db), ...normalizeTickers(input)], db);
+export function addTickers(userId: string, input: string[] | string, db = getDb()): WatchlistSnapshot {
+  return replaceTickers(userId, [...listTickers(userId, db), ...normalizeTickers(input)], db);
 }
 
-export function removeTickers(input: string[] | string, db = getDb()): WatchlistSnapshot {
+export function removeTickers(userId: string, input: string[] | string, db = getDb()): WatchlistSnapshot {
   const drop = new Set(normalizeTickers(input));
   return replaceTickers(
-    listTickers(db).filter((symbol) => !drop.has(symbol)),
+    userId,
+    listTickers(userId, db).filter((symbol) => !drop.has(symbol)),
     db,
   );
 }
 
 export function setWatchlistSettings(
+  userId: string,
   input: { enabled?: boolean; pollIntervalMs?: number },
   db = getDb(),
 ): WatchlistSnapshot {
   if (input.enabled !== undefined) {
-    setMeta("watchlist_enabled", input.enabled ? "1" : "0", db);
+    setUserMeta(userId, "watchlist_enabled", input.enabled ? "1" : "0", db);
   }
   if (input.pollIntervalMs !== undefined) {
-    setMeta("watchlist_poll_interval_ms", String(clampPollIntervalMs(input.pollIntervalMs)), db);
+    setUserMeta(userId, "watchlist_poll_interval_ms", String(clampPollIntervalMs(input.pollIntervalMs)), db);
   }
-  syncWatchlistRules(db);
-  return getWatchlist(db);
+  syncWatchlistRules(userId, db);
+  return getWatchlist(userId, db);
 }

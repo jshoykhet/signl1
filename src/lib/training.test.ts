@@ -17,6 +17,7 @@ import {
 import type { NormalizedTweet } from "./types";
 
 const tmpDirs: string[] = [];
+const U = "desk-a";
 
 afterEach(() => {
   for (const dir of tmpDirs.splice(0)) {
@@ -70,6 +71,7 @@ describe("signal labels train author priors", () => {
     tmpDirs.push(dir);
     const db = openDatabase(path.join(dir, "test.db"));
     const ruleA = createRule(
+      U,
       {
         name: "A",
         enabled: true,
@@ -82,6 +84,7 @@ describe("signal labels train author priors", () => {
       db,
     );
     const ruleB = createRule(
+      U,
       {
         name: "B",
         enabled: true,
@@ -99,13 +102,13 @@ describe("signal labels train author priors", () => {
     expect(a.matchId).toBeTruthy();
     expect(b.matchId).toBeTruthy();
 
-    const labeled = setMatchLabel(a.matchId!, "low", db);
+    const labeled = setMatchLabel(a.matchId!, "low", U, db);
     expect(labeled?.userLabel).toBe("low");
 
-    const listed = listMatches({ quality: false }, db);
+    const listed = listMatches(U, { quality: false }, db);
     expect(listed.every((m) => m.tweetId !== "tw-1" || m.userLabel === "low")).toBe(true);
     expect(listed.filter((m) => m.tweetId === "tw-1").every((m) => m.kol)).toBe(true);
-    expect(getAuthorPrior("reuters", db)).toEqual({ high: 0, low: 1 });
+    expect(getAuthorPrior("reuters", U, db)).toEqual({ high: 0, low: 1 });
   });
 
   it("suppresses later posts from an author after two low-signal labels", () => {
@@ -113,6 +116,7 @@ describe("signal labels train author priors", () => {
     tmpDirs.push(dir);
     const db = openDatabase(path.join(dir, "test.db"));
     const rule = createRule(
+      U,
       {
         name: "A",
         enabled: true,
@@ -127,12 +131,12 @@ describe("signal labels train author priors", () => {
 
     const first = tryInsertMatch(rule, tweet("tw-a"), db);
     const second = tryInsertMatch(rule, tweet("tw-b"), db);
-    setMatchLabel(first.matchId!, "low", db);
-    setMatchLabel(second.matchId!, "low", db);
+    setMatchLabel(first.matchId!, "low", U, db);
+    setMatchLabel(second.matchId!, "low", U, db);
 
-    expect(getAuthorPrior("reuters", db)).toEqual({ high: 0, low: 2 });
-    expect(evaluateTweetSignal(tweet("tw-c"), db).pass).toBe(false);
-    expect(evaluateTweetSignal(tweet("tw-c"), db).prior.suppress).toBe(true);
+    expect(getAuthorPrior("reuters", U, db)).toEqual({ high: 0, low: 2 });
+    expect(evaluateTweetSignal(tweet("tw-c"), U, db).pass).toBe(false);
+    expect(evaluateTweetSignal(tweet("tw-c"), U, db).prior.suppress).toBe(true);
   });
 
   it("boosts a weak account after two high-signal labels", () => {
@@ -140,6 +144,7 @@ describe("signal labels train author priors", () => {
     tmpDirs.push(dir);
     const db = openDatabase(path.join(dir, "test.db"));
     const rule = createRule(
+      U,
       {
         name: "A",
         enabled: true,
@@ -154,10 +159,10 @@ describe("signal labels train author priors", () => {
 
     const first = tryInsertMatch(rule, tweet("tw-a", "desk"), db);
     const second = tryInsertMatch(rule, tweet("tw-b", "desk"), db);
-    setMatchLabel(first.matchId!, "high", db);
-    setMatchLabel(second.matchId!, "high", db);
+    setMatchLabel(first.matchId!, "high", U, db);
+    setMatchLabel(second.matchId!, "high", U, db);
 
-    const weak = evaluateTweetSignal(weakTweet("tw-c", "desk"), db);
+    const weak = evaluateTweetSignal(weakTweet("tw-c", "desk"), U, db);
     expect(weak.prior.boost).toBe(true);
     expect(weak.pass).toBe(true);
   });
@@ -167,6 +172,7 @@ describe("signal labels train author priors", () => {
     tmpDirs.push(dir);
     const db = openDatabase(path.join(dir, "test.db"));
     const rule = createRule(
+      U,
       {
         name: "A",
         enabled: true,
@@ -179,10 +185,10 @@ describe("signal labels train author priors", () => {
       db,
     );
     const inserted = tryInsertMatch(rule, tweet("tw-1"), db);
-    setMatchLabel(inserted.matchId!, "high", db);
-    const cleared = setMatchLabel(inserted.matchId!, null, db);
+    setMatchLabel(inserted.matchId!, "high", U, db);
+    const cleared = setMatchLabel(inserted.matchId!, null, U, db);
     expect(cleared?.userLabel).toBeNull();
-    expect(getAuthorPrior("reuters", db)).toEqual({ high: 0, low: 0 });
+    expect(getAuthorPrior("reuters", U, db)).toEqual({ high: 0, low: 0 });
   });
 });
 

@@ -8,14 +8,20 @@ import { Label } from "@/components/ui/label";
 
 const ERRORS: Record<string, string> = {
   AccessDenied:
-    "That Google account is not on this desk. Ask an admin to invite the email on Settings → Team.",
+    "That Google account cannot use this desk. If signup is invite-only, ask an admin to invite the email on Settings → Access.",
   Configuration: "Sign-in is not configured. Set AUTH_SECRET and a Google OAuth client, or enable AUTH_DEV_LOGIN=1 locally.",
   Verification: "That sign-in link is invalid or expired. Try again.",
   OAuthSignin: "Google did not start the sign-in. Check GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET.",
   OAuthCallback: "Google redirected back with an error. Confirm the authorized redirect URI is https://<domain>/api/auth/callback/google.",
   Callback: "Sign-in callback failed. Confirm AUTH_URL matches the URL in the browser.",
-  CredentialsSignin: "That email is not on the invite list.",
-  Default: "Sign-in failed. Try again or ask an admin to invite your Google account.",
+  CredentialsSignin: "That email is not allowed to sign in.",
+  Default: "Sign-in failed. Try again.",
+};
+
+const PUBLIC_ERRORS: Record<string, string> = {
+  AccessDenied: "This Google account is disabled on this host. Contact the operator if that is a mistake.",
+  CredentialsSignin: "That email could not be signed in.",
+  Default: "Sign-in failed. Try Google again.",
 };
 
 function GoogleMark() {
@@ -46,18 +52,21 @@ export function LoginForm({
   devLogin,
   callbackUrl,
   errorCode,
+  publicSignup = false,
 }: {
   googleConfigured: boolean;
   devLogin: boolean;
   callbackUrl: string;
   errorCode: string | null;
+  publicSignup?: boolean;
 }) {
   const [email, setEmail] = useState("");
   const [pending, setPending] = useState<"google" | "dev" | null>(null);
   const error = useMemo(() => {
     if (!errorCode) return null;
-    return ERRORS[errorCode] ?? ERRORS.Default;
-  }, [errorCode]);
+    const table = publicSignup ? { ...ERRORS, ...PUBLIC_ERRORS } : ERRORS;
+    return table[errorCode] ?? table.Default;
+  }, [errorCode, publicSignup]);
 
   const hasAny = googleConfigured || devLogin;
 

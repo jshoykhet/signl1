@@ -1,15 +1,20 @@
 import { NextResponse } from "next/server";
 import { getDeskFilterSettings, setDeskFilterSettings } from "@/lib/db";
 import { parseMinLikes, parseSignalLevel, type DeskFilterPatch, type SignalLevel } from "@/lib/desk-settings";
+import { requireDeskUser } from "@/lib/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return NextResponse.json(getDeskFilterSettings());
+  const desk = await requireDeskUser();
+  if (!desk.ok) return desk.response;
+  return NextResponse.json(getDeskFilterSettings(desk.userId));
 }
 
 export async function PUT(request: Request) {
+  const desk = await requireDeskUser();
+  if (!desk.ok) return desk.response;
   const body = (await request.json().catch(() => ({}))) as {
     kolOnly?: boolean;
     signalLevel?: SignalLevel;
@@ -32,5 +37,5 @@ export async function PUT(request: Request) {
   }
   if (typeof body.hideCrypto === "boolean") patch.hideCrypto = body.hideCrypto;
   if (typeof body.hideMessagingApps === "boolean") patch.hideMessagingApps = body.hideMessagingApps;
-  return NextResponse.json(setDeskFilterSettings(patch));
+  return NextResponse.json(setDeskFilterSettings(desk.userId, patch));
 }
