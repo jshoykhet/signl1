@@ -96,7 +96,7 @@ export function TeamSettings() {
                 </thead>
                 <tbody>
                   {team.users.map((user) => (
-                    <tr key={user.id} className="border-t border-white/[0.06]">
+                    <tr key={user.id} className="border-t border-border">
                       <td className="px-3 py-2.5">
                         <div className="font-medium">{user.name || user.email}</div>
                         <div className="text-[13px] text-muted-foreground">{user.email}</div>
@@ -121,7 +121,7 @@ export function TeamSettings() {
                     </tr>
                   ))}
                   {team.pendingInvites.map((invite) => (
-                    <tr key={invite.email} className="border-t border-white/[0.06]">
+                    <tr key={invite.email} className="border-t border-border">
                       <td className="px-3 py-2.5">
                         <div className="text-[15px]">{invite.email}</div>
                         <div className="text-[13px] text-muted-foreground">

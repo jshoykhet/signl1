@@ -192,7 +192,7 @@ export function WatchlistView() {
               <EmptyState
                 title="No names yet"
                 description="Add NVDA or paste a column of tickers from a spreadsheet."
-                className="rounded-2xl bg-card/60 py-12 ring-1 ring-white/[0.06]"
+                className="rounded-2xl bg-card py-12 shadow-sm ring-1 ring-border"
               />
             ) : visible.length === 0 ? (
               <p className="px-1 text-[15px] text-muted-foreground">No tickers match “{filter.trim()}”.</p>
@@ -200,11 +200,11 @@ export function WatchlistView() {
               <ul className="flex flex-wrap gap-1.5">
                 {visible.map((symbol) => (
                   <li key={symbol}>
-                    <Badge variant="outline" className="h-8 gap-1 rounded-full border-white/10 px-2.5 font-mono text-[13px]">
+                    <Badge variant="outline" className="h-8 gap-1 rounded-full border-border px-2.5 font-mono text-[13px]">
                       ${symbol}
                       <button
                         type="button"
-                        className="rounded-full p-0.5 text-muted-foreground hover:bg-white/10 hover:text-foreground"
+                        className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
                         aria-label={`Remove ${symbol}`}
                         disabled={saving}
                         onClick={() => void put({ remove: symbol })}
@@ -242,7 +242,7 @@ export function WatchlistView() {
                   </p>
                 ) : null}
                 {watchlist && !watchlist.enabled ? (
-                  <p className="text-[13px] text-amber-300">
+                  <p className="text-[13px] text-amber-700 dark:text-amber-300">
                     Screening is off. This query is not sent to X until you turn it back on.
                   </p>
                 ) : null}

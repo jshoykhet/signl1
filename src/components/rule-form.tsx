@@ -69,7 +69,7 @@ export function RuleForm({
           placeholder="Fed Watch"
         />
       </div>
-      <label className="flex items-center justify-between gap-3 rounded-2xl bg-white/[0.06] px-4 py-3">
+      <label className="flex items-center justify-between gap-3 rounded-2xl bg-muted px-4 py-3">
         <div>
           <div className="text-[15px] font-medium">Enabled</div>
           <div className="text-[13px] text-muted-foreground">Disabled rules are skipped by the poller.</div>
@@ -101,13 +101,13 @@ export function RuleForm({
           className="min-h-20 font-mono text-xs"
         />
       </div>
-      <div className="rounded-2xl bg-white/[0.06] px-4 py-3">
+      <div className="rounded-2xl bg-muted px-4 py-3">
         <div className="text-[13px] text-muted-foreground">Compiled query</div>
         <code className="mt-1 block font-mono text-[13px] leading-relaxed break-all text-foreground">
           {compiled || "Add a query or at least one account."}
         </code>
       </div>
-      <details className="rounded-2xl bg-white/[0.06] px-4 py-3">
+      <details className="rounded-2xl bg-muted px-4 py-3">
         <summary className="cursor-pointer text-[15px] font-medium">X recent-search syntax</summary>
         <ul className="mt-2 space-y-1.5 text-[13px] text-muted-foreground">
           {QUERY_SYNTAX.map((row) => (

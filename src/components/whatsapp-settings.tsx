@@ -169,7 +169,7 @@ export function WhatsAppSettings() {
       <GroupedRow>
         <div className="w-[9.5rem] shrink-0 text-[15px] text-muted-foreground">Status</div>
         <div className="min-w-0 flex-1 text-[15px]">
-          <span className={wa?.status === "connected" ? "text-emerald-400" : "text-amber-300"}>
+          <span className={wa?.status === "connected" ? "text-emerald-600 dark:text-emerald-400" : "text-amber-700 dark:text-amber-300"}>
             {wa ? statusLabel(wa.status) : "Loading…"}
           </span>
           {wa?.linkedAs ? <div className="mt-0.5 text-[13px] text-muted-foreground">{wa.linkedAs}</div> : null}
@@ -262,7 +262,7 @@ export function WhatsAppSettings() {
         <div className="grid min-w-0 flex-1 gap-3">
           <p className="text-[13px] leading-relaxed text-muted-foreground">
             Uses the unofficial WhatsApp Web API from{" "}
-            <a className="text-amber-300 underline-offset-4 hover:underline" href="https://baileys.wiki/" target="_blank" rel="noreferrer">
+            <a className="text-amber-700 underline-offset-4 hover:underline dark:text-amber-300" href="https://baileys.wiki/" target="_blank" rel="noreferrer">
               baileys.wiki
             </a>
             . On your phone: WhatsApp → Settings → Linked devices. Scan the QR, or choose Link with phone number and
@@ -281,7 +281,7 @@ export function WhatsAppSettings() {
           {wa?.pairingCode ? (
             <div>
               <div className="text-[13px] text-muted-foreground">Pairing code</div>
-              <div className="mt-1 font-mono text-2xl tracking-[0.2em] text-amber-200">{wa.pairingCode}</div>
+              <div className="mt-1 font-mono text-2xl tracking-[0.2em] text-amber-800 dark:text-amber-200">{wa.pairingCode}</div>
             </div>
           ) : null}
           <div className="grid gap-1.5">

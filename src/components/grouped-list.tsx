@@ -29,7 +29,7 @@ export function SettingsGroup({
           ) : null}
         </div>
       ) : null}
-      <div className="overflow-hidden rounded-2xl bg-card/90 ring-1 ring-white/[0.06]">{children}</div>
+      <div className="overflow-hidden rounded-2xl bg-card shadow-sm ring-1 ring-border">{children}</div>
       {footer ? (
         <div className="px-4 text-[13px] leading-5 text-muted-foreground">{footer}</div>
       ) : null}
@@ -63,7 +63,7 @@ export function GroupedRow({
   return (
     <div
       className={cn(
-        "flex min-h-11 items-center gap-3 border-b border-white/[0.06] px-4 py-2.5 last:border-b-0",
+        "flex min-h-11 items-center gap-3 border-b border-border px-4 py-2.5 last:border-b-0",
         className,
       )}
     >

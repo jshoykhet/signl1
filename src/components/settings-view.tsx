@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AppearanceSettings } from "@/components/appearance-settings";
 import { BlockedEditor } from "@/components/blocked-editor";
 import { DeskFilters } from "@/components/desk-filters";
 import { GroupedRow, SettingsGroup } from "@/components/grouped-list";
@@ -63,20 +64,21 @@ export function SettingsView() {
           ) : (
             <>
               {status.demoMode ? (
-                <div className="rounded-2xl bg-amber-400/10 px-4 py-3.5">
-                  <div className="text-[15px] font-medium text-amber-200">Demo mode</div>
-                  <p className="mt-1 text-[15px] leading-snug text-amber-50/75">
+                <div className="rounded-2xl bg-amber-400/15 px-4 py-3.5">
+                  <div className="text-[15px] font-medium text-amber-800 dark:text-amber-200">Demo mode</div>
+                  <p className="mt-1 text-[15px] leading-snug text-amber-800/70 dark:text-amber-50/75">
                     <code className="font-mono text-[13px]">X_BEARER_TOKEN</code> is not set. Signal1 is injecting fixture
                     markets posts so you can exercise rules and the inbox without paid X API access.
                   </p>
                 </div>
               ) : null}
+              <AppearanceSettings />
               <SettingsGroup title="Brand">
                 <Row label="Logo">
                   <a
                     href="/signal1-logo.png"
                     download="signal1_logo.png"
-                    className="text-amber-300 underline-offset-4 hover:underline"
+                    className="text-amber-700 underline-offset-4 hover:underline dark:text-amber-300"
                   >
                     Download Signal1 logo
                   </a>
@@ -84,7 +86,13 @@ export function SettingsView() {
               </SettingsGroup>
               <SettingsGroup title="X API">
                 <Row label="Bearer token">
-                  <span className={status.bearerToken === "present" ? "text-emerald-400" : "text-amber-300"}>
+                  <span
+                    className={
+                      status.bearerToken === "present"
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-amber-700 dark:text-amber-300"
+                    }
+                  >
                     {status.bearerToken === "present" ? "Present" : "Missing"}
                   </span>
                 </Row>
@@ -97,7 +105,11 @@ export function SettingsView() {
               <BlockedEditor />
               <SettingsGroup title="Poller">
                 <Row label="Health">
-                  <span className={status.poller.healthy ? "text-emerald-400" : "text-amber-300"}>
+                  <span
+                    className={
+                      status.poller.healthy ? "text-emerald-600 dark:text-emerald-400" : "text-amber-700 dark:text-amber-300"
+                    }
+                  >
                     {status.poller.healthy ? "Healthy" : "No recent heartbeat"}
                   </span>
                 </Row>

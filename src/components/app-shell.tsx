@@ -49,7 +49,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-dvh overflow-hidden bg-background text-foreground">
-      <aside className="hidden h-full w-[232px] shrink-0 flex-col bg-sidebar md:flex">
+      <aside className="hidden h-full w-[232px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
         <div className="flex items-center gap-2.5 px-4 pt-5 pb-4">
           <img
             src="/signal1-logo-256.png"
@@ -74,8 +74,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 className={cn(
                   "flex h-9 items-center gap-2.5 rounded-[9px] px-3 text-[15px] transition-colors",
                   active
-                    ? "bg-white/[0.08] font-medium text-foreground"
-                    : "text-muted-foreground hover:bg-white/[0.05] hover:text-foreground",
+                    ? "bg-sidebar-accent font-medium text-foreground"
+                    : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-foreground",
                 )}
               >
                 <Icon className="size-4 opacity-80" />
@@ -92,17 +92,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-        <div className="mt-auto space-y-3 border-t border-white/[0.06] px-3 pt-3 pb-4">
+        <div className="mt-auto space-y-3 border-t border-sidebar-border px-3 pt-3 pb-4">
           {status?.demoMode ? (
-            <div className="rounded-2xl bg-amber-400/10 px-3 py-2.5">
-              <div className="text-[13px] font-medium text-amber-200">Demo mode</div>
-              <div className="mt-0.5 text-[12px] leading-snug text-amber-100/60">
+            <div className="rounded-2xl bg-amber-400/15 px-3 py-2.5">
+              <div className="text-[13px] font-medium text-amber-800 dark:text-amber-200">Demo mode</div>
+              <div className="mt-0.5 text-[12px] leading-snug text-amber-800/70 dark:text-amber-100/60">
                 No X bearer token. Fixture tape is playing.
               </div>
             </div>
           ) : (
             <div className="flex items-center gap-2 px-1 text-[12px] text-muted-foreground">
-              <Activity className={cn("size-3.5", status?.poller.healthy ? "text-emerald-400" : "text-zinc-500")} />
+              <Activity
+                className={cn("size-3.5", status?.poller.healthy ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")}
+              />
               <span>{status?.poller.healthy ? "Poller healthy" : "Poller waiting"}</span>
             </div>
           )}
@@ -111,7 +113,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between gap-3 border-b border-white/[0.06] px-4 py-2.5 md:hidden">
+        <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 md:hidden">
           <div className="flex items-center gap-2.5">
             <img
               src="/signal1-logo-256.png"
@@ -130,7 +132,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.08] bg-sidebar/90 backdrop-blur-xl md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-sidebar/90 backdrop-blur-xl md:hidden"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <div className="grid h-[4.25rem] grid-cols-4">
@@ -143,7 +145,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 href={item.href}
                 className={cn(
                   "flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium",
-                  active ? "text-amber-300" : "text-muted-foreground",
+                  active ? "text-amber-700 dark:text-amber-300" : "text-muted-foreground",
                 )}
               >
                 <span className="relative">

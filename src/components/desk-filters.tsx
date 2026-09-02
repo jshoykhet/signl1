@@ -94,7 +94,7 @@ export function DeskFilters() {
           </Row>
           <Row label="Signal">
             <div className="grid gap-2">
-              <div className="flex rounded-full bg-white/[0.06] p-0.5">
+              <div className="flex rounded-full bg-muted p-0.5">
                 {(Object.keys(SIGNAL_LEVELS) as SignalLevel[]).map((level) => (
                   <button
                     key={level}
@@ -103,7 +103,7 @@ export function DeskFilters() {
                     onClick={() => void save({ signalLevel: level })}
                     className={
                       filters.signalLevel === level
-                        ? "flex-1 rounded-full bg-white/90 px-3 py-1.5 text-[13px] font-medium text-black"
+                        ? "flex-1 rounded-full bg-background px-3 py-1.5 text-[13px] font-medium text-foreground shadow-sm"
                         : "flex-1 rounded-full px-3 py-1.5 text-[13px] text-muted-foreground"
                     }
                   >
@@ -133,7 +133,7 @@ export function DeskFilters() {
                 value={likesDraft}
                 disabled={busy}
                 aria-label="Minimum likes"
-                className="h-8 w-16 rounded-lg bg-white/[0.08] text-center font-medium tabular-nums"
+                className="h-8 w-16 rounded-lg bg-muted text-center font-medium tabular-nums"
                 onChange={(event) => {
                   const raw = event.target.value.replace(/[^\d]/g, "");
                   setLikesDraft(raw);

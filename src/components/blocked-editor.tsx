@@ -208,8 +208,8 @@ export function BlockedEditor() {
             <div className="max-h-[28rem] overflow-auto">
               <table className="w-full min-w-[44rem] table-fixed border-collapse text-[13px]">
                 <thead className="sticky top-0 z-10">
-                  <tr className="bg-white/[0.04] text-left text-[13px] font-normal text-muted-foreground">
-                    <th className="w-[32%] border-b border-r border-white/[0.06]">
+                  <tr className="bg-muted/70 text-left text-[13px] font-normal text-muted-foreground">
+                    <th className="w-[32%] border-b border-r border-border">
                       <button
                         type="button"
                         className="flex w-full items-center gap-1.5 px-3 py-2 text-left hover:text-foreground"
@@ -219,7 +219,7 @@ export function BlockedEditor() {
                         <SortIcon active={sortKey === "handle"} dir={sortDir} />
                       </button>
                     </th>
-                    <th className="w-28 border-b border-r border-white/[0.06]">
+                    <th className="w-28 border-b border-r border-border">
                       <button
                         type="button"
                         className="flex w-full items-center gap-1.5 px-3 py-2 text-left hover:text-foreground"
@@ -229,7 +229,7 @@ export function BlockedEditor() {
                         <SortIcon active={sortKey === "followers"} dir={sortDir} />
                       </button>
                     </th>
-                    <th className="w-24 border-b border-r border-white/[0.06]">
+                    <th className="w-24 border-b border-r border-border">
                       <button
                         type="button"
                         className="flex w-full items-center gap-1.5 px-3 py-2 text-left hover:text-foreground"
@@ -239,7 +239,7 @@ export function BlockedEditor() {
                         <SortIcon active={sortKey === "source"} dir={sortDir} />
                       </button>
                     </th>
-                    <th className="w-24 border-b border-r border-white/[0.06]">
+                    <th className="w-24 border-b border-r border-border">
                       <button
                         type="button"
                         className="flex w-full items-center gap-1.5 px-3 py-2 text-left hover:text-foreground"
@@ -249,7 +249,7 @@ export function BlockedEditor() {
                         <SortIcon active={sortKey === "status"} dir={sortDir} />
                       </button>
                     </th>
-                    <th className="w-28 border-b border-white/[0.06] px-3 py-2 text-right normal-case">Action</th>
+                    <th className="w-28 border-b border-border px-3 py-2 text-right normal-case">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -267,34 +267,34 @@ export function BlockedEditor() {
                         key={item.handle}
                         className={item.active ? "hover:bg-muted/50" : "bg-muted/10 text-muted-foreground hover:bg-muted/30"}
                       >
-                        <td className="border-r border-b border-white/[0.06] px-3 py-1.5 font-mono text-[13px] leading-6">
+                        <td className="border-r border-b border-border px-3 py-1.5 font-mono text-[13px] leading-6">
                           <a
                             href={item.profileUrl}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex max-w-full items-center gap-1 text-amber-300 hover:underline"
+                            className="inline-flex max-w-full items-center gap-1 text-amber-700 dark:text-amber-300 hover:underline"
                             aria-label={`Open @${item.handle} on X`}
                           >
                             <span className="truncate">@{item.handle}</span>
                             <ExternalLink className="size-3 shrink-0 opacity-70" />
                           </a>
                         </td>
-                        <td className="border-r border-b border-white/[0.06] px-3 py-1.5 font-mono leading-6 tabular-nums">
+                        <td className="border-r border-b border-border px-3 py-1.5 font-mono leading-6 tabular-nums">
                           {formatCompact(item.followers)}
                         </td>
-                        <td className="border-r border-b border-white/[0.06] px-3 py-1.5 leading-6">
+                        <td className="border-r border-b border-border px-3 py-1.5 leading-6">
                           <Badge variant={item.source === "added" ? "default" : "outline"} className="font-normal">
                             {item.source === "env" ? "Env" : "Added"}
                           </Badge>
                         </td>
-                        <td className="border-r border-b border-white/[0.06] px-3 py-1.5 leading-6">
+                        <td className="border-r border-b border-border px-3 py-1.5 leading-6">
                           {item.active ? (
                             <span className="text-red-400">Blocked</span>
                           ) : (
-                            <span className="text-amber-300">Restored</span>
+                            <span className="text-amber-700 dark:text-amber-300">Restored</span>
                           )}
                         </td>
-                        <td className="border-b border-white/[0.06] px-2 py-1 text-right">
+                        <td className="border-b border-border px-2 py-1 text-right">
                           {item.active ? (
                             <Button
                               type="button"
@@ -327,7 +327,7 @@ export function BlockedEditor() {
                 </tbody>
               </table>
             </div>
-            <div className="border-t border-white/[0.06] px-3 py-1.5 text-[13px] text-muted-foreground">
+            <div className="border-t border-border px-3 py-1.5 text-[13px] text-muted-foreground">
               {rows.length === blocked.items.length
                 ? `${rows.length} rows`
                 : `Showing ${rows.length} of ${blocked.items.length} rows`}

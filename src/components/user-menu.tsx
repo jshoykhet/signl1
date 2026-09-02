@@ -28,14 +28,14 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
     <DropdownMenu>
       <DropdownMenuTrigger
         className={cn(
-          "flex items-center gap-2.5 rounded-xl text-left transition-colors hover:bg-white/[0.06]",
+          "flex items-center gap-2.5 rounded-xl text-left transition-colors hover:bg-muted",
           compact ? "p-0.5" : "w-full px-2 py-1.5",
         )}
       >
         {user.image ? (
-          <img src={user.image} alt="" className="size-8 rounded-full ring-1 ring-white/10" />
+          <img src={user.image} alt="" className="size-8 rounded-full ring-1 ring-border" />
         ) : (
-          <span className="flex size-8 items-center justify-center rounded-full bg-amber-400/15 text-[12px] font-semibold text-amber-200">
+          <span className="flex size-8 items-center justify-center rounded-full bg-amber-400/20 text-[12px] font-semibold text-amber-800 dark:bg-amber-400/15 dark:text-amber-200">
             {initials(user.name, user.email)}
           </span>
         )}

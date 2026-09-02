@@ -81,7 +81,7 @@ export function LoginForm({
       ) : null}
 
       {!hasAny ? (
-        <div className="rounded-2xl bg-amber-400/10 px-3.5 py-2.5 text-[15px] text-amber-100/80">
+        <div className="rounded-2xl bg-amber-400/15 px-3.5 py-2.5 text-[15px] text-amber-800 dark:bg-amber-400/10 dark:text-amber-100/80">
           No sign-in provider is enabled. Add a Google OAuth client, or set{" "}
           <code className="font-mono text-[13px]">AUTH_DEV_LOGIN=1</code> for a local desk email.
         </div>
@@ -92,7 +92,7 @@ export function LoginForm({
           type="button"
           variant="outline"
           size="lg"
-          className="w-full gap-2 rounded-xl border-white/10 bg-white/[0.06]"
+          className="w-full gap-2 rounded-xl"
           onClick={onGoogle}
           disabled={pending !== null}
         >
@@ -109,9 +109,9 @@ export function LoginForm({
 
       {googleConfigured && devLogin ? (
         <div className="flex items-center gap-3 text-[13px] text-muted-foreground">
-          <span className="h-px flex-1 bg-white/10" />
+          <span className="h-px flex-1 bg-border" />
           or local desk
-          <span className="h-px flex-1 bg-white/10" />
+          <span className="h-px flex-1 bg-border" />
         </div>
       ) : null}
 

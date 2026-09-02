@@ -151,7 +151,7 @@ export function RulesView() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <div className="border-b border-white/[0.06] px-5 py-6">
+      <div className="border-b border-border px-5 py-6">
         <PageHeader
           title="Rules"
           description="Each enabled rule is polled on its own interval using X recent-search syntax."
@@ -191,7 +191,7 @@ export function RulesView() {
         ) : (
           <table className="w-full text-left text-[15px]">
             <thead className="sticky top-0 bg-background/90 text-[13px] text-muted-foreground backdrop-blur">
-              <tr className="border-b border-white/[0.06]">
+              <tr className="border-b border-border">
                 <th className="px-5 py-2.5 font-normal">On</th>
                 <th className="px-3 py-2.5 font-normal">Name</th>
                 <th className="px-3 py-2.5 font-normal">Query</th>
@@ -202,7 +202,7 @@ export function RulesView() {
             </thead>
             <tbody>
               {visibleRules.map((rule) => (
-                <tr key={rule.id} className="border-b border-white/[0.05] align-top">
+                <tr key={rule.id} className="border-b border-border align-top">
                   <td className="px-5 py-3.5">
                     <Switch
                       checked={rule.enabled}

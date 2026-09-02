@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { auth } from "@/auth";
 import { AuthSessionProvider } from "@/components/auth-session-provider";
 import { AppShell } from "@/components/app-shell";
+import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
@@ -27,15 +28,18 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`dark ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="h-full overflow-hidden bg-background text-foreground">
-        <AuthSessionProvider session={session}>
-          <TooltipProvider>
-            <AppShell>{children}</AppShell>
-            <Toaster theme="dark" />
-          </TooltipProvider>
-        </AuthSessionProvider>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
+          <AuthSessionProvider session={session}>
+            <TooltipProvider>
+              <AppShell>{children}</AppShell>
+              <Toaster />
+            </TooltipProvider>
+          </AuthSessionProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

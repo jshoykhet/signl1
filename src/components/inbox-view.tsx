@@ -40,8 +40,8 @@ function SignalVote({
         className={cn(
           "flex size-7 items-center justify-center rounded-full text-[15px] font-medium transition-colors",
           match.userLabel === "high"
-            ? "bg-emerald-500/20 text-emerald-300"
-            : "bg-white/[0.06] text-muted-foreground hover:bg-white/[0.1] hover:text-foreground",
+            ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300"
+            : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground",
         )}
         onClick={() => onVote(match, "high")}
       >
@@ -56,7 +56,7 @@ function SignalVote({
           "flex size-7 items-center justify-center rounded-full text-[15px] font-medium transition-colors",
           match.userLabel === "low"
             ? "bg-destructive/20 text-destructive"
-            : "bg-white/[0.06] text-muted-foreground hover:bg-white/[0.1] hover:text-foreground",
+            : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground",
         )}
         onClick={() => onVote(match, "low")}
       >
@@ -268,7 +268,7 @@ export function InboxView() {
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      <header className="flex flex-col gap-3 border-b border-white/[0.06] px-4 py-4 sm:px-5">
+      <header className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:px-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-[28px] font-semibold leading-tight tracking-[-0.022em]">Inbox</h1>
@@ -294,7 +294,7 @@ export function InboxView() {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search posts, @handles, rules"
-              className="h-9 rounded-full bg-white/[0.08] pl-9 text-[15px]"
+              className="h-9 rounded-full bg-muted pl-9 text-[15px]"
               aria-label="Search inbox"
             />
           </div>
@@ -327,7 +327,7 @@ export function InboxView() {
         </div>
       ) : null}
       <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-        <div className="min-h-0 overflow-y-auto lg:border-r lg:border-white/[0.06]">
+        <div className="min-h-0 overflow-y-auto lg:border-r lg:border-border">
           {loading && matches.length === 0 ? (
             <EmptyState title="Loading" description="Fetching the latest matches." />
           ) : matches.length === 0 ? (
@@ -347,8 +347,8 @@ export function InboxView() {
                   <li key={match.id}>
                     <div
                       className={cn(
-                        "flex w-full items-start gap-1 border-b border-white/[0.05] pr-2 text-left transition-colors",
-                        active ? "bg-white/[0.08]" : "hover:bg-white/[0.04]",
+                        "flex w-full items-start gap-1 border-b border-border pr-2 text-left transition-colors",
+                        active ? "bg-muted" : "hover:bg-muted/60",
                         match.userLabel === "low" && "opacity-50",
                       )}
                     >
@@ -380,11 +380,11 @@ export function InboxView() {
                             {match.text}
                           </p>
                           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                            <Badge variant="outline" className="h-5 rounded-full border-white/10 px-2 text-[11px] font-normal">
+                            <Badge variant="outline" className="h-5 rounded-full border-border px-2 text-[11px] font-normal">
                               {match.ruleName}
                             </Badge>
                             {match.kol ? (
-                              <Badge className="h-5 rounded-full bg-amber-400/15 px-2 text-[11px] font-semibold text-amber-200">
+                              <Badge className="h-5 rounded-full bg-amber-400/20 px-2 text-[11px] font-semibold text-amber-800 dark:bg-amber-400/15 dark:text-amber-200">
                                 Node
                               </Badge>
                             ) : null}
@@ -399,7 +399,7 @@ export function InboxView() {
                               </span>
                             ) : null}
                             {match.userLabel === "high" ? (
-                              <span className="text-[12px] text-emerald-400">High</span>
+                              <span className="text-[12px] text-emerald-700 dark:text-emerald-400">High</span>
                             ) : null}
                             {match.userLabel === "low" ? (
                               <span className="text-[12px] text-destructive">Low</span>
