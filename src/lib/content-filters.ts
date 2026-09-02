@@ -1,7 +1,4 @@
-/**
- * Tape filters for crypto noise (except listed crypto-equity names)
- * and Telegram / WhatsApp promo.
- */
+import type { DeskMode } from "./desk-mode";
 
 export const CRYPTO_EQUITY_TICKERS = new Set([
   "COIN",
@@ -114,8 +111,14 @@ export function looksLikeCryptoHandle(handle: string | undefined): boolean {
   return CRYPTO_HANDLE.test(handle.replace(/^@/, ""));
 }
 
-export function isCryptoNoise(text: string, handle?: string): boolean {
+const MEME_CRYPTO =
+  /\b(memecoin|meme coin|airdrop|nft drop|mint now|dogecoin|shib\b|pepe\b|bonk\b|100x gem|to the moon|whitelist)\b/i;
+
+export function isCryptoNoise(text: string, handle?: string, mode: DeskMode = "markets"): boolean {
   if (hasCryptoEquityCashtag(text)) return false;
+  if (mode === "venture") {
+    return MEME_CRYPTO.test(text);
+  }
   if (hasCryptoTokenCashtag(text)) return true;
   if (CRYPTO_TALK.test(text)) return true;
   if (looksLikeCryptoHandle(handle) && !hasCryptoEquityCashtag(text)) return true;

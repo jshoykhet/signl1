@@ -15,7 +15,7 @@ import {
   tryInsertMatch,
   evaluateTweetSignal,
 } from "../lib/db";
-import { DEMO_FIXTURES, fixtureToTweet } from "../lib/demo-fixtures";
+import { DEMO_FIXTURES, VENTURE_DEMO_FIXTURES, fixtureToTweet } from "../lib/demo-fixtures";
 import { notifyMatch, registerWhatsAppSender, flushWhatsAppDigest } from "../lib/notify";
 import { sendWhatsAppText, startWhatsAppBridge } from "./whatsapp-session";
 import { matchesQuery } from "../lib/query";
@@ -121,16 +121,18 @@ function nextDemoIndex(): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+const DEMO_POOL = [...DEMO_FIXTURES, ...VENTURE_DEMO_FIXTURES];
+
 async function injectDemoMatches() {
   const rules = listEnabledRules();
-  if (rules.length === 0 || DEMO_FIXTURES.length === 0) return;
+  if (rules.length === 0 || DEMO_POOL.length === 0) return;
 
   const index = nextDemoIndex();
-  const cycle = Math.floor(index / DEMO_FIXTURES.length);
-  const offset = index % DEMO_FIXTURES.length;
+  const cycle = Math.floor(index / DEMO_POOL.length);
+  const offset = index % DEMO_POOL.length;
 
-  for (let step = 0; step < DEMO_FIXTURES.length; step += 1) {
-    const fixture = DEMO_FIXTURES[(offset + step) % DEMO_FIXTURES.length];
+  for (let step = 0; step < DEMO_POOL.length; step += 1) {
+    const fixture = DEMO_POOL[(offset + step) % DEMO_POOL.length];
     const tweetId = cycle === 0 ? fixture.id : `${fixture.id}-c${cycle}`;
     const tweet = fixtureToTweet(fixture, tweetId, isoNow());
     let inserted = false;
@@ -148,7 +150,7 @@ async function injectDemoMatches() {
       return;
     }
   }
-  setMeta("demo_index", String(index + DEMO_FIXTURES.length));
+  setMeta("demo_index", String(index + DEMO_POOL.length));
 }
 
 export async function runPollerLoop() {

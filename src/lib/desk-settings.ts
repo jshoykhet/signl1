@@ -1,3 +1,5 @@
+import type { DeskMode } from "./desk-mode";
+
 export type SignalLevel = "low" | "standard" | "high";
 export type WhatsAppAlertMode = "immediate" | "digest";
 
@@ -70,6 +72,7 @@ export const DIGEST_TOP_N = 20;
 export const DIGEST_CANDIDATE_LIMIT = 400;
 
 export type DeskFilterSettings = {
+  deskMode: DeskMode;
   kolOnly: boolean;
   signalLevel: SignalLevel;
   allowFresh: boolean;
@@ -88,6 +91,9 @@ export type WhatsAppCadenceSettings = {
   alertMode: WhatsAppAlertMode;
   digestMinutes: number;
 };
+
+export { parseDeskMode } from "./desk-mode";
+export type { DeskMode } from "./desk-mode";
 
 export function parseSignalLevel(raw: string | null | undefined): SignalLevel {
   if (raw === "low" || raw === "high" || raw === "standard") return raw;

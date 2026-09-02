@@ -68,7 +68,8 @@ export function SettingsView() {
                   <div className="text-[15px] font-medium text-amber-800 dark:text-amber-200">Demo mode</div>
                   <p className="mt-1 text-[15px] leading-snug text-amber-800/70 dark:text-amber-50/75">
                     <code className="font-mono text-[13px]">X_BEARER_TOKEN</code> is not set. Signal1 is injecting fixture
-                    markets posts so you can exercise rules and the inbox without paid X API access.
+                    posts for the active desk (markets or venture) so you can exercise rules and the inbox without paid
+                    X API access.
                   </p>
                 </div>
               ) : null}

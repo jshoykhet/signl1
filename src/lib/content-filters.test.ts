@@ -27,6 +27,13 @@ describe("crypto tape filter", () => {
     expect(isCryptoNoise("$AAPL beats EPS; FOMC-sensitive names bid")).toBe(false);
     expect(isCryptoNoise("OPEC+ production cut; Brent bid", "DeItaone")).toBe(false);
   });
+
+  it("in venture mode keeps crypto-sector funding and drops memecoins", () => {
+    expect(isCryptoNoise("Crypto startup raises $40m Series A for on-chain settlement", undefined, "venture")).toBe(
+      false,
+    );
+    expect(isCryptoNoise("New memecoin airdrop tonight, 100x gem", undefined, "venture")).toBe(true);
+  });
 });
 
 describe("messaging promo filter", () => {

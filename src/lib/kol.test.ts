@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_KOL_HANDLES, isKolHandle, kolProfileUrl, listKolRows, loadKolHandleSet, normalizeHandle } from "./kol";
+import { DEFAULT_KOL_HANDLES, isKolHandle, kolProfileUrl, listKolRows, loadKolHandleSet, normalizeHandle, seedKolHandles } from "./kol";
 
 describe("KOL list", () => {
   it("seeds wires, squawk, All-In, and official desks", () => {
@@ -58,5 +58,21 @@ describe("KOL list", () => {
   it("builds X profile URLs", () => {
     expect(kolProfileUrl("@WSJ")).toBe("https://x.com/wsj");
     expect(kolProfileUrl("DeItaone")).toBe("https://x.com/deitaone");
+  });
+
+  it("seeds venture wires, funds, and reporters in venture mode", () => {
+    const set = loadKolHandleSet({ deskMode: "venture" });
+    for (const handle of ["TechCrunch", "a16z", "sequoia", "ycombinator", "EricNewcomer", "pmarca", "garrytan"]) {
+      expect(set.has(normalizeHandle(handle)), handle).toBe(true);
+    }
+    expect(set.has("deitaone")).toBe(false);
+    expect(set.size).toBe(new Set(seedKolHandles("venture").map(normalizeHandle)).size);
+    expect(set.size).toBe(100);
+  });
+
+  it("keeps markets seeds as the default", () => {
+    expect(seedKolHandles("markets")).toEqual(DEFAULT_KOL_HANDLES);
+    expect(loadKolHandleSet({ deskMode: "markets" }).has("deitaone")).toBe(true);
+    expect(loadKolHandleSet({ deskMode: "venture" }).has("techcrunch")).toBe(true);
   });
 });

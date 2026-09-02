@@ -39,9 +39,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     };
     load();
     const timer = setInterval(load, 4000);
+    const onMode = () => {
+      void load();
+    };
+    window.addEventListener("signal1:desk-mode", onMode);
     return () => {
       cancelled = true;
       clearInterval(timer);
+      window.removeEventListener("signal1:desk-mode", onMode);
     };
   }, [bare]);
 
@@ -60,7 +65,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           />
           <div className="min-w-0 leading-tight">
             <div className="text-[17px] font-semibold tracking-[-0.02em]">Signal1</div>
-            <div className="text-[12px] text-muted-foreground">X alerts · private desk</div>
+            <div className="text-[12px] text-muted-foreground">
+              {status?.deskFilters.deskMode === "venture" ? "Venture desk" : "Markets desk"}
+            </div>
           </div>
         </div>
         <nav className="flex flex-1 flex-col gap-0.5 px-3">

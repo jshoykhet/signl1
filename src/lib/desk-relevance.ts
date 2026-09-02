@@ -1,3 +1,6 @@
+import type { DeskMode } from "./desk-mode";
+import { scoreVentureRelevance } from "./venture-relevance";
+
 /**
  * Scores whether a tweet is the kind of thing an event-driven trader,
  * fundamental investor, or market maker would actually want on the tape:
@@ -143,6 +146,7 @@ export type DeskScore = {
 
 export type DeskRelevanceOpts = {
   isReply?: boolean;
+  mode?: DeskMode;
 };
 
 function hitsOf(text: string, list: Weighted[], reason: string, reasons: string[]): number {
@@ -157,6 +161,7 @@ function hitsOf(text: string, list: Weighted[], reason: string, reasons: string[
 }
 
 export function scoreDeskRelevance(text: string, opts: DeskRelevanceOpts = {}): DeskScore {
+  if (opts.mode === "venture") return scoreVentureRelevance(text, opts);
   const t = text.trim();
   if (!t) return { score: 0, spam: false, reasons: [], substance: false };
   if (SPAM.test(t)) return { score: 0, spam: true, reasons: ["promo/spam phrasing"], substance: false };

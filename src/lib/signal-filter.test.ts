@@ -132,6 +132,29 @@ describe("passesSignalFilter", () => {
     expect(verdict.pass).toBe(true);
   });
 
+  it("in venture mode keeps funding news and drops market prints", () => {
+    const round = passesSignalFilter(
+      quality({
+        authorHandle: "techcrunch",
+        likeCount: 40,
+        text: "Anthropic raises $3.5bn Series E at a $60bn valuation, sources say.",
+      }),
+      now,
+      { deskMode: "venture" },
+    );
+    expect(round.pass).toBe(true);
+
+    const fomc = passesSignalFilter(
+      quality({
+        likeCount: 40,
+        text: "BREAKING: FOMC holds the funds rate",
+      }),
+      now,
+      { deskMode: "venture" },
+    );
+    expect(fomc.pass).toBe(false);
+  });
+
   it("drops giveaway spam even from a KOL", () => {
     const verdict = passesSignalFilter(
       quality({

@@ -51,7 +51,7 @@ export function MarketingHome({
                 Official X recent-search, not scraping.
               </li>
               <li className="rounded-2xl bg-card px-4 py-3 ring-1 ring-border">
-                Seeded Fed, Mag 7, and crude rules you can edit.
+                Seeded Markets or Venture rules you can edit.
               </li>
               <li className="rounded-2xl bg-card px-4 py-3 ring-1 ring-border">
                 Engagement floors, Key Network Nodes, blocked handles.

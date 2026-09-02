@@ -12,7 +12,9 @@ import {
   getKolSpec,
   listAuthorFollowerCounts,
   listMatches,
+  listRules,
   openDatabase,
+  ensureUserDesk,
   removeBlockedHandle,
   removeKolHandle,
   resetBlockedHandles,
@@ -63,6 +65,7 @@ describe("desk filters and KOL list persist in SQLite", () => {
     tmpDirs.push(dir);
     const db = openDatabase(path.join(dir, "test.db"));
     expect(getDeskFilterSettings(U, db)).toEqual({
+      deskMode: "markets",
       kolOnly: false,
       signalLevel: "standard",
       allowFresh: true,
@@ -327,5 +330,36 @@ describe("desk filters and KOL list persist in SQLite", () => {
     setDeskFilterSettings(a, { minLikes: 500, allowFresh: false }, db);
     expect(listMatches(a, { quality: true }, db).some((m) => m.tweetId === "tw-iso")).toBe(false);
     expect(listMatches(b, { quality: true }, db).some((m) => m.tweetId === "tw-iso")).toBe(true);
+  });
+
+  it("swaps Key Network Nodes and seed rules when the desk mode changes", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-"));
+    tmpDirs.push(dir);
+    const db = openDatabase(path.join(dir, "test.db"));
+    ensureUserDesk(U, db);
+    expect(isKolHandle("DeItaone", getKolSpec(U, db))).toBe(true);
+    expect(isKolHandle("TechCrunch", getKolSpec(U, db))).toBe(false);
+    expect(listRules(U, db).some((rule) => rule.name === "Fed Watch" && rule.enabled)).toBe(true);
+
+    setDeskFilterSettings(U, { deskMode: "venture" }, db);
+    expect(getDeskFilterSettings(U, db).deskMode).toBe("venture");
+    expect(isKolHandle("TechCrunch", getKolSpec(U, db))).toBe(true);
+    expect(isKolHandle("DeItaone", getKolSpec(U, db))).toBe(false);
+    const ventureRules = listRules(U, db);
+    expect(ventureRules.some((rule) => rule.name === "Funding rounds" && rule.enabled)).toBe(true);
+    expect(ventureRules.some((rule) => rule.name === "Fed Watch" && !rule.enabled)).toBe(true);
+
+    const round = catalyst("techcrunch", {
+      followersCount: 80_000,
+      likeCount: 40,
+      text: "Anthropic raises $3.5bn Series E at a $60bn valuation, sources say.",
+    });
+    expect(evaluateTweetSignal(round, U, db).pass).toBe(true);
+    expect(evaluateTweetSignal(catalyst("DeItaone"), U, db).pass).toBe(false);
+
+    setDeskFilterSettings(U, { deskMode: "markets" }, db);
+    expect(isKolHandle("DeItaone", getKolSpec(U, db))).toBe(true);
+    expect(listRules(U, db).some((rule) => rule.name === "Fed Watch" && rule.enabled)).toBe(true);
+    expect(listRules(U, db).some((rule) => rule.name === "Funding rounds" && !rule.enabled)).toBe(true);
   });
 });

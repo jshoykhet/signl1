@@ -21,6 +21,7 @@ import {
 } from "./blocked";
 import {
   parseBoolMeta,
+  parseDeskMode,
   parseDigestMinutes,
   parseMinLikes,
   parseSignalLevel,
@@ -32,6 +33,8 @@ import {
   type DeskFilterSettings,
   type WhatsAppCadenceSettings,
 } from "./desk-settings";
+import type { DeskMode } from "./desk-mode";
+import { otherSeedRuleNames, seedRulesForMode } from "./seed-rules";
 import { passesSignalFilter, type AuthorPrior, type UserLabel } from "./signal-filter";
 import { chunkTickersForQuery, compileCashtagQuery, normalizeTickers } from "./tickers";
 import type { Match, NormalizedTweet, Rule, RuleInput, StatusSnapshot, WatchlistSnapshot } from "./types";
@@ -247,6 +250,7 @@ function ensureColumn(db: Database.Database, table: string, column: string, spec
 }
 
 const DESK_META_KEYS = [
+  "desk_mode",
   "desk_kol_only",
   "desk_signal_level",
   "desk_allow_fresh",
@@ -451,6 +455,7 @@ export function getKolSpec(userId: string, db = getDb()): KolSpec {
   return {
     KOL_HANDLES: process.env.KOL_HANDLES,
     KOL_HANDLES_MODE: process.env.KOL_HANDLES_MODE,
+    deskMode: parseDeskMode(getUserMeta(userId, "desk_mode", db)),
     added: parseHandleList(getUserMeta(userId, "kol_added", db)),
     removed: parseHandleList(getUserMeta(userId, "kol_removed", db)),
   };
@@ -488,6 +493,7 @@ export function listAuthorFollowerCounts(userId: string, db = getDb()): Map<stri
 
 export function getDeskFilterSettings(userId: string, db = getDb()): DeskFilterSettings {
   return {
+    deskMode: parseDeskMode(getUserMeta(userId, "desk_mode", db)),
     kolOnly: parseBoolMeta(getUserMeta(userId, "desk_kol_only", db), false),
     signalLevel: parseSignalLevel(getUserMeta(userId, "desk_signal_level", db)),
     allowFresh: parseBoolMeta(getUserMeta(userId, "desk_allow_fresh", db), true),
@@ -580,36 +586,6 @@ function recomputeAuthorQuality(handle: string, userId: string, db: Database.Dat
   }
 }
 
-const SEED_RULES: RuleInput[] = [
-  {
-    name: "Fed Watch",
-    enabled: true,
-    queryInput: '(FOMC OR "interest rate" OR "fed funds" OR Powell) lang:en -is:retweet',
-    accounts: [],
-    pollIntervalMs: DEFAULT_POLL_INTERVAL_MS,
-    slackWebhookUrl: null,
-    genericWebhookUrl: null,
-  },
-  {
-    name: "Mag 7 tape",
-    enabled: true,
-    queryInput: "(earnings OR guidance OR GPU OR AI) lang:en -is:retweet",
-    accounts: ["nvidia", "apple", "meta", "microsoft"],
-    pollIntervalMs: DEFAULT_POLL_INTERVAL_MS,
-    slackWebhookUrl: null,
-    genericWebhookUrl: null,
-  },
-  {
-    name: "Crude & OPEC",
-    enabled: true,
-    queryInput: '(OPEC OR "crude oil" OR WTI OR Brent) lang:en -is:retweet',
-    accounts: [],
-    pollIntervalMs: DEFAULT_POLL_INTERVAL_MS,
-    slackWebhookUrl: null,
-    genericWebhookUrl: null,
-  },
-];
-
 function seedAllowedEmailsFromEnv(db: Database.Database) {
   const insert = db.prepare(
     "INSERT OR IGNORE INTO allowed_emails (email, invited_at, invited_by) VALUES (?, ?, 'env')",
@@ -626,7 +602,7 @@ function seedIfNeeded(db: Database.Database) {
   db.prepare("INSERT OR IGNORE INTO meta (key, value) VALUES ('instance_initialized', ?)").run(nowIso());
 }
 
-function insertSeedRules(userId: string, db: Database.Database) {
+function insertSeedRules(userId: string, db: Database.Database, mode: DeskMode = "markets") {
   const insert = db.prepare(`
     INSERT INTO rules (
       id, user_id, name, enabled, query, query_input, accounts_json, poll_interval_ms,
@@ -637,7 +613,7 @@ function insertSeedRules(userId: string, db: Database.Database) {
     )
   `);
   const ts = nowIso();
-  for (const rule of SEED_RULES) {
+  for (const rule of seedRulesForMode(mode)) {
     const accounts = normalizeAccounts(rule.accounts);
     insert.run({
       id: crypto.randomUUID(),
@@ -802,6 +778,26 @@ export function updateRule(id: string, input: Partial<RuleInput>, userId: string
     userId,
   );
   return getRule(id, userId, db)!;
+}
+
+function applySeedPack(userId: string, mode: DeskMode, db: Database.Database) {
+  const wanted = seedRulesForMode(mode);
+  const otherNames = otherSeedRuleNames(mode);
+  const rules = listRules(userId, db).filter((rule) => rule.kind !== "watchlist");
+  const byName = new Map(rules.map((rule) => [rule.name, rule]));
+  for (const rule of rules) {
+    if (otherNames.has(rule.name) && rule.enabled) {
+      updateRule(rule.id, { enabled: false }, userId, db);
+    }
+  }
+  for (const seed of wanted) {
+    const existing = byName.get(seed.name);
+    if (existing) {
+      if (!existing.enabled) updateRule(existing.id, { enabled: true }, userId, db);
+    } else {
+      createRule(userId, { ...seed, enabled: true }, db);
+    }
+  }
 }
 
 export function deleteRule(id: string, userId: string, db = getDb()): boolean {
@@ -1028,6 +1024,15 @@ export function isWhatsAppEnabled(userId: string, db = getDb()): boolean {
 }
 
 export function setDeskFilterSettings(userId: string, input: DeskFilterPatch, db = getDb()): DeskFilterSettings {
+  if (input.deskMode) {
+    const next = parseDeskMode(input.deskMode);
+    const prev = parseDeskMode(getUserMeta(userId, "desk_mode", db));
+    setUserMeta(userId, "desk_mode", next, db);
+    if (next !== prev) {
+      applySeedPack(userId, next, db);
+      requestManualPoll(db);
+    }
+  }
   if (typeof input.kolOnly === "boolean") setUserMeta(userId, "desk_kol_only", input.kolOnly ? "1" : "0", db);
   if (input.signalLevel) setUserMeta(userId, "desk_signal_level", parseSignalLevel(input.signalLevel), db);
   if (typeof input.allowFresh === "boolean") setUserMeta(userId, "desk_allow_fresh", input.allowFresh ? "1" : "0", db);

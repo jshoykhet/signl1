@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDeskFilterSettings, setDeskFilterSettings } from "@/lib/db";
-import { parseMinLikes, parseSignalLevel, type DeskFilterPatch, type SignalLevel } from "@/lib/desk-settings";
+import { parseDeskMode, parseMinLikes, parseSignalLevel, type DeskFilterPatch, type SignalLevel } from "@/lib/desk-settings";
+import type { DeskMode } from "@/lib/desk-mode";
 import { requireDeskUser } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -16,6 +17,7 @@ export async function PUT(request: Request) {
   const desk = await requireDeskUser();
   if (!desk.ok) return desk.response;
   const body = (await request.json().catch(() => ({}))) as {
+    deskMode?: DeskMode;
     kolOnly?: boolean;
     signalLevel?: SignalLevel;
     allowFresh?: boolean;
@@ -25,6 +27,7 @@ export async function PUT(request: Request) {
     hideMessagingApps?: boolean;
   };
   const patch: DeskFilterPatch = {};
+  if (typeof body.deskMode === "string") patch.deskMode = parseDeskMode(body.deskMode);
   if (typeof body.kolOnly === "boolean") patch.kolOnly = body.kolOnly;
   if (typeof body.signalLevel === "string") patch.signalLevel = parseSignalLevel(body.signalLevel);
   if (typeof body.allowFresh === "boolean") patch.allowFresh = body.allowFresh;

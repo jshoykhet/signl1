@@ -1,7 +1,11 @@
+import { parseDeskMode, type DeskMode } from "./desk-mode";
+import { VENTURE_KOL_HANDLES } from "./venture-kol";
+
 /**
  * Key Network Nodes whose posts skip engagement floors and get a desk
- * priority bump. Seeded from a markets-desk follow list (wires, squawk,
- * All-In, CNBC/FT talent, official desks). Extra handles come from KOL_HANDLES.
+ * priority bump. Markets seeds wires, squawk, All-In, CNBC/FT talent, and
+ * official desks. Venture seeds funds, startup reporters, and tech wires.
+ * Extra handles come from KOL_HANDLES.
  *
  * KOL_HANDLES: comma, space, or newline separated; @ is optional.
  * KOL_HANDLES_MODE: append (default) unions env with the seed; replace uses only env.
@@ -112,6 +116,10 @@ export const DEFAULT_KOL_HANDLES: readonly string[] = [
   "BIS_org",
 ];
 
+export function seedKolHandles(mode: DeskMode = "markets"): readonly string[] {
+  return mode === "venture" ? VENTURE_KOL_HANDLES : DEFAULT_KOL_HANDLES;
+}
+
 export function parseHandleList(raw: string | undefined | null): string[] {
   if (!raw?.trim()) return [];
   return raw
@@ -141,6 +149,7 @@ export type KolEnv = {
 export type KolSpec = KolEnv & {
   added?: string[];
   removed?: string[];
+  deskMode?: DeskMode | string | null;
 };
 
 export function loadKolHandleSet(spec: KolSpec = {}): Set<string> {
@@ -148,7 +157,8 @@ export function loadKolHandleSet(spec: KolSpec = {}): Set<string> {
   const added = (spec.added ?? []).map(normalizeHandle);
   const removed = new Set((spec.removed ?? []).map(normalizeHandle).filter(Boolean));
   const mode = (spec.KOL_HANDLES_MODE ?? "append").trim().toLowerCase();
-  const seed = DEFAULT_KOL_HANDLES.map(normalizeHandle).filter((h) => !removed.has(h));
+  const deskMode = parseDeskMode(typeof spec.deskMode === "string" ? spec.deskMode : undefined);
+  const seed = seedKolHandles(deskMode).map(normalizeHandle).filter((h) => !removed.has(h));
   const merged =
     mode === "replace"
       ? [...extra.map(normalizeHandle), ...added]
@@ -162,6 +172,7 @@ function cacheKey(spec: KolSpec): string {
   return [
     spec.KOL_HANDLES ?? "",
     spec.KOL_HANDLES_MODE ?? "",
+    parseDeskMode(typeof spec.deskMode === "string" ? spec.deskMode : undefined),
     (spec.added ?? []).join(","),
     (spec.removed ?? []).join(","),
   ].join("|");
@@ -198,6 +209,7 @@ export function isSeedOrEnvHandle(handle: string, spec: KolSpec = {}): boolean {
   const baseline = loadKolHandleSet({
     KOL_HANDLES: spec.KOL_HANDLES,
     KOL_HANDLES_MODE: spec.KOL_HANDLES_MODE,
+    deskMode: spec.deskMode,
     added: [],
     removed: [],
   });
@@ -209,6 +221,7 @@ export function listKolRows(spec: KolSpec = process.env as KolSpec): KolRow[] {
   const baseline = loadKolHandleSet({
     KOL_HANDLES: spec.KOL_HANDLES,
     KOL_HANDLES_MODE: spec.KOL_HANDLES_MODE,
+    deskMode: spec.deskMode,
     added: [],
     removed: [],
   });

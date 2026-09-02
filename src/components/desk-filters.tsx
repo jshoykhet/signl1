@@ -14,6 +14,7 @@ import {
   type DeskFilterSettings,
   type SignalLevel,
 } from "@/lib/desk-settings";
+import { DESK_MODES, signalLevelHint, type DeskMode } from "@/lib/desk-mode";
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -56,6 +57,14 @@ export function DeskFilters() {
       setFilters(data);
       setLikesDraft(String(data.minLikes));
       setLikesLive(data.minLikes);
+      if (patch.deskMode) {
+        window.dispatchEvent(new CustomEvent("signal1:desk-mode", { detail: data.deskMode }));
+        toast.success(
+          data.deskMode === "venture"
+            ? "Venture desk on — funding and launch rules are live"
+            : "Markets desk on — Fed, Mag 7, and crude rules are live",
+        );
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not save desk filters");
     } finally {
@@ -71,18 +80,43 @@ export function DeskFilters() {
     if (filters && next !== filters.minLikes) void save({ minLikes: next });
   };
 
-  const floors = filters ? SIGNAL_LEVELS[filters.signalLevel] : SIGNAL_LEVELS.standard;
+  const mode = filters?.deskMode ?? "markets";
   const sliderValue = Math.min(MIN_LIKES_SLIDER_MAX, likesLive);
+  const footer =
+    mode === "venture"
+      ? "Venture keeps funding rounds, launches, M&A, and sourced tech announcements. Founder lifestyle and dunks are dropped. Hide crypto only drops memecoins and airdrops — sector news still prints. Hide chat apps drops Telegram and WhatsApp. High labels still come through."
+      : "The tape keeps news and analysis: prints vs expected, filings, policy, sourced takes. Cashtag-only posts and dunks are dropped. Hide crypto keeps listed names like $COIN and $MSTR. Hide chat apps drops Telegram and WhatsApp. High labels still come through.";
 
   return (
-    <SettingsGroup
-      title="Desk tape"
-      footer="The tape keeps news and analysis: prints vs expected, filings, policy, sourced takes. Cashtag-only posts and dunks are dropped. Hide crypto keeps listed names like $COIN and $MSTR. Hide chat apps drops Telegram and WhatsApp. High labels still come through."
-    >
+    <SettingsGroup title="Desk tape" footer={footer}>
       {!filters ? (
         <div className="px-4 py-3.5 text-[15px] text-muted-foreground">Loading filters…</div>
       ) : (
         <>
+          <Row label="Desk">
+            <div className="grid gap-2">
+              <div className="flex rounded-full bg-muted p-0.5">
+                {(Object.keys(DESK_MODES) as DeskMode[]).map((id) => (
+                  <button
+                    key={id}
+                    type="button"
+                    disabled={busy}
+                    onClick={() => {
+                      if (filters.deskMode !== id) void save({ deskMode: id });
+                    }}
+                    className={
+                      filters.deskMode === id
+                        ? "flex-1 rounded-full bg-background px-3 py-1.5 text-[13px] font-medium text-foreground shadow-sm"
+                        : "flex-1 rounded-full px-3 py-1.5 text-[13px] text-muted-foreground"
+                    }
+                  >
+                    {DESK_MODES[id].label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[13px] leading-relaxed text-muted-foreground">{DESK_MODES[mode].hint}</p>
+            </div>
+          </Row>
           <Row label="Nodes only">
             <div className="flex items-center justify-end gap-3 sm:justify-start">
               <Switch
@@ -111,7 +145,9 @@ export function DeskFilters() {
                   </button>
                 ))}
               </div>
-              <p className="text-[13px] leading-relaxed text-muted-foreground">{floors.hint}</p>
+              <p className="text-[13px] leading-relaxed text-muted-foreground">
+                {signalLevelHint(filters.signalLevel, mode)}
+              </p>
             </div>
           </Row>
           <Row label="Recent tweets">

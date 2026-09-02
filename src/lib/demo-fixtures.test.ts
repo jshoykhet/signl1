@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { compileQuery, matchesQuery } from "./query";
 import { compileCashtagQuery } from "./tickers";
-import { DEMO_FIXTURES, fixtureToTweet } from "./demo-fixtures";
+import { DEMO_FIXTURES, VENTURE_DEMO_FIXTURES, fixtureToTweet } from "./demo-fixtures";
 import { passesSignalFilter } from "./signal-filter";
+import { VENTURE_SEED_RULES } from "./seed-rules";
 
 const SEED_QUERIES = [
   compileQuery({
@@ -50,6 +51,23 @@ describe("demo fixtures", () => {
       expect(passesSignalFilter(tweet).pass, fixture.authorHandle).toBe(true);
       expect(tweet.followersCount).toBeGreaterThanOrEqual(50);
       expect(tweet.likeCount).toBeGreaterThanOrEqual(5);
+    }
+  });
+});
+
+describe("venture demo fixtures", () => {
+  it("covers each venture seed rule with at least two matches", () => {
+    for (const rule of VENTURE_SEED_RULES) {
+      const query = compileQuery({ query: rule.queryInput, accounts: rule.accounts });
+      const hits = VENTURE_DEMO_FIXTURES.filter((fixture) => matchesQuery(fixture, query));
+      expect(hits.length, `expected hits for ${query}`).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it("passes the venture quality filter", () => {
+    for (const fixture of VENTURE_DEMO_FIXTURES) {
+      const tweet = fixtureToTweet(fixture, fixture.id, fixture.createdAt);
+      expect(passesSignalFilter(tweet, Date.now(), { deskMode: "venture" }).pass, fixture.authorHandle).toBe(true);
     }
   });
 });

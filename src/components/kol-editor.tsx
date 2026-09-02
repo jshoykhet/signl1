@@ -25,6 +25,7 @@ type KolSnapshot = {
   added: string[];
   removed: string[];
   seedCount: number;
+  deskMode?: "markets" | "venture";
   items: KolItem[];
 };
 
@@ -54,6 +55,11 @@ export function KolEditor() {
 
   useEffect(() => {
     void load().catch((err) => toast.error(err instanceof Error ? err.message : "Failed to load Key Network Nodes"));
+    const onMode = () => {
+      void load().catch(() => undefined);
+    };
+    window.addEventListener("signal1:desk-mode", onMode);
+    return () => window.removeEventListener("signal1:desk-mode", onMode);
   }, []);
 
   const save = async (body: { add?: string; remove?: string; reset?: boolean }, success?: string) => {
@@ -133,9 +139,10 @@ export function KolEditor() {
       ) : (
         <div className="grid gap-3 px-4 py-3.5">
           <p className="text-[13px] leading-relaxed text-muted-foreground">
-            Seeded with {kol.seedCount} markets-desk handles. These accounts skip the like floor and get a desk bump
-            unless Require likes is on. Click a handle to open the X profile. Follower counts come from posts Signal1
-            has already ingested — accounts with no match yet show —.
+            Seeded with {kol.seedCount} {kol.deskMode === "venture" ? "venture, startup, and tech-news" : "markets-desk"}{" "}
+            handles. These accounts skip the like floor and get a desk bump unless Require likes is on. Click a handle
+            to open the X profile. Follower counts come from posts Signal1 has already ingested — accounts with no match
+            yet show —. Switching desk mode on Desk tape swaps this seed.
           </p>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">

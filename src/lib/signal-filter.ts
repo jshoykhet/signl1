@@ -1,6 +1,7 @@
 import { isCryptoNoise, isMessagingPromo } from "./content-filters";
 import { scoreDeskRelevance } from "./desk-relevance";
 import { DEFAULT_MIN_LIKES, SIGNAL_LEVELS, type SignalLevel } from "./desk-settings";
+import type { DeskMode } from "./desk-mode";
 import { isKolHandle } from "./kol";
 
 export const MIN_FOLLOWERS = 50;
@@ -50,6 +51,7 @@ export type SignalContext = {
   minLikes?: number | null;
   hideCrypto?: boolean;
   hideMessagingApps?: boolean;
+  deskMode?: DeskMode;
   kol?: boolean;
   blocked?: boolean;
 };
@@ -151,7 +153,8 @@ export function passesSignalFilter(
   const allowFresh = ctx.allowFresh !== false;
   const requireEngagement = ctx.requireEngagement === true;
   const kolOnly = ctx.kolOnly === true;
-  const desk = scoreDeskRelevance(q.text ?? "", { isReply: q.isReply === true });
+  const deskMode = ctx.deskMode ?? "markets";
+  const desk = scoreDeskRelevance(q.text ?? "", { isReply: q.isReply === true, mode: deskMode });
   const baseScore = signalScore(q);
   const score = clamp(baseScore + prior.scoreDelta + (kol ? KOL_SCORE_BONUS : 0), 0, 100);
   const establishedFresh = isEstablishedFresh(q, now, level.freshMs);
@@ -234,7 +237,7 @@ export function passesSignalFilter(
       deskScore: desk.score,
     };
   }
-  if (hideCrypto && isCryptoNoise(q.text ?? "", q.authorHandle)) {
+  if (hideCrypto && isCryptoNoise(q.text ?? "", q.authorHandle, deskMode)) {
     return {
       pass: false,
       score,
