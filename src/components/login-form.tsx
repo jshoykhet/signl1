@@ -5,6 +5,7 @@ import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DEV_PREVIEW_EMAIL } from "@/lib/dev-preview";
 
 const ERRORS: Record<string, string> = {
   AccessDenied:
@@ -47,6 +48,31 @@ function GoogleMark() {
   );
 }
 
+export function SkipSignInButton({
+  callbackUrl = "/",
+  className,
+  children,
+}: {
+  callbackUrl?: string;
+  className?: string;
+  children?: React.ReactNode;
+}) {
+  const [pending, setPending] = useState(false);
+  return (
+    <button
+      type="button"
+      className={className}
+      disabled={pending}
+      onClick={() => {
+        setPending(true);
+        void signIn("dev", { email: DEV_PREVIEW_EMAIL, callbackUrl });
+      }}
+    >
+      {pending ? "Opening…" : (children ?? "Skip sign-in")}
+    </button>
+  );
+}
+
 export function LoginForm({
   googleConfigured,
   devLogin,
@@ -61,7 +87,7 @@ export function LoginForm({
   publicSignup?: boolean;
 }) {
   const [email, setEmail] = useState("");
-  const [pending, setPending] = useState<"google" | "dev" | null>(null);
+  const [pending, setPending] = useState<"google" | "dev" | "skip" | null>(null);
   const error = useMemo(() => {
     if (!errorCode) return null;
     const table = publicSignup ? { ...ERRORS, ...PUBLIC_ERRORS } : ERRORS;
@@ -81,6 +107,11 @@ export function LoginForm({
     await signIn("dev", { email, callbackUrl });
   }
 
+  async function onSkip() {
+    setPending("skip");
+    await signIn("dev", { email: DEV_PREVIEW_EMAIL, callbackUrl });
+  }
+
   return (
     <div className="space-y-4">
       {error ? (
@@ -96,6 +127,23 @@ export function LoginForm({
         </div>
       ) : null}
 
+      {devLogin ? (
+        <div className="space-y-2">
+          <Button
+            type="button"
+            size="lg"
+            className="w-full"
+            onClick={() => void onSkip()}
+            disabled={pending !== null}
+          >
+            {pending === "skip" ? "Opening desk…" : "Skip sign-in"}
+          </Button>
+          <p className="text-[13px] leading-relaxed text-muted-foreground">
+            Opens this host’s preview desk. Google and a desk email still work below if you need a separate account.
+          </p>
+        </div>
+      ) : null}
+
       {googleConfigured ? (
         <Button
           type="button"
@@ -108,7 +156,7 @@ export function LoginForm({
           <GoogleMark />
           {pending === "google" ? "Redirecting to Google…" : "Continue with Google"}
         </Button>
-      ) : (
+      ) : devLogin ? null : (
         <p className="text-[13px] leading-relaxed text-muted-foreground">
           Google sign-in is off until <code className="font-mono">GOOGLE_CLIENT_ID</code> and{" "}
           <code className="font-mono">GOOGLE_CLIENT_SECRET</code> are set. Production should use Google only —
@@ -116,10 +164,10 @@ export function LoginForm({
         </p>
       )}
 
-      {googleConfigured && devLogin ? (
+      {devLogin ? (
         <div className="flex items-center gap-3 text-[13px] text-muted-foreground">
           <span className="h-px flex-1 bg-border" />
-          or local desk
+          or another account
           <span className="h-px flex-1 bg-border" />
         </div>
       ) : null}
@@ -138,7 +186,7 @@ export function LoginForm({
               placeholder="you@desk.com"
             />
           </div>
-          <Button type="submit" size="lg" className="w-full" disabled={pending !== null}>
+          <Button type="submit" size="lg" variant="outline" className="w-full" disabled={pending !== null}>
             {pending === "dev" ? "Signing in…" : "Sign in with email"}
           </Button>
           <p className="text-[13px] leading-relaxed text-muted-foreground">

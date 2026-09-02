@@ -1,4 +1,4 @@
-import { LoginForm } from "@/components/login-form";
+import { LoginForm, SkipSignInButton } from "@/components/login-form";
 
 export function MarketingHome({
   googleConfigured,
@@ -24,12 +24,21 @@ export function MarketingHome({
           />
           <span className="text-[17px] font-semibold tracking-[-0.02em]">Signal1</span>
         </div>
-        <a
-          href="#start"
-          className="rounded-full bg-foreground px-4 py-2 text-[13px] font-medium text-background"
-        >
-          Get your desk
-        </a>
+        {devLogin ? (
+          <SkipSignInButton
+            callbackUrl="/"
+            className="rounded-full bg-foreground px-4 py-2 text-[13px] font-medium text-background disabled:opacity-60"
+          >
+            Skip sign-in
+          </SkipSignInButton>
+        ) : (
+          <a
+            href="#start"
+            className="rounded-full bg-foreground px-4 py-2 text-[13px] font-medium text-background"
+          >
+            Get your desk
+          </a>
+        )}
       </header>
 
       <main className="mx-auto w-full max-w-5xl px-5 pb-16 pt-6 md:pt-16">
@@ -64,12 +73,14 @@ export function MarketingHome({
 
           <div id="start" className="rounded-3xl bg-card p-6 shadow-sm ring-1 ring-border">
             <h2 className="text-[20px] font-semibold tracking-[-0.02em]">
-              {publicSignup ? "Create your desk" : "Sign in"}
+              {devLogin ? "Open the desk" : publicSignup ? "Create your desk" : "Sign in"}
             </h2>
             <p className="mt-1.5 mb-5 text-[15px] leading-snug text-muted-foreground">
-              {publicSignup
-                ? "Google sign-in is enough. No invite code. Your inbox stays private to this account."
-                : "Use the Google account an admin invited on Settings → Access."}
+              {devLogin
+                ? "Skip sign-in for this preview. Google still works if you want a separate account."
+                : publicSignup
+                  ? "Google sign-in is enough. No invite code. Your inbox stays private to this account."
+                  : "Use the Google account an admin invited on Settings → Access."}
             </p>
             <LoginForm
               googleConfigured={googleConfigured}

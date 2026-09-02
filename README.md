@@ -32,7 +32,7 @@ Leave `X_BEARER_TOKEN` empty for **demo mode**. Signal1 injects fixture posts fo
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Prod | Google OAuth Web client. Redirect URI is `https://<domain>/api/auth/callback/google`. |
 | `AUTH_SECRET` | Prod | Session secret (`openssl rand -base64 32`). Optional locally. |
 | `AUTH_URL` | Prod | Public desk URL, e.g. `https://signals.example.com`. |
-| `AUTH_DEV_LOGIN` | No | `1` enables a passwordless email field for local preview. Production Compose forces `0`. |
+| `AUTH_DEV_LOGIN` | No | `1` enables a passwordless email field and a **Skip sign-in** button for local preview. Production Compose forces `0`. |
 | `AUTH_PUBLIC_SIGNUP` | Prod | `1` (default in Compose) lets any Google account create a private desk. `0` is invite-only. |
 | `AUTH_ALLOWED_EMAILS` | Invite-only | Comma-separated Google accounts allowed to join when `AUTH_PUBLIC_SIGNUP=0`. |
 | `DOMAIN` | Prod | Hostname for `docker-compose.prod.yml` + Caddy. |
