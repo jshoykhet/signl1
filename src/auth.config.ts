@@ -27,7 +27,12 @@ function requestOrigin(request: { nextUrl: URL; headers: Headers }): string {
 }
 
 function isPublicPath(pathname: string): boolean {
-  return pathname === "/" || pathname === "/login" || pathname.startsWith("/api/auth");
+  return (
+    pathname === "/" ||
+    pathname === "/login" ||
+    pathname === "/logout" ||
+    pathname.startsWith("/api/auth")
+  );
 }
 
 /** Edge session has email/name from the JWT; custom `user.id` is only filled in Node. */

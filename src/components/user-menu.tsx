@@ -1,6 +1,6 @@
 "use client";
 
-import { signOut, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { LogOut } from "lucide-react";
 import {
   DropdownMenu,
@@ -59,7 +59,7 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
         <DropdownMenuItem
           variant="destructive"
           onClick={() => {
-            void signOut({ callbackUrl: "/" });
+            window.location.assign("/logout");
           }}
         >
           <LogOut />
