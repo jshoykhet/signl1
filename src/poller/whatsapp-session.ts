@@ -303,7 +303,21 @@ function destinationForSend(): string | null {
   return toOwnChatJid(self);
 }
 
-export async function sendWhatsAppText(
+let sendTail: Promise<void> = Promise.resolve();
+
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([
+    promise.finally(() => {
+      if (timer) clearTimeout(timer);
+    }),
+    new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(message)), ms);
+    }),
+  ]);
+}
+
+async function sendWhatsAppTextNow(
   text: string,
   options: { mustBeLinked?: boolean } = {},
 ): Promise<void> {
@@ -315,24 +329,49 @@ export async function sendWhatsAppText(
     if (options.mustBeLinked) {
       throw new Error("WhatsApp is still connecting. Wait until status is Linked, then send the test.");
     }
-    return;
+    reconnectNow();
+    throw new Error("WhatsApp socket is not ready");
   }
   const to = destinationForSend();
   if (!to) {
     if (options.mustBeLinked) throw new Error("Set a WhatsApp destination number on Settings");
     return;
   }
-  const jid = await resolveDestinationJid(to);
-  const sent = await Promise.race([
-    sock!.sendMessage(jid, { text }),
-    new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error("WhatsApp send timed out after 20s")), 20_000);
-    }),
-  ]);
-  console.log(`[whatsapp] sent to ${jid}${sent?.key?.id ? ` id=${sent.key.id}` : ""}`);
-  setMeta("whatsapp_last_sent_at", isoNow());
-  setMeta("whatsapp_last_sent_to", jid);
-  setMeta("whatsapp_error", "");
+  try {
+    const sent = await withTimeout(
+      (async () => {
+        const jid = await resolveDestinationJid(to);
+        const result = await sock!.sendMessage(jid, { text });
+        return { jid, result };
+      })(),
+      12_000,
+      "WhatsApp send timed out after 12s",
+    );
+    console.log(`[whatsapp] sent to ${sent.jid}${sent.result?.key?.id ? ` id=${sent.result.key.id}` : ""}`);
+    setMeta("whatsapp_last_sent_at", isoNow());
+    setMeta("whatsapp_last_sent_to", sent.jid);
+    setMeta("whatsapp_error", "");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    setMeta("whatsapp_error", message);
+    if (/timed out|not ready|closed|Connection/i.test(message)) {
+      writeStatus("connecting", { error: message });
+      reconnectNow();
+    }
+    throw error;
+  }
+}
+
+export async function sendWhatsAppText(
+  text: string,
+  options: { mustBeLinked?: boolean } = {},
+): Promise<void> {
+  const run = sendTail.then(() => sendWhatsAppTextNow(text, options));
+  sendTail = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
 }
 
 async function pumpCommands() {

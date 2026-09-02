@@ -27,6 +27,15 @@ describe("WhatsApp JIDs", () => {
     expect(isWhatsAppSocketReady(null)).toBe(false);
   });
 
+  it("treats a closed websocket as not ready", () => {
+    expect(
+      isWhatsAppSocketReady({ user: { id: "19177334993:1@s.whatsapp.net" }, ws: { readyState: 3 } }),
+    ).toBe(false);
+    expect(
+      isWhatsAppSocketReady({ user: { id: "19177334993:1@s.whatsapp.net" }, ws: { isOpen: false } }),
+    ).toBe(false);
+  });
+
   it("matches the linked device JID to a destination number", () => {
     expect(isSameWhatsAppUser("19177334993:2@s.whatsapp.net", "19177334993")).toBe(true);
     expect(isSameWhatsAppUser("19177334993@s.whatsapp.net", "15551234567")).toBe(false);

@@ -147,6 +147,12 @@ function parseSearchPayload(payload: unknown): { tweets: NormalizedTweet[]; newe
   };
 }
 
+const X_FETCH_TIMEOUT_MS = 15_000;
+
+async function readBody(res: Response): Promise<string> {
+  return res.text();
+}
+
 export async function recentSearch(opts: {
   bearerToken: string;
   query: string;
@@ -170,30 +176,30 @@ export async function recentSearch(opts: {
     authorization: `Bearer ${opts.bearerToken}`,
     "user-agent": "signal-selfhost/1.0",
   };
+  const primary = `${X_SEARCH_URL}?${params.toString()}`;
+  const fallback = `${X_SEARCH_URL_FALLBACK}?${params.toString()}`;
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 15_000);
+  const signal = AbortSignal.timeout(X_FETCH_TIMEOUT_MS);
   let res: Response;
   try {
-    res = await fetch(`${X_SEARCH_URL}?${params.toString()}`, { headers, signal: controller.signal });
+    res = await fetch(primary, { headers, signal });
     if (res.status === 404 || res.status === 530) {
-      res = await fetch(`${X_SEARCH_URL_FALLBACK}?${params.toString()}`, { headers, signal: controller.signal });
+      res = await fetch(fallback, { headers, signal });
     }
   } catch (error) {
-    clearTimeout(timer);
+    if (signal.aborted) {
+      opts.limiter.noteError();
+      throw new Error("X API request timed out after 15s");
+    }
     try {
-      res = await fetch(`${X_SEARCH_URL_FALLBACK}?${params.toString()}`, {
-        headers,
-        signal: AbortSignal.timeout(15_000),
-      });
+      res = await fetch(fallback, { headers, signal: AbortSignal.timeout(X_FETCH_TIMEOUT_MS) });
     } catch {
       opts.limiter.noteError();
-      throw error;
+      throw error instanceof Error ? error : new Error(String(error));
     }
-  } finally {
-    clearTimeout(timer);
   }
 
+  const raw = await readBody(res);
   const rateLimit: RateLimitInfo = {
     remaining: headerInt(res.headers, "x-rate-limit-remaining"),
     limit: headerInt(res.headers, "x-rate-limit-limit"),
@@ -205,16 +211,21 @@ export async function recentSearch(opts: {
 
   if (res.status === 429) {
     opts.limiter.note429(res.headers);
-    const text = await res.text();
-    throw new Error(`X API rate limited (429). ${text.slice(0, 200)}`);
+    throw new Error(`X API rate limited (429). ${raw.slice(0, 200)}`);
   }
   if (!res.ok) {
     opts.limiter.noteError();
-    const text = await res.text();
-    throw new Error(`X API ${res.status}: ${text.slice(0, 300)}`);
+    throw new Error(`X API ${res.status}: ${raw.slice(0, 300)}`);
   }
 
   opts.limiter.noteHeaders(res.headers);
-  const parsed = parseSearchPayload(await res.json());
+  let payload: unknown = {};
+  try {
+    payload = raw ? JSON.parse(raw) : {};
+  } catch {
+    opts.limiter.noteError();
+    throw new Error("X API returned invalid JSON");
+  }
+  const parsed = parseSearchPayload(payload);
   return { ...parsed, rateLimit, status: res.status };
 }

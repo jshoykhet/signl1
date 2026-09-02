@@ -39,11 +39,12 @@ export async function notifyMatch(rule: Rule, tweet: NormalizedTweet): Promise<s
   }
   const cadence = getWhatsAppCadenceSettings();
   if (whatsappSender && isWhatsAppEnabled() && cadence.alertMode === "immediate") {
-    try {
-      await whatsappSender(buildWhatsAppText(rule, tweet));
-    } catch (error) {
-      errors.push(`whatsapp: ${error instanceof Error ? error.message : String(error)}`);
-    }
+    const text = buildWhatsAppText(rule, tweet);
+    void whatsappSender(text).catch((error) => {
+      console.warn(
+        `[poller] notify failed for ${rule.name}: whatsapp: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    });
   }
   return errors;
 }

@@ -91,8 +91,19 @@ export function isSameWhatsAppUser(a: string, b: string): boolean {
 }
 
 /** Open sockets expose `user` even when Baileys leaves `creds.registered` false. */
-export function isWhatsAppSocketReady(sock: { user?: { id?: string } | null } | null | undefined): boolean {
-  return Boolean(sock?.user?.id);
+export function isWhatsAppSocketReady(
+  sock:
+    | {
+        user?: { id?: string } | null;
+        ws?: { isOpen?: boolean; readyState?: number } | null;
+      }
+    | null
+    | undefined,
+): boolean {
+  if (!sock?.user?.id) return false;
+  if (sock.ws && sock.ws.isOpen === false) return false;
+  if (sock.ws && typeof sock.ws.readyState === "number" && sock.ws.readyState !== 1) return false;
+  return true;
 }
 
 export function buildWhatsAppText(
