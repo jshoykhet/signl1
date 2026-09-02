@@ -30,9 +30,11 @@ export default async function LoginPage({
             height={72}
             className="size-[72px] rounded-[22px] shadow-lg ring-1 ring-amber-400/25"
           />
-          <h1 className="mt-5 text-[28px] font-semibold tracking-[-0.022em]">Signal1</h1>
-          <p className="mt-1 text-[15px] text-muted-foreground">
-            {isPublicSignup() ? "Sign in to your private desk" : "Sign in to Signal1"}
+          <h1 className="mt-5 text-[28px] font-semibold tracking-[-0.022em]">
+            Signal1: Filter Signal from the Timeline
+          </h1>
+          <p className="mt-2 text-[15px] leading-snug text-muted-foreground">
+            Build your own custom X timeline that sends regular WhatsApp updates direct to you.
           </p>
         </div>
         <div className="rounded-3xl bg-card p-6 shadow-sm ring-1 ring-border">

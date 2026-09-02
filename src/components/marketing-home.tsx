@@ -44,16 +44,11 @@ export function MarketingHome({
       <main className="mx-auto w-full max-w-5xl px-5 pb-16 pt-6 md:pt-16">
         <div className="grid items-start gap-12 lg:grid-cols-[1.15fr_0.85fr]">
           <div>
-            <p className="text-[13px] font-medium uppercase tracking-[0.14em] text-amber-700 dark:text-amber-300">
-              X alerts for research operators
-            </p>
-            <h1 className="mt-3 max-w-xl text-[40px] leading-[1.08] font-semibold tracking-[-0.035em] md:text-[52px]">
-              Your own tape. Not a shared inbox.
+            <h1 className="max-w-xl text-[40px] leading-[1.08] font-semibold tracking-[-0.035em] md:text-[52px]">
+              Signal1: Filter Signal from the Timeline
             </h1>
             <p className="mt-5 max-w-xl text-[17px] leading-relaxed text-muted-foreground">
-              {publicSignup
-                ? "Sign in with Google. Signal1 gives you a private desk: watch rules, a cashtag watchlist, and WhatsApp or Slack when something hits. Other people on this host cannot see your matches."
-                : "This host is invite-only. If an admin added your Google account, sign in below to open your private desk."}
+              Build your own custom X timeline that sends regular WhatsApp updates direct to you.
             </p>
             <ul className="mt-8 grid gap-3 text-[15px] text-muted-foreground sm:grid-cols-2">
               <li className="rounded-2xl bg-card px-4 py-3 ring-1 ring-border">
