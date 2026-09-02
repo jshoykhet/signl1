@@ -323,7 +323,12 @@ export async function sendWhatsAppText(
     return;
   }
   const jid = await resolveDestinationJid(to);
-  const sent = await sock!.sendMessage(jid, { text });
+  const sent = await Promise.race([
+    sock!.sendMessage(jid, { text }),
+    new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error("WhatsApp send timed out after 20s")), 20_000);
+    }),
+  ]);
   console.log(`[whatsapp] sent to ${jid}${sent?.key?.id ? ` id=${sent.key.id}` : ""}`);
   setMeta("whatsapp_last_sent_at", isoNow());
   setMeta("whatsapp_last_sent_to", jid);

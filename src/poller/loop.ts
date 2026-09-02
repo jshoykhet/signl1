@@ -211,7 +211,11 @@ export async function runPollerLoop() {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error(`[poller] ${message}`);
+      if (message.startsWith("X API rate limited")) {
+        console.warn(`[poller] ${message}`);
+      } else {
+        console.error(`[poller] ${message}`);
+      }
       recordPoll(message);
     }
     await new Promise((resolve) => setTimeout(resolve, POLLER_TICK_MS));

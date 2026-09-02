@@ -26,6 +26,9 @@ function headerInt(headers: Headers, name: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** Cap so a far-future X reset header cannot freeze the poller (and WhatsApp) for hours. */
+export const X_RATE_LIMIT_WAIT_CAP_MS = 5_000;
+
 export class XRateLimiter {
   remaining: number | null = null;
   resetAt: number | null = null;
@@ -33,14 +36,30 @@ export class XRateLimiter {
   backoffUntil = 0;
   backoffMs = 1_000;
 
+  expireWindow(now = Date.now()) {
+    if (this.resetAt && now >= this.resetAt) {
+      this.remaining = null;
+      this.resetAt = null;
+    }
+    if (this.backoffUntil && now >= this.backoffUntil) {
+      this.backoffUntil = 0;
+    }
+  }
+
+  isWindowExhausted(now = Date.now()): boolean {
+    this.expireWindow(now);
+    return this.remaining !== null && this.remaining <= 0 && this.resetAt != null && this.resetAt > now;
+  }
+
   async waitForSlot(): Promise<void> {
     const now = Date.now();
-    const waits = [this.nextAllowedAt - now, this.backoffUntil - now];
-    if (this.remaining !== null && this.remaining <= 1 && this.resetAt && this.resetAt > now) {
-      waits.push(this.resetAt - now + 250);
+    this.expireWindow(now);
+    if (this.isWindowExhausted(now)) {
+      const secs = Math.max(1, Math.ceil((this.resetAt! - now) / 1000));
+      throw new Error(`X API rate limited; ${secs}s until window reset`);
     }
-    const wait = Math.max(0, ...waits);
-    if (wait > 0) await sleep(wait);
+    const wait = Math.max(0, this.nextAllowedAt - now, this.backoffUntil - now);
+    if (wait > 0) await sleep(Math.min(wait, X_RATE_LIMIT_WAIT_CAP_MS));
     this.nextAllowedAt = Date.now() + X_MIN_REQUEST_GAP_MS;
   }
 
