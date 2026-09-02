@@ -336,7 +336,7 @@ export function InboxView() {
               description={
                 query.trim()
                   ? `Nothing found for “${query.trim()}”.`
-                  : "New catalysts will appear here. Chatter without a desk signal is dropped."
+                  : "Wires and analysis will appear here. Cashtag chatter and dunks are dropped."
               }
             />
           ) : (

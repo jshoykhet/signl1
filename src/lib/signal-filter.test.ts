@@ -93,6 +93,45 @@ describe("passesSignalFilter", () => {
     expect(verdict.reasons.some((r) => r.startsWith("desk"))).toBe(true);
   });
 
+  it("drops cashtag-only posts even from an established desk", () => {
+    const verdict = passesSignalFilter(
+      quality({
+        followersCount: 80_000,
+        likeCount: 40,
+        text: "$AAPL $MSFT looking clean into the close",
+      }),
+      now,
+    );
+    expect(verdict.pass).toBe(false);
+    expect(verdict.reasons).toContain("no news or analysis");
+  });
+
+  it("drops a KOL flash with no payload", () => {
+    const verdict = passesSignalFilter(
+      quality({
+        authorHandle: "DeItaone",
+        followersCount: 40,
+        likeCount: 0,
+        text: "JUST IN: watching",
+      }),
+      now,
+    );
+    expect(verdict.kol).toBe(true);
+    expect(verdict.pass).toBe(false);
+    expect(verdict.reasons).toContain("no news or analysis");
+  });
+
+  it("keeps an analytical take without a cashtag", () => {
+    const verdict = passesSignalFilter(
+      quality({
+        likeCount: 40,
+        text: "The takeaway from this CPI print: the 10-year is pricing in two rate cuts, not a pivot.",
+      }),
+      now,
+    );
+    expect(verdict.pass).toBe(true);
+  });
+
   it("drops giveaway spam even from a KOL", () => {
     const verdict = passesSignalFilter(
       quality({

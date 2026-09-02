@@ -113,7 +113,7 @@ These apply at ingest and again whenever you change them, so the inbox and Slack
 - **Nodes only:** keep posts from Key Network Nodes (plus anything you labeled high).
 - **Key Network Nodes:** seeded markets-desk handles. Add, remove, or reset to defaults on Settings.
 - **Blocked:** mute handles so they never land in the inbox or fire Slack/WhatsApp, even if they are a node.
-- **Signal level:** Lower (more tape), Standard, or Higher (stricter follower/desk/score floors).
+- **Signal level:** Lower (more tape, still needs news or analysis), Standard, or Higher (stricter follower/desk/score floors).
 - **Min likes:** set the engagement floor (0–10000, or inherit the level default). A number you pick applies to every account, including Key Network Nodes. Changing it re-filters the inbox.
 - **Recent tweets:** let brand-new posts from 10k+ accounts through before likes print.
 - **Require likes:** also apply the score floor to Key Network Nodes and fresh desks. An explicit min-likes number already covers those accounts.
@@ -186,16 +186,16 @@ npm run poller
 
 ## Quality filter
 
-The inbox is tuned for an **event-driven trader**, **fundamental investor**, or **market maker**. A match has to look like a catalyst — FOMC/CPI, earnings and guidance, M&A, filings, OPEC/flow, cashtags, sized numbers — not lifestyle chatter.
+The inbox is tuned for an **event-driven trader**, **fundamental investor**, or **market maker**. A match has to have **news or analysis** — a print vs expected, a filing, a policy decision, sourced reporting, or a real take with numbers. Cashtag-only posts, “JUST IN” with no payload, vibe, and quote dunks are dropped.
 
 Floors still apply to unknown accounts:
 
 - **≥ 50 followers**
 - **≥ 5 likes** on the tweet
 - A **signal score** (0–100) from follower scale, likes, retweets/quotes, replies, and verified status
-- A **desk-relevance score** from the tweet text (cashtags, catalysts, percent moves)
+- A **desk-relevance score** from the tweet text, plus a **substance** gate (news hook or analytical take)
 
-**Key Network Nodes** skip the like floor and get a score bump unless **Require likes** is on in Settings. They still need a catalyst. The seed list is wires, squawk, All-In, CNBC/FT talent, and official desks — edit it on Settings, or with `KOL_HANDLES` (append) / `KOL_HANDLES_MODE=replace`. Promo spam (giveaways, signal groups) is dropped even from a node. **Blocked** accounts are dropped entirely.
+**Key Network Nodes** skip the like floor and get a score bump unless **Require likes** is on in Settings. They still need news or analysis — a node saying “watching” does not print. The seed list is wires, squawk, All-In, CNBC/FT talent, and official desks — edit it on Settings, or with `KOL_HANDLES` (append) / `KOL_HANDLES_MODE=replace`. Promo spam (giveaways, signal groups) is dropped even from a node. **Blocked** accounts are dropped entirely.
 
 A post from an account with **10k+ followers** that is less than the current fresh window (10 minutes on Standard) can still alert before likes accrue, if the text is desk-relevant and **Recent tweets** is on. Settings lists the live floors, the editable node list, and the blocked list.
 

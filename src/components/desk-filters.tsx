@@ -77,7 +77,7 @@ export function DeskFilters() {
   return (
     <SettingsGroup
       title="Desk tape"
-      footer="Hide crypto keeps listed names like $COIN and $MSTR. Hide chat apps drops Telegram and WhatsApp. High labels still come through."
+      footer="The tape keeps news and analysis: prints vs expected, filings, policy, sourced takes. Cashtag-only posts and dunks are dropped. Hide crypto keeps listed names like $COIN and $MSTR. Hide chat apps drops Telegram and WhatsApp. High labels still come through."
     >
       {!filters ? (
         <div className="px-4 py-3.5 text-[15px] text-muted-foreground">Loading filters…</div>

@@ -171,7 +171,7 @@ describe("desk filters and KOL list persist in SQLite", () => {
     const token = catalyst("middesk_tape", {
       followersCount: 80_000,
       likeCount: 40,
-      text: "Long $BTC into the weekly close",
+      text: "JUST IN: $BTC ETF inflows $2.1bn vs $800m expected",
     });
     const chat = catalyst("middesk_tape", {
       followersCount: 80_000,

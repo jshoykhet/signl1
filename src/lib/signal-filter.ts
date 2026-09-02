@@ -37,6 +37,7 @@ export type TweetQuality = {
   createdAt: string;
   text?: string;
   authorHandle?: string;
+  isReply?: boolean;
 };
 
 export type SignalContext = {
@@ -150,7 +151,7 @@ export function passesSignalFilter(
   const allowFresh = ctx.allowFresh !== false;
   const requireEngagement = ctx.requireEngagement === true;
   const kolOnly = ctx.kolOnly === true;
-  const desk = scoreDeskRelevance(q.text ?? "");
+  const desk = scoreDeskRelevance(q.text ?? "", { isReply: q.isReply === true });
   const baseScore = signalScore(q);
   const score = clamp(baseScore + prior.scoreDelta + (kol ? KOL_SCORE_BONUS : 0), 0, 100);
   const establishedFresh = isEstablishedFresh(q, now, level.freshMs);
@@ -291,6 +292,10 @@ export function passesSignalFilter(
 
   if (score < level.minScore && !skipFloors) {
     reasons.push(`score ${score} < ${level.minScore}`);
+  }
+
+  if (!desk.substance) {
+    reasons.push("no news or analysis");
   }
 
   if (desk.score < minDesk) {
