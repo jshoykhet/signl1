@@ -30,6 +30,11 @@ function isPublicPath(pathname: string): boolean {
   return pathname === "/" || pathname === "/login" || pathname.startsWith("/api/auth");
 }
 
+/** Edge session has email/name from the JWT; custom `user.id` is only filled in Node. */
+function hasSessionUser(auth: { user?: { email?: string | null } | null } | null): boolean {
+  return Boolean(auth?.user?.email);
+}
+
 /**
  * Edge/proxy-safe config. Do not import SQLite or Node-only modules here.
  * Providers and DB callbacks live in `src/auth.ts`.
@@ -44,7 +49,7 @@ export const authConfig = {
     authorized({ auth, request }) {
       const { pathname } = request.nextUrl;
       if (isPublicPath(pathname)) return true;
-      if (auth?.user?.id) return true;
+      if (hasSessionUser(auth)) return true;
       if (pathname.startsWith("/api/")) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }

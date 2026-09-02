@@ -55,9 +55,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.userId = undefined;
         token.role = undefined;
         token.email = undefined;
+        token.name = undefined;
+        token.picture = undefined;
+        token.sub = undefined;
         return token;
       }
       token.userId = row.id;
+      token.sub = row.id;
       token.role = row.role;
       token.email = row.email;
       token.name = row.name ?? token.name;

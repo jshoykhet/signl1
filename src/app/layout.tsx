@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const session = await auth();
-  const signedIn = Boolean(session?.user);
+  const signedIn = Boolean(session?.user?.email);
   return (
     <html
       lang="en"

@@ -11,7 +11,7 @@ export default async function HomePage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const session = await auth();
-  if (session?.user) return <InboxView />;
+  if (session?.user?.email) return <InboxView />;
   const params = await searchParams;
   return (
     <MarketingHome
