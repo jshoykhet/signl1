@@ -38,7 +38,7 @@ describe("desk settings parsers", () => {
     expect(parseMinLikes("")).toBeNull();
     expect(parseMinLikes("0")).toBe(0);
     expect(parseMinLikes(50)).toBe(50);
-    expect(effectiveMinLikes({ signalLevel: "standard", minLikes: null })).toBe(5);
+    expect(effectiveMinLikes({ signalLevel: "standard", minLikes: 5 })).toBe(5);
     expect(effectiveMinLikes({ signalLevel: "low", minLikes: 25 })).toBe(25);
   });
 

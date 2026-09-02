@@ -3,13 +3,13 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { GroupedRow, SettingsGroup } from "@/components/grouped-list";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import {
-  ENGAGEMENT_PRESETS,
+  DEFAULT_MIN_LIKES,
+  MIN_LIKES_SLIDER_MAX,
   SIGNAL_LEVELS,
-  effectiveMinLikes,
   parseMinLikes,
   type DeskFilterSettings,
   type SignalLevel,
@@ -26,7 +26,8 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 export function DeskFilters() {
   const [filters, setFilters] = useState<DeskFilterSettings | null>(null);
-  const [likesDraft, setLikesDraft] = useState("");
+  const [likesDraft, setLikesDraft] = useState(String(DEFAULT_MIN_LIKES));
+  const [likesLive, setLikesLive] = useState(DEFAULT_MIN_LIKES);
   const [busy, setBusy] = useState(false);
 
   const load = async () => {
@@ -34,7 +35,8 @@ export function DeskFilters() {
     if (!res.ok) throw new Error("Failed to load desk filters");
     const data = (await res.json()) as DeskFilterSettings;
     setFilters(data);
-    setLikesDraft(data.minLikes == null ? "" : String(data.minLikes));
+    setLikesDraft(String(data.minLikes));
+    setLikesLive(data.minLikes);
   };
 
   useEffect(() => {
@@ -52,7 +54,8 @@ export function DeskFilters() {
       if (!res.ok) throw new Error("Could not save desk filters");
       const data = (await res.json()) as DeskFilterSettings;
       setFilters(data);
-      setLikesDraft(data.minLikes == null ? "" : String(data.minLikes));
+      setLikesDraft(String(data.minLikes));
+      setLikesLive(data.minLikes);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not save desk filters");
     } finally {
@@ -60,141 +63,140 @@ export function DeskFilters() {
     }
   };
 
+  const commitLikes = (raw: string | number) => {
+    const parsed = parseMinLikes(raw);
+    const next = parsed ?? DEFAULT_MIN_LIKES;
+    setLikesLive(next);
+    setLikesDraft(String(next));
+    if (filters && next !== filters.minLikes) void save({ minLikes: next });
+  };
+
   const floors = filters ? SIGNAL_LEVELS[filters.signalLevel] : SIGNAL_LEVELS.standard;
-  const effective = filters ? effectiveMinLikes(filters) : floors.minLikes;
+  const sliderValue = Math.min(MIN_LIKES_SLIDER_MAX, likesLive);
 
   return (
-    <SettingsGroup title="Desk tape">
+    <SettingsGroup
+      title="Desk tape"
+      footer="Hide crypto keeps listed names like $COIN and $MSTR. Hide chat apps drops Telegram and WhatsApp. High labels still come through."
+    >
       {!filters ? (
         <div className="px-4 py-3.5 text-[15px] text-muted-foreground">Loading filters…</div>
       ) : (
         <>
           <Row label="Nodes only">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center justify-end gap-3 sm:justify-start">
               <Switch
                 checked={filters.kolOnly}
                 disabled={busy}
                 onCheckedChange={(checked) => void save({ kolOnly: checked === true })}
               />
-              <span className="text-muted-foreground">
-                {filters.kolOnly ? "Only Key Network Nodes (plus high labels)" : "All matching authors"}
-              </span>
             </div>
           </Row>
-          <Row label="Signal level">
+          <Row label="Signal">
             <div className="grid gap-2">
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex rounded-full bg-white/[0.06] p-0.5">
                 {(Object.keys(SIGNAL_LEVELS) as SignalLevel[]).map((level) => (
-                  <Button
+                  <button
                     key={level}
                     type="button"
-                    size="sm"
-                    variant={filters.signalLevel === level ? "default" : "outline"}
                     disabled={busy}
                     onClick={() => void save({ signalLevel: level })}
+                    className={
+                      filters.signalLevel === level
+                        ? "flex-1 rounded-full bg-white/90 px-3 py-1.5 text-[13px] font-medium text-black"
+                        : "flex-1 rounded-full px-3 py-1.5 text-[13px] text-muted-foreground"
+                    }
                   >
                     {SIGNAL_LEVELS[level].label}
-                  </Button>
+                  </button>
                 ))}
               </div>
-              <p className="text-[13px] leading-relaxed text-muted-foreground">
-                {floors.hint}. Followers ≥{floors.minFollowers}, score ≥{floors.minScore}, desk ≥{floors.minDesk}.
-                Likes use Min likes below.
-              </p>
+              <p className="text-[13px] leading-relaxed text-muted-foreground">{floors.hint}</p>
             </div>
           </Row>
           <Row label="Recent tweets">
-            <div className="grid gap-1.5">
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={filters.allowFresh}
-                  disabled={busy}
-                  onCheckedChange={(checked) => void save({ allowFresh: checked === true })}
-                />
-                <span className="text-muted-foreground">{filters.allowFresh ? "On" : "Off"}</span>
-              </div>
-              <p className="text-[13px] leading-relaxed text-muted-foreground">
-                Let new posts from 10k+ accounts through before likes print (first {Math.round(floors.freshMs / 60000)}{" "}
-                minutes).
-              </p>
+            <div className="flex items-center justify-end gap-3 sm:justify-start">
+              <Switch
+                checked={filters.allowFresh}
+                disabled={busy}
+                onCheckedChange={(checked) => void save({ allowFresh: checked === true })}
+              />
             </div>
           </Row>
-          <Row label="Min likes">
-            <div className="grid gap-2">
-              <div className="flex flex-wrap gap-1.5">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={filters.minLikes == null ? "default" : "outline"}
-                  disabled={busy}
-                  onClick={() => void save({ minLikes: null })}
-                >
-                  Level default ({floors.minLikes})
-                </Button>
-                {ENGAGEMENT_PRESETS.map((n) => (
-                  <Button
-                    key={n}
-                    type="button"
-                    size="sm"
-                    variant={filters.minLikes === n ? "default" : "outline"}
-                    disabled={busy}
-                    onClick={() => void save({ minLikes: n })}
-                  >
-                    {n}
-                  </Button>
-                ))}
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Input
-                  type="number"
-                  min={0}
-                  max={10000}
-                  value={likesDraft}
-                  placeholder="Custom"
-                  className="w-28 font-mono"
-                  aria-label="Custom minimum likes"
-                  onChange={(event) => setLikesDraft(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      const parsed = parseMinLikes(likesDraft);
-                      if (parsed != null) void save({ minLikes: parsed });
-                    }
-                  }}
-                  onBlur={() => {
-                    if (likesDraft.trim() === "") return;
-                    const parsed = parseMinLikes(likesDraft);
-                    if (parsed != null && parsed !== filters.minLikes) void save({ minLikes: parsed });
-                  }}
-                />
-                <span className="text-[13px] text-muted-foreground">Currently ≥{effective} likes</span>
-              </div>
-              <p className="text-[13px] leading-relaxed text-muted-foreground">
-                Posts below this like count are dropped from the inbox and alerts. A number you pick applies to every
-                account, including Key Network Nodes and fresh desks. Level default ({floors.minLikes} on this signal
-                level) still lets nodes and brand-new 10k+ posts skip, unless Require likes is on. 0 allows zero-like
-                posts that still clear the other floors.
-              </p>
+          <GroupedRow className="flex-col items-stretch gap-3 py-3.5 sm:flex-col">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-[15px] text-muted-foreground">Min likes</div>
+              <Input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={likesDraft}
+                disabled={busy}
+                aria-label="Minimum likes"
+                className="h-8 w-16 rounded-lg bg-white/[0.08] text-center font-medium tabular-nums"
+                onChange={(event) => {
+                  const raw = event.target.value.replace(/[^\d]/g, "");
+                  setLikesDraft(raw);
+                  const parsed = parseMinLikes(raw);
+                  if (parsed != null) setLikesLive(parsed);
+                }}
+                onBlur={() => commitLikes(likesDraft === "" ? DEFAULT_MIN_LIKES : likesDraft)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    (event.target as HTMLInputElement).blur();
+                  }
+                }}
+              />
             </div>
-          </Row>
+            <Slider
+              min={0}
+              max={MIN_LIKES_SLIDER_MAX}
+              step={1}
+              disabled={busy}
+              value={[sliderValue]}
+              onValueChange={(value) => {
+                const next = Array.isArray(value) ? value[0] : value;
+                const n = typeof next === "number" ? next : DEFAULT_MIN_LIKES;
+                setLikesLive(n);
+                setLikesDraft(String(n));
+              }}
+              onValueCommitted={(value) => {
+                const next = Array.isArray(value) ? value[0] : value;
+                commitLikes(typeof next === "number" ? next : DEFAULT_MIN_LIKES);
+              }}
+              className="py-1"
+            />
+            <p className="text-[13px] leading-relaxed text-muted-foreground">
+              Default is 5. Drag or type. Posts below this stay off the tape unless Recent tweets lets a new 10k+ desk
+              print through, or it is a Key Network Node.
+            </p>
+          </GroupedRow>
           <Row label="Require likes">
-            <div className="grid gap-1.5">
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={filters.requireEngagement}
-                  disabled={busy}
-                  onCheckedChange={(checked) => void save({ requireEngagement: checked === true })}
-                />
-                <span className="text-muted-foreground">
-                  {filters.requireEngagement
-                    ? "Even Key Network Nodes and fresh desks"
-                    : "Nodes / fresh desks can skip this floor"}
-                </span>
-              </div>
-              <p className="text-[13px] leading-relaxed text-muted-foreground">
-                When on, the score floor also applies to Key Network Nodes and brand-new posts. Min likes you set above
-                already applies to those accounts.
-              </p>
+            <div className="flex items-center justify-end gap-3 sm:justify-start">
+              <Switch
+                checked={filters.requireEngagement}
+                disabled={busy}
+                onCheckedChange={(checked) => void save({ requireEngagement: checked === true })}
+              />
+            </div>
+          </Row>
+          <Row label="Hide crypto">
+            <div className="flex items-center justify-end gap-3 sm:justify-start">
+              <Switch
+                checked={filters.hideCrypto}
+                disabled={busy}
+                onCheckedChange={(checked) => void save({ hideCrypto: checked === true })}
+              />
+            </div>
+          </Row>
+          <Row label="Hide chat apps">
+            <div className="flex items-center justify-end gap-3 sm:justify-start">
+              <Switch
+                checked={filters.hideMessagingApps}
+                disabled={busy}
+                onCheckedChange={(checked) => void save({ hideMessagingApps: checked === true })}
+              />
             </div>
           </Row>
         </>

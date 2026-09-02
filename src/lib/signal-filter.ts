@@ -1,5 +1,6 @@
+import { isCryptoNoise, isMessagingPromo } from "./content-filters";
 import { scoreDeskRelevance } from "./desk-relevance";
-import { SIGNAL_LEVELS, type SignalLevel } from "./desk-settings";
+import { DEFAULT_MIN_LIKES, SIGNAL_LEVELS, type SignalLevel } from "./desk-settings";
 import { isKolHandle } from "./kol";
 
 export const MIN_FOLLOWERS = 50;
@@ -46,6 +47,8 @@ export type SignalContext = {
   allowFresh?: boolean;
   requireEngagement?: boolean;
   minLikes?: number | null;
+  hideCrypto?: boolean;
+  hideMessagingApps?: boolean;
   kol?: boolean;
   blocked?: boolean;
 };
@@ -78,16 +81,24 @@ function logScale(value: number, decades: number, weight: number): number {
 }
 
 /**
- * 0–100 score. Account size dominates so desks that never get likes stay low
- * even if a single post scrapes past the like floor.
+ * 0–100 score. Engagement (likes, retweets, quotes) outweighs raw follower
+ * count so a quiet 80k account does not look like a desk print.
  */
 export function signalScore(q: TweetQuality): number {
-  const followScore = logScale(q.followersCount, 6, 50);
-  const likeScore = logScale(q.likeCount, 4, 22);
-  const spreadScore = logScale(q.retweetCount + q.quoteCount, 3.5, 12);
-  const replyScore = logScale(q.replyCount, 3, 6);
-  const verifiedBonus = q.verified ? 8 : 0;
-  return Math.round(followScore + likeScore + spreadScore + replyScore + verifiedBonus);
+  const followScore = logScale(q.followersCount, 6, 32);
+  const likeScore = logScale(q.likeCount, 3.5, 30);
+  const spreadScore = logScale(q.retweetCount + q.quoteCount, 3, 18);
+  const replyScore = logScale(q.replyCount, 3, 4);
+  const verifiedBonus = q.verified ? 6 : 0;
+  const density =
+    q.followersCount >= 400
+      ? clamp((q.likeCount / Math.sqrt(q.followersCount)) * 8, 0, 10)
+      : 0;
+  return Math.round(followScore + likeScore + spreadScore + replyScore + verifiedBonus + density);
+}
+
+export function engagementSpread(q: TweetQuality): number {
+  return q.likeCount + 2 * q.retweetCount + 2 * q.quoteCount;
 }
 
 export function isEstablishedFresh(q: TweetQuality, now = Date.now(), freshMs = FRESH_TWEET_MS): boolean {
@@ -208,6 +219,33 @@ export function passesSignalFilter(
     };
   }
 
+  const hideCrypto = ctx.hideCrypto !== false;
+  const hideMessaging = ctx.hideMessagingApps !== false;
+  if (hideMessaging && isMessagingPromo(q.text ?? "")) {
+    return {
+      pass: false,
+      score,
+      reasons: ["telegram/whatsapp"],
+      establishedFresh,
+      userLabel,
+      prior,
+      kol,
+      deskScore: desk.score,
+    };
+  }
+  if (hideCrypto && isCryptoNoise(q.text ?? "", q.authorHandle)) {
+    return {
+      pass: false,
+      score,
+      reasons: ["crypto"],
+      establishedFresh,
+      userLabel,
+      prior,
+      kol,
+      deskScore: desk.score,
+    };
+  }
+
   if (kolOnly && !kol) {
     return {
       pass: false,
@@ -225,10 +263,8 @@ export function passesSignalFilter(
     prior.boost ||
     (!requireEngagement && ((allowFresh && establishedFresh) || kol));
   const minDesk = deskFloor(q, { kol, boost: prior.boost, signalLevel: ctx.signalLevel });
-  const minLikes = typeof ctx.minLikes === "number" ? ctx.minLikes : level.minLikes;
-  // Level default still lets nodes / fresh desks skip likes. A number the operator
-  // picks is a hard floor for everyone (except labeled-high / blocked).
-  const skipLikeFloor = skipFloors && typeof ctx.minLikes !== "number";
+  const minLikes = typeof ctx.minLikes === "number" ? ctx.minLikes : DEFAULT_MIN_LIKES;
+  const skipLikeFloor = skipFloors;
 
   if (q.followersCount < level.minFollowers && !prior.boost && !kol) {
     reasons.push(`followers ${q.followersCount} < ${level.minFollowers}`);
@@ -236,6 +272,21 @@ export function passesSignalFilter(
 
   if (q.likeCount < minLikes && !skipLikeFloor) {
     reasons.push(`likes ${q.likeCount} < ${minLikes}`);
+  }
+
+  if (!skipFloors && !prior.boost && !kol) {
+    const spread = engagementSpread(q);
+    const created = new Date(q.createdAt).getTime();
+    const ageMs = Number.isFinite(created) ? now - created : 0;
+    if (q.followersCount < 2_500) {
+      const need = Math.max(minLikes + 3, 8);
+      if (spread < need) reasons.push(`thin engagement ${spread} < ${need}`);
+    } else if (ageMs >= 8 * 60_000 && q.followersCount >= 8_000 && spread < minLikes) {
+      reasons.push(`stale engagement ${spread} < ${minLikes}`);
+    }
+    if (q.replyCount >= 8 && q.likeCount + q.retweetCount + q.quoteCount < minLikes) {
+      reasons.push("reply-only engagement");
+    }
   }
 
   if (score < level.minScore && !skipFloors) {

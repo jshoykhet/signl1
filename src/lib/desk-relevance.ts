@@ -38,7 +38,7 @@ const CATALYST: { re: RegExp; w: number }[] = [
     w: 10,
   },
   {
-    re: /\b(s&p|nasdaq|dow|russell|vix|treasury|yields?|curve|inversion|dxy|dollar|fx\b|forex|btc|eth|spot bitcoin)\b/i,
+    re: /\b(s&p|nasdaq|dow|russell|vix|treasury|yields?|curve|inversion|dxy|dollar|fx\b|forex)\b/i,
     w: 8,
   },
   {

@@ -27,6 +27,8 @@ import {
   parseWhatsAppAlertMode,
   SIGNAL_LEVELS,
   effectiveMinLikes,
+  resolvedMinLikes,
+  type DeskFilterPatch,
   type DeskFilterSettings,
   type WhatsAppCadenceSettings,
 } from "./desk-settings";
@@ -402,7 +404,9 @@ export function getDeskFilterSettings(db = getDb()): DeskFilterSettings {
     signalLevel: parseSignalLevel(getMeta("desk_signal_level", db)),
     allowFresh: parseBoolMeta(getMeta("desk_allow_fresh", db), true),
     requireEngagement: parseBoolMeta(getMeta("desk_require_engagement", db), false),
-    minLikes: parseMinLikes(getMeta("desk_min_likes", db)),
+    minLikes: resolvedMinLikes(getMeta("desk_min_likes", db)),
+    hideCrypto: parseBoolMeta(getMeta("desk_hide_crypto", db), true),
+    hideMessagingApps: parseBoolMeta(getMeta("desk_hide_messaging", db), true),
   };
 }
 
@@ -852,7 +856,7 @@ export function isWhatsAppEnabled(db = getDb()): boolean {
   return raw !== "0" && raw !== "false";
 }
 
-export function setDeskFilterSettings(input: Partial<DeskFilterSettings>, db = getDb()): DeskFilterSettings {
+export function setDeskFilterSettings(input: DeskFilterPatch, db = getDb()): DeskFilterSettings {
   if (typeof input.kolOnly === "boolean") setMeta("desk_kol_only", input.kolOnly ? "1" : "0", db);
   if (input.signalLevel) setMeta("desk_signal_level", parseSignalLevel(input.signalLevel), db);
   if (typeof input.allowFresh === "boolean") setMeta("desk_allow_fresh", input.allowFresh ? "1" : "0", db);
@@ -862,6 +866,10 @@ export function setDeskFilterSettings(input: Partial<DeskFilterSettings>, db = g
   if ("minLikes" in input) {
     const parsed = parseMinLikes(input.minLikes);
     setMeta("desk_min_likes", parsed == null ? "" : String(parsed), db);
+  }
+  if (typeof input.hideCrypto === "boolean") setMeta("desk_hide_crypto", input.hideCrypto ? "1" : "0", db);
+  if (typeof input.hideMessagingApps === "boolean") {
+    setMeta("desk_hide_messaging", input.hideMessagingApps ? "1" : "0", db);
   }
   backfillMatchQuality(db);
   return getDeskFilterSettings(db);

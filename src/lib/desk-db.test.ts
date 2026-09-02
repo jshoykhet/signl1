@@ -66,7 +66,9 @@ describe("desk filters and KOL list persist in SQLite", () => {
       signalLevel: "standard",
       allowFresh: true,
       requireEngagement: false,
-      minLikes: null,
+      minLikes: 5,
+      hideCrypto: true,
+      hideMessagingApps: true,
     });
     expect(isKolHandle("DeItaone", getKolSpec(db))).toBe(true);
   });
@@ -147,15 +149,44 @@ describe("desk filters and KOL list persist in SQLite", () => {
     expect(evaluateTweetSignal(weak, db).pass).toBe(true);
   });
 
-  it("applies an explicit min-likes floor to a Key Network Node", () => {
+  it("does not apply min likes to a Key Network Node unless Require likes is on", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-"));
     tmpDirs.push(dir);
     const db = openDatabase(path.join(dir, "test.db"));
     expect(evaluateTweetSignal(catalyst("DeItaone"), db).pass).toBe(true);
     setDeskFilterSettings({ minLikes: 10 }, db);
-    expect(evaluateTweetSignal(catalyst("DeItaone"), db).pass).toBe(false);
-    setDeskFilterSettings({ minLikes: null }, db);
     expect(evaluateTweetSignal(catalyst("DeItaone"), db).pass).toBe(true);
+    setDeskFilterSettings({ requireEngagement: true }, db);
+    expect(evaluateTweetSignal(catalyst("DeItaone"), db).pass).toBe(false);
+    setDeskFilterSettings({ requireEngagement: false, minLikes: null }, db);
+    expect(evaluateTweetSignal(catalyst("DeItaone"), db).pass).toBe(true);
+  });
+
+  it("hides crypto noise and Telegram funnels by default", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-"));
+    tmpDirs.push(dir);
+    const db = openDatabase(path.join(dir, "test.db"));
+    const token = catalyst("middesk_tape", {
+      followersCount: 80_000,
+      likeCount: 40,
+      text: "Long $BTC into the weekly close",
+    });
+    const chat = catalyst("middesk_tape", {
+      followersCount: 80_000,
+      likeCount: 40,
+      text: "$NVDA beats — join telegram t.me/flowdesk",
+    });
+    const stock = catalyst("middesk_tape", {
+      followersCount: 80_000,
+      likeCount: 40,
+      text: "$COIN volume spike into the print",
+    });
+    expect(evaluateTweetSignal(token, db).pass).toBe(false);
+    expect(evaluateTweetSignal(chat, db).pass).toBe(false);
+    expect(evaluateTweetSignal(stock, db).pass).toBe(true);
+    setDeskFilterSettings({ hideCrypto: false, hideMessagingApps: false }, db);
+    expect(evaluateTweetSignal(token, db).pass).toBe(true);
+    expect(evaluateTweetSignal(chat, db).pass).toBe(true);
   });
 
   it("re-filters the inbox when min likes is raised", () => {

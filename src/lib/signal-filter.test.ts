@@ -177,7 +177,7 @@ describe("passesSignalFilter", () => {
     expect(verdict.reasons.some((r) => r.includes("likes 12 < 50"))).toBe(true);
   });
 
-  it("applies an explicit min-likes floor to Key Network Nodes and fresh desks", () => {
+  it("applies an explicit min-likes floor to Key Network Nodes and fresh desks when engagement is required", () => {
     const node = passesSignalFilter(
       quality({
         authorHandle: "DeItaone",
@@ -186,7 +186,7 @@ describe("passesSignalFilter", () => {
         text: "JUST IN: CPI 3.2% vs 3.1% expected",
       }),
       now,
-      { minLikes: 10 },
+      { minLikes: 10, requireEngagement: true },
     );
     expect(node.kol).toBe(true);
     expect(node.pass).toBe(false);
@@ -200,7 +200,7 @@ describe("passesSignalFilter", () => {
         createdAt: "2026-09-01T15:55:00.000Z",
       }),
       now,
-      { minLikes: 25, allowFresh: true },
+      { minLikes: 25, allowFresh: true, requireEngagement: true },
     );
     expect(fresh.establishedFresh).toBe(true);
     expect(fresh.pass).toBe(false);
@@ -216,10 +216,46 @@ describe("passesSignalFilter", () => {
         text: "JUST IN: CPI 3.2% vs 3.1% expected",
       }),
       now,
-      { minLikes: null },
+      { minLikes: 5 },
     );
     expect(verdict.kol).toBe(true);
     expect(verdict.pass).toBe(true);
+  });
+
+  it("drops thin engagement from small accounts even when the like floor clears", () => {
+    const verdict = passesSignalFilter(
+      quality({
+        followersCount: 400,
+        likeCount: 5,
+        retweetCount: 0,
+        quoteCount: 0,
+        replyCount: 0,
+      }),
+      now,
+    );
+    expect(verdict.pass).toBe(false);
+    expect(verdict.reasons.some((r) => r.includes("thin engagement"))).toBe(true);
+  });
+
+  it("drops crypto token talk unless a listed crypto stock is tagged", () => {
+    const token = passesSignalFilter(quality({ likeCount: 40, text: "Long $BTC into the ETF bid" }), now);
+    expect(token.pass).toBe(false);
+    expect(token.reasons).toContain("crypto");
+
+    const equity = passesSignalFilter(
+      quality({ likeCount: 40, text: "$MSTR added bitcoin; treasury now $12bn" }),
+      now,
+    );
+    expect(equity.pass).toBe(true);
+  });
+
+  it("drops Telegram and WhatsApp funnels", () => {
+    const verdict = passesSignalFilter(
+      quality({ likeCount: 40, text: "$NVDA beats — join telegram t.me/flowdesk" }),
+      now,
+    );
+    expect(verdict.pass).toBe(false);
+    expect(verdict.reasons).toContain("telegram/whatsapp");
   });
 
   it("raises floors on the higher signal level", () => {

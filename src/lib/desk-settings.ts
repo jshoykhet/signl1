@@ -33,7 +33,7 @@ export const SIGNAL_LEVELS: Record<SignalLevel, SignalLevelConfig> = {
     hint: "Default desk floors",
     minFollowers: 50,
     minLikes: 5,
-    minScore: 18,
+    minScore: 22,
     minDesk: 12,
     establishedMinDesk: 8,
     kolMinDesk: 4,
@@ -45,7 +45,7 @@ export const SIGNAL_LEVELS: Record<SignalLevel, SignalLevelConfig> = {
     hint: "Less tape — catalysts and size",
     minFollowers: 500,
     minLikes: 25,
-    minScore: 32,
+    minScore: 42,
     minDesk: 16,
     establishedMinDesk: 12,
     kolMinDesk: 8,
@@ -64,7 +64,8 @@ export const DIGEST_INTERVALS: { minutes: number; label: string }[] = [
   { minutes: 240, label: "Every 4 hours" },
 ];
 
-export const ENGAGEMENT_PRESETS = [0, 1, 5, 10, 25, 50, 100] as const;
+export const DEFAULT_MIN_LIKES = 5;
+export const MIN_LIKES_SLIDER_MAX = 100;
 export const DIGEST_TOP_N = 20;
 export const DIGEST_CANDIDATE_LIMIT = 400;
 
@@ -73,8 +74,14 @@ export type DeskFilterSettings = {
   signalLevel: SignalLevel;
   allowFresh: boolean;
   requireEngagement: boolean;
-  /** null = inherit the signal-level like floor */
-  minLikes: number | null;
+  /** Operator floor. Unset meta falls back to DEFAULT_MIN_LIKES (5). */
+  minLikes: number;
+  hideCrypto: boolean;
+  hideMessagingApps: boolean;
+};
+
+export type DeskFilterPatch = Omit<Partial<DeskFilterSettings>, "minLikes"> & {
+  minLikes?: number | null;
 };
 
 export type WhatsAppCadenceSettings = {
@@ -109,8 +116,12 @@ export function parseMinLikes(raw: string | number | null | undefined): number |
   return Math.min(10_000, Math.max(0, Math.round(n)));
 }
 
+export function resolvedMinLikes(raw: string | number | null | undefined): number {
+  return parseMinLikes(raw) ?? DEFAULT_MIN_LIKES;
+}
+
 export function effectiveMinLikes(filters: Pick<DeskFilterSettings, "signalLevel" | "minLikes">): number {
-  return filters.minLikes ?? SIGNAL_LEVELS[filters.signalLevel].minLikes;
+  return filters.minLikes;
 }
 
 export function isDigestDue(lastAtIso: string | null | undefined, digestMinutes: number, now = Date.now()): boolean {
