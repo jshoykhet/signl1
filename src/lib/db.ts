@@ -44,6 +44,7 @@ import {
   DEFAULT_MONITORS,
   MONITOR_RENAMES,
   RETIRED_DEFAULT_MONITOR_NAMES,
+  UNEDITED_SEED_QUERY_UPGRADES,
 } from "./seed-rules";
 import { passesSignalFilter, type AuthorPrior, type UserLabel } from "./signal-filter";
 import { chunkTickersForQuery, compileCashtagQuery, normalizeTickers } from "./tickers";
@@ -769,6 +770,17 @@ function ensureWatchlistPlaceholder(userId: string, db: Database.Database) {
   `).run(crypto.randomUUID(), userId, watchlistPollIntervalMs(userId, db), ts, ts);
 }
 
+function upgradeUneditedSeedQueries(userId: string, db: Database.Database) {
+  for (const [name, upgrade] of Object.entries(UNEDITED_SEED_QUERY_UPGRADES)) {
+    const row = db.prepare("SELECT id, query_input FROM rules WHERE user_id = ? AND name = ? AND kind != 'watchlist'").get(
+      userId,
+      name,
+    ) as { id: string; query_input: string } | undefined;
+    if (!row || row.query_input.trim() !== upgrade.from) continue;
+    updateRule(row.id, { queryInput: upgrade.to }, userId, db);
+  }
+}
+
 export function ensureMonitorPack(userId: string, db = getDb()) {
   if (!userId) return;
   const migrated = Boolean(getUserMeta(userId, "monitor_pack_v2", db));
@@ -780,6 +792,7 @@ export function ensureMonitorPack(userId: string, db = getDb()) {
     reenablePackDisabledByDeskSwitch(userId, db);
     setUserMeta(userId, "monitor_pack_v2", nowIso(), db);
   }
+  upgradeUneditedSeedQueries(userId, db);
   ensureWatchlistPlaceholder(userId, db);
 }
 

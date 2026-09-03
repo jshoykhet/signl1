@@ -62,6 +62,18 @@ export const MONITOR_RENAMES: Record<string, string> = {
 
 export const RETIRED_DEFAULT_MONITOR_NAMES = ["Mag 7 tape", "VC desks"] as const;
 
+/** Exact legacy seed queries to expand when the user has not edited them. */
+export const UNEDITED_SEED_QUERY_UPGRADES: Record<string, { from: string; to: string }> = {
+  "Funding Announcements": {
+    from: '(raised OR raising OR "series a" OR "series b" OR "series c" OR "seed round" OR "pre-seed" OR "led the round" OR "term sheet" OR valuation) lang:en -is:retweet',
+    to: '(raised OR raising OR "series a" OR "series b" OR "series c" OR "series d" OR "seed round" OR "pre-seed" OR "funding round" OR "term sheet" OR valuation OR "led the round") lang:en -is:retweet',
+  },
+  "Product Launches": {
+    from: '("comes out of stealth" OR "product launch" OR launches OR "open sourced" OR "general availability" OR "demo day") lang:en -is:retweet',
+    to: '("product launch" OR launches OR "comes out of stealth" OR "open sourced" OR "generally available" OR "general availability" OR "demo day" OR "new model" OR "new API" OR "new platform") lang:en -is:retweet',
+  },
+};
+
 export const DEFAULT_MONITORS: SeedMonitor[] = [
   {
     name: "Fed",

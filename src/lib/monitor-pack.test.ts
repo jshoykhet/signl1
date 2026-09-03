@@ -160,10 +160,51 @@ describe("monitor packs", () => {
     const fed = rules.find((rule) => rule.name === "Fed");
     expect(fed?.queryInput).toBe(customFed);
     expect(fed?.mode).toBe("markets");
-    expect(rules.find((rule) => rule.name === "Funding Announcements")?.queryInput).toContain("series a");
+    expect(rules.find((rule) => rule.name === "Funding Announcements")?.queryInput).toBe(
+      '(raised OR "series a") lang:en -is:retweet',
+    );
     expect(rules.some((rule) => rule.name === "Macro" && rule.mode === "markets")).toBe(true);
     expect(rules.some((rule) => rule.name === "Tech Leaders" && rule.mode === "vc")).toBe(true);
     expect(rules.some((rule) => rule.name === "Watchlist" && rule.kind === "watchlist")).toBe(true);
+  });
+
+  it("expands unedited Funding and Launch seed queries", () => {
+    const db = tempDb();
+    createRule(
+      U,
+      {
+        name: "Funding rounds",
+        enabled: true,
+        queryInput:
+          '(raised OR raising OR "series a" OR "series b" OR "series c" OR "seed round" OR "pre-seed" OR "led the round" OR "term sheet" OR valuation) lang:en -is:retweet',
+        accounts: [],
+        pollIntervalMs: 15_000,
+        slackWebhookUrl: null,
+        genericWebhookUrl: null,
+      },
+      db,
+    );
+    createRule(
+      U,
+      {
+        name: "Launches & product",
+        enabled: true,
+        queryInput:
+          '("comes out of stealth" OR "product launch" OR launches OR "open sourced" OR "general availability" OR "demo day") lang:en -is:retweet',
+        accounts: [],
+        pollIntervalMs: 15_000,
+        slackWebhookUrl: null,
+        genericWebhookUrl: null,
+      },
+      db,
+    );
+    ensureMonitorPack(U, db);
+    const funding = listRules(U, db).find((rule) => rule.name === "Funding Announcements");
+    const launches = listRules(U, db).find((rule) => rule.name === "Product Launches");
+    expect(funding?.queryInput).toContain("funding round");
+    expect(funding?.queryInput).toContain("series d");
+    expect(launches?.queryInput).toContain("generally available");
+    expect(launches?.queryInput).toContain("new model");
   });
 
   it("does not poll an empty Watchlist placeholder", () => {
