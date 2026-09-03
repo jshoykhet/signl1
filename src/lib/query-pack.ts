@@ -93,6 +93,10 @@ export function batchCursor(rules: Array<Pick<Rule, "lastSinceId" | "createdAt">
   return { sinceId: null, startTime };
 }
 
+export function batchIsAccountWatch(rules: Array<{ accounts?: string[] | null }>): boolean {
+  return rules.some((rule) => (rule.accounts?.length ?? 0) > 0);
+}
+
 /** Prefer since_id. With no cursor, look back two cadence windows instead of the rule's created-at (which can be days of billed reads). */
 export function searchWindow(
   rules: Array<Pick<Rule, "lastSinceId" | "createdAt">>,

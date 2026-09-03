@@ -14,4 +14,12 @@ describe("X read cost", () => {
     expect(searchLookbackMs(60)).toBe(2 * 60 * 60_000);
     expect(searchLookbackMs(600)).toBe(20 * 60 * 60_000);
   });
+
+  it("looks back 6–12 hours for account-watch searches", () => {
+    expect(searchLookbackMs(5, { accountWatch: true })).toBe(6 * 60 * 60_000);
+    expect(searchLookbackMs(15, { accountWatch: true })).toBe(6 * 60 * 60_000);
+    expect(searchLookbackMs(60, { accountWatch: true })).toBe(8 * 60 * 60_000);
+    expect(searchLookbackMs(600, { accountWatch: true })).toBe(12 * 60 * 60_000);
+    expect(searchLookbackMs(15)).toBe(30 * 60_000);
+  });
 });

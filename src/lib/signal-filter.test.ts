@@ -121,6 +121,54 @@ describe("passesSignalFilter", () => {
     expect(verdict.reasons).toContain("no news or analysis");
   });
 
+  it("lets a watched Tech Leader post through without keyword substance", () => {
+    const ship = passesSignalFilter(
+      quality({
+        authorHandle: "sama",
+        followersCount: 2_800_000,
+        likeCount: 0,
+        retweetCount: 0,
+        quoteCount: 0,
+        replyCount: 0,
+        verified: true,
+        createdAt: "2026-09-01T10:00:00.000Z",
+        text: "We launched GPT-5 mini for Plus this morning.",
+      }),
+      now,
+      { deskMode: "both", signalLevel: "high", watchedAuthor: true },
+    );
+    expect(ship.pass).toBe(true);
+    expect(ship.reasons).not.toContain("no news or analysis");
+
+    const lifestyle = passesSignalFilter(
+      quality({
+        authorHandle: "pmarca",
+        followersCount: 1_200_000,
+        likeCount: 80,
+        text: CHATTER,
+      }),
+      now,
+      { deskMode: "both", signalLevel: "high", watchedAuthor: true },
+    );
+    expect(lifestyle.pass).toBe(false);
+    expect(lifestyle.reasons).toContain("off-desk");
+  });
+
+  it("still requires substance when the author is not on the watch list", () => {
+    const verdict = passesSignalFilter(
+      quality({
+        authorHandle: "sama",
+        followersCount: 2_800_000,
+        likeCount: 80,
+        text: "AI is changing everything this morning.",
+      }),
+      now,
+      { deskMode: "both", signalLevel: "high" },
+    );
+    expect(verdict.pass).toBe(false);
+    expect(verdict.reasons).toContain("no news or analysis");
+  });
+
   it("keeps an analytical take without a cashtag", () => {
     const verdict = passesSignalFilter(
       quality({

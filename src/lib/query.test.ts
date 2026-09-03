@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compileFromAccounts, compileQuery, matchesQuery, normalizeAccounts } from "./query";
+import { compileFromAccounts, compileQuery, isWatchedAuthor, matchesQuery, normalizeAccounts } from "./query";
 
 describe("normalizeAccounts", () => {
   it("strips @, lowercases, de-dupes, and drops invalid handles", () => {
@@ -7,6 +7,15 @@ describe("normalizeAccounts", () => {
       "nvidia",
       "apple",
     ]);
+  });
+});
+
+describe("isWatchedAuthor", () => {
+  it("matches a handle on the rule account list, ignoring @ and case", () => {
+    expect(isWatchedAuthor(["pmarca", "Sama"], "sama")).toBe(true);
+    expect(isWatchedAuthor(["pmarca", "sama"], "@Sama")).toBe(true);
+    expect(isWatchedAuthor(["pmarca"], "elonmusk")).toBe(false);
+    expect(isWatchedAuthor([], "sama")).toBe(false);
   });
 });
 

@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { clampPollIntervalMs, databasePath, DEFAULT_POLL_INTERVAL_MS, isDemoMode, MAX_WATCHLIST_TICKERS } from "./config";
-import { compileQuery, normalizeAccounts } from "./query";
+import { compileQuery, isWatchedAuthor, normalizeAccounts } from "./query";
 import { likePattern, tokenizeSearch } from "./search";
 import {
   isKolHandle,
@@ -538,13 +538,19 @@ export function setDeskCadenceMinutes(userId: string, minutes: number, db = getD
   return next;
 }
 
-export function evaluateTweetSignal(tweet: NormalizedTweet, userId: string, db = getDb()) {
+export function evaluateTweetSignal(
+  tweet: NormalizedTweet,
+  userId: string,
+  db = getDb(),
+  opts?: { watchedAuthor?: boolean },
+) {
   const filters = getDeskFilterSettings(userId, db);
   return passesSignalFilter(tweet, Date.now(), {
     prior: getAuthorPrior(tweet.authorHandle, userId, db),
     userLabel: getTweetLabel(tweet.id, userId, db),
     ...authorSignalFlags(tweet.authorHandle, userId, db),
     ...filters,
+    watchedAuthor: opts?.watchedAuthor === true,
   });
 }
 
@@ -1024,13 +1030,15 @@ export function markRulePolled(
 }
 
 export function tryInsertMatch(
-  rule: Pick<Rule, "id" | "name" | "userId">,
+  rule: Pick<Rule, "id" | "name" | "userId"> & { accounts?: string[] },
   tweet: NormalizedTweet,
   db = getDb(),
 ): { inserted: boolean; matchId: string | null } {
   const id = crypto.randomUUID();
   const userId = rule.userId || "";
-  const verdict = evaluateTweetSignal(tweet, userId, db);
+  const verdict = evaluateTweetSignal(tweet, userId, db, {
+    watchedAuthor: isWatchedAuthor(rule.accounts, tweet.authorHandle),
+  });
   try {
     db.prepare(`
       INSERT INTO matches (
@@ -1156,6 +1164,25 @@ export function markAllMatchesRead(userId: string, ruleId?: string, db = getDb()
     ).changes;
   }
   return db.prepare("UPDATE matches SET read = 1 WHERE read = 0 AND user_id = ?").run(userId).changes;
+}
+
+export const ACCOUNT_WATCH_LOOKBACK_META = "account_watch_lookback_v1";
+
+/** Clear since_id on account-watch rules once so the next poll uses the 6–12h lookback. */
+export function resetAccountWatchCursors(db = getDb()): number {
+  if (getMeta(ACCOUNT_WATCH_LOOKBACK_META, db)) return 0;
+  const result = db
+    .prepare(
+      `
+      UPDATE rules
+      SET last_since_id = NULL, updated_at = ?
+      WHERE json_array_length(COALESCE(accounts_json, '[]')) > 0
+        AND last_since_id IS NOT NULL
+    `,
+    )
+    .run(nowIso());
+  setMeta(ACCOUNT_WATCH_LOOKBACK_META, nowIso(), db);
+  return result.changes;
 }
 
 export function setMeta(key: string, value: string, db = getDb()) {

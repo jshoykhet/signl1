@@ -54,6 +54,8 @@ export type SignalContext = {
   deskMode?: DeskMode;
   kol?: boolean;
   blocked?: boolean;
+  /** Author is on this rule's account list (Tech Leaders). Skip keyword substance / desk floors. */
+  watchedAuthor?: boolean;
 };
 
 export type PriorAdjustment = {
@@ -263,14 +265,16 @@ export function passesSignalFilter(
     };
   }
 
+  const watchedAuthor = ctx.watchedAuthor === true;
   const skipFloors =
     prior.boost ||
+    watchedAuthor ||
     (!requireEngagement && ((allowFresh && establishedFresh) || kol));
   const minDesk = deskFloor(q, { kol, boost: prior.boost, signalLevel: ctx.signalLevel });
   const minLikes = typeof ctx.minLikes === "number" ? ctx.minLikes : DEFAULT_MIN_LIKES;
   const skipLikeFloor = skipFloors;
 
-  if (q.followersCount < level.minFollowers && !prior.boost && !kol) {
+  if (q.followersCount < level.minFollowers && !prior.boost && !kol && !watchedAuthor) {
     reasons.push(`followers ${q.followersCount} < ${level.minFollowers}`);
   }
 
@@ -297,12 +301,15 @@ export function passesSignalFilter(
     reasons.push(`score ${score} < ${level.minScore}`);
   }
 
-  if (!desk.substance) {
-    reasons.push("no news or analysis");
-  }
-
-  if (desk.score < minDesk) {
-    reasons.push(`desk ${desk.score} < ${minDesk}`);
+  if (watchedAuthor) {
+    if (desk.score === 0) reasons.push("off-desk");
+  } else {
+    if (!desk.substance) {
+      reasons.push("no news or analysis");
+    }
+    if (desk.score < minDesk) {
+      reasons.push(`desk ${desk.score} < ${minDesk}`);
+    }
   }
 
   if (kol) reasons.push("node");

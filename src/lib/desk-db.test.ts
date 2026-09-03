@@ -17,10 +17,12 @@ import {
   listEnabledRulesForUser,
   listMatches,
   listRules,
+  markRulePolled,
   openDatabase,
   ensureUserDesk,
   removeBlockedHandle,
   removeKolHandle,
+  resetAccountWatchCursors,
   resetBlockedHandles,
   resetKolHandles,
   setDeskCadenceMinutes,
@@ -400,5 +402,45 @@ describe("desk filters and KOL list persist in SQLite", () => {
 
     expect(setDeskCadenceMinutes(U, 600, db)).toBe(600);
     expect(getDeskCadenceMinutes(U, db)).toBe(600);
+  });
+
+  it("clears account-watch cursors once so Tech Leaders can backfill", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-"));
+    tmpDirs.push(dir);
+    const db = openDatabase(path.join(dir, "test.db"));
+    ensureUserDesk(U, db);
+    const leaders = listRules(U, db).find((rule) => rule.name === "Tech Leaders");
+    expect(leaders).toBeTruthy();
+    markRulePolled(leaders!.id, { lastPolledAt: new Date().toISOString(), lastSinceId: "2095371302093865208" }, db);
+    const fed = listRules(U, db).find((rule) => rule.name === "Fed")!;
+    markRulePolled(fed.id, { lastPolledAt: new Date().toISOString(), lastSinceId: "111" }, db);
+
+    expect(resetAccountWatchCursors(db)).toBe(1);
+    expect(listRules(U, db).find((rule) => rule.name === "Tech Leaders")!.lastSinceId).toBeNull();
+    expect(listRules(U, db).find((rule) => rule.name === "Fed")!.lastSinceId).toBe("111");
+    expect(resetAccountWatchCursors(db)).toBe(0);
+  });
+
+  it("ingests a watched Tech Leader post that would fail the keyword substance floor", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-"));
+    tmpDirs.push(dir);
+    const db = openDatabase(path.join(dir, "test.db"));
+    ensureUserDesk(U, db);
+    setDeskFilterSettings(U, { deskMode: "both", signalLevel: "high" }, db);
+    const leaders = listRules(U, db).find((rule) => rule.name === "Tech Leaders")!;
+    const tweet = catalyst("sama", {
+      id: "tw-leaders-1",
+      followersCount: 2_800_000,
+      likeCount: 0,
+      retweetCount: 0,
+      quoteCount: 0,
+      replyCount: 0,
+      verified: true,
+      createdAt: "2026-09-01T10:00:00.000Z",
+      text: "We launched GPT-5 mini for Plus this morning.",
+    });
+    expect(evaluateTweetSignal(tweet, U, db).pass).toBe(false);
+    expect(evaluateTweetSignal(tweet, U, db, { watchedAuthor: true }).pass).toBe(true);
+    expect(tryInsertMatch(leaders, tweet, db).inserted).toBe(true);
   });
 });

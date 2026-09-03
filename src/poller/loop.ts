@@ -7,6 +7,7 @@ import {
   listDeskUserIds,
   listEnabledRulesForUser,
   markRulePolled,
+  resetAccountWatchCursors,
   setMeta,
   setUserMeta,
   takeManualPollRequest,
@@ -17,8 +18,8 @@ import { isDigestDue } from "../lib/desk-settings";
 import { DEMO_FIXTURES, VENTURE_DEMO_FIXTURES, fixtureToTweet } from "../lib/demo-fixtures";
 import { notifyMatch, registerWhatsAppSender, flushWhatsAppDigestForUser } from "../lib/notify";
 import { sendWhatsAppText, startWhatsAppBridge } from "./whatsapp-session";
-import { matchesQuery } from "../lib/query";
-import { indexRulesByQuery, packQueryGroups, searchWindow } from "../lib/query-pack";
+import { isWatchedAuthor, matchesQuery } from "../lib/query";
+import { batchIsAccountWatch, indexRulesByQuery, packQueryGroups, searchWindow } from "../lib/query-pack";
 import { estimateReadUsd, searchLookbackMs } from "../lib/x-cost";
 import type { NormalizedTweet, Rule } from "../lib/types";
 import { recentSearch, XRateLimiter } from "../lib/x-client";
@@ -65,7 +66,9 @@ function noteRateLimit(info: { remaining: number | null; limit: number | null; r
 }
 
 async function ingestTweet(rule: Rule, tweet: NormalizedTweet): Promise<boolean> {
-  const verdict = evaluateTweetSignal(tweet, rule.userId || "");
+  const verdict = evaluateTweetSignal(tweet, rule.userId || "", undefined, {
+    watchedAuthor: isWatchedAuthor(rule.accounts, tweet.authorHandle),
+  });
   if (!verdict.pass) return false;
   const result = tryInsertMatch(rule, tweet);
   if (!result.inserted) return false;
@@ -183,12 +186,17 @@ async function pollLiveShared(
 ) {
   const rules = due.flatMap((item) => listEnabledRulesForUser(item.userId));
   if (rules.length) {
+    const cleared = resetAccountWatchCursors();
+    if (cleared) console.log(`[poller] reset ${cleared} account-watch cursor${cleared === 1 ? "" : "s"} for 6h lookback`);
     const batches = packQueryGroups(indexRulesByQuery(rules));
     setMeta("x_last_packed_queries", String(batches.length));
-    const lookbackMs = searchLookbackMs(Math.max(...due.map((item) => item.minutes)));
+    const cadenceMinutes = Math.max(...due.map((item) => item.minutes));
     let posts = 0;
     let users = 0;
     for (const batch of batches) {
+      const lookbackMs = searchLookbackMs(cadenceMinutes, {
+        accountWatch: batchIsAccountWatch(batch.rules),
+      });
       const result = await pollLiveBatch(
         batch.query,
         batch.rules,

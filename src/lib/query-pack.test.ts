@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { LIVE_MIN_POLL_INTERVAL_MS, X_MAX_QUERY_CHARS } from "./config";
 import {
   batchCursor,
+  batchIsAccountWatch,
   combineRuleQueries,
   indexRulesByQuery,
   isLivePackDue,
@@ -136,6 +137,13 @@ describe("searchWindow", () => {
     );
     expect(window.sinceId).toBeNull();
     expect(window.startTime).toBe(new Date(now - 30 * 60_000).toISOString());
+  });
+});
+
+describe("batchIsAccountWatch", () => {
+  it("is true when any packed rule lists accounts", () => {
+    expect(batchIsAccountWatch([{ query: "from:pmarca", accounts: ["pmarca"] }])).toBe(true);
+    expect(batchIsAccountWatch([{ query: "FOMC", accounts: [] }, { query: "Oil" }])).toBe(false);
   });
 });
 

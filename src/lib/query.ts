@@ -17,6 +17,13 @@ export function normalizeAccounts(accounts: string[] | string | null | undefined
   return out;
 }
 
+export function isWatchedAuthor(accounts: string[] | string | null | undefined, handle: string): boolean {
+  const watched = normalizeAccounts(accounts);
+  if (watched.length === 0) return false;
+  const needle = handle.trim().replace(/^@/, "").toLowerCase();
+  return watched.includes(needle);
+}
+
 export function compileFromAccounts(accounts: string[]): string {
   const handles = normalizeAccounts(accounts);
   if (handles.length === 0) return "";
