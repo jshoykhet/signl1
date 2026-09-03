@@ -5,7 +5,7 @@ import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { DEV_PREVIEW_EMAIL } from "@/lib/dev-preview";
+import { DEV_PREVIEW_EMAIL, sameOriginCallbackPath } from "@/lib/dev-preview";
 
 const ERRORS: Record<string, string> = {
   AccessDenied:
@@ -48,6 +48,20 @@ function GoogleMark() {
   );
 }
 
+async function signInDev(email: string, callbackUrl: string): Promise<string | null> {
+  const next = sameOriginCallbackPath(callbackUrl);
+  const result = await signIn("dev", {
+    email,
+    callbackUrl: next,
+    redirect: false,
+  });
+  if (result?.error || !result?.ok) {
+    return result?.error ?? "CredentialsSignin";
+  }
+  window.location.assign(next);
+  return null;
+}
+
 export function SkipSignInButton({
   callbackUrl = "/",
   className,
@@ -65,7 +79,12 @@ export function SkipSignInButton({
       disabled={pending}
       onClick={() => {
         setPending(true);
-        void signIn("dev", { email: DEV_PREVIEW_EMAIL, callbackUrl });
+        void signInDev(DEV_PREVIEW_EMAIL, callbackUrl).then((error) => {
+          if (error) {
+            setPending(false);
+            window.location.assign(`/?error=${encodeURIComponent(error)}`);
+          }
+        });
       }}
     >
       {pending ? "Opening…" : (children ?? "Skip sign-in")}
@@ -88,11 +107,13 @@ export function LoginForm({
 }) {
   const [email, setEmail] = useState("");
   const [pending, setPending] = useState<"google" | "dev" | "skip" | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
   const error = useMemo(() => {
-    if (!errorCode) return null;
+    const code = localError ?? errorCode;
+    if (!code) return null;
     const table = publicSignup ? { ...ERRORS, ...PUBLIC_ERRORS } : ERRORS;
-    return table[errorCode] ?? table.Default;
-  }, [errorCode, publicSignup]);
+    return table[code] ?? table.Default;
+  }, [errorCode, localError, publicSignup]);
 
   const hasAny = googleConfigured || devLogin;
 
@@ -103,13 +124,23 @@ export function LoginForm({
 
   async function onDev(event: React.FormEvent) {
     event.preventDefault();
+    setLocalError(null);
     setPending("dev");
-    await signIn("dev", { email, callbackUrl });
+    const error = await signInDev(email, callbackUrl);
+    if (error) {
+      setLocalError(error);
+      setPending(null);
+    }
   }
 
   async function onSkip() {
+    setLocalError(null);
     setPending("skip");
-    await signIn("dev", { email: DEV_PREVIEW_EMAIL, callbackUrl });
+    const error = await signInDev(DEV_PREVIEW_EMAIL, callbackUrl);
+    if (error) {
+      setLocalError(error);
+      setPending(null);
+    }
   }
 
   return (
