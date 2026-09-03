@@ -99,7 +99,6 @@ export function RulesView() {
         enabled: value.enabled,
         queryInput: value.queryInput,
         accounts: value.accounts,
-        pollIntervalMs: value.pollIntervalSec * 1000,
         slackWebhookUrl: value.slackWebhookUrl,
         genericWebhookUrl: value.genericWebhookUrl,
         mode,
@@ -179,7 +178,7 @@ export function RulesView() {
       <div className="border-b border-border px-5 py-6">
         <PageHeader
           title="Rules"
-          description="Monitor X for market-moving tape or for startup and venture activity. Only one mode is on screen at a time."
+          description="Each enabled monitor is polled on the Inbox & WhatsApp interval from Settings."
           actions={
             <Button
               onClick={() => {

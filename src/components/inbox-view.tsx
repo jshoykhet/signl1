@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { EmptyState } from "@/components/empty-state";
 import { formatClock, formatCompact, formatRelative } from "@/lib/format";
+import { cadenceLabel } from "@/lib/desk-settings";
 import { cn } from "@/lib/utils";
 import type { Match, Rule, UserLabel } from "@/lib/types";
 
@@ -76,6 +77,7 @@ export function InboxView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [polling, setPolling] = useState(false);
+  const [cadenceMinutes, setCadenceMinutes] = useState<number | null>(null);
 
   const load = async () => {
     try {
@@ -87,15 +89,18 @@ export function InboxView() {
         params.set("q", trimmed);
         params.set("limit", "500");
       }
-      const [matchRes, ruleRes] = await Promise.all([
+      const [matchRes, ruleRes, statusRes] = await Promise.all([
         fetch(`/api/matches?${params.toString()}`, { cache: "no-store" }),
         fetch("/api/rules", { cache: "no-store" }),
+        fetch("/api/status", { cache: "no-store" }),
       ]);
       if (!matchRes.ok) throw new Error("Failed to load inbox");
       const matchJson = (await matchRes.json()) as { matches: Match[] };
       const ruleJson = ruleRes.ok ? ((await ruleRes.json()) as { rules: Rule[] }) : { rules: [] };
+      const statusJson = statusRes.ok ? ((await statusRes.json()) as { cadenceMinutes?: number }) : {};
       setMatches(matchJson.matches);
       setRules(ruleJson.rules);
+      if (typeof statusJson.cadenceMinutes === "number") setCadenceMinutes(statusJson.cadenceMinutes);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load inbox");
@@ -131,16 +136,19 @@ export function InboxView() {
           params.set("q", trimmed);
           params.set("limit", "500");
         }
-        const [matchRes, ruleRes] = await Promise.all([
+        const [matchRes, ruleRes, statusRes] = await Promise.all([
           fetch(`/api/matches?${params.toString()}`, { cache: "no-store" }),
           fetch("/api/rules", { cache: "no-store" }),
+          fetch("/api/status", { cache: "no-store" }),
         ]);
         if (!matchRes.ok) throw new Error("Failed to load inbox");
         const matchJson = (await matchRes.json()) as { matches: Match[] };
         const ruleJson = ruleRes.ok ? ((await ruleRes.json()) as { rules: Rule[] }) : { rules: [] };
+        const statusJson = statusRes.ok ? ((await statusRes.json()) as { cadenceMinutes?: number }) : {};
         if (cancelled) return;
         setMatches(matchJson.matches);
         setRules(ruleJson.rules);
+        if (typeof statusJson.cadenceMinutes === "number") setCadenceMinutes(statusJson.cadenceMinutes);
         setError(null);
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load inbox");
@@ -274,6 +282,9 @@ export function InboxView() {
             <h1 className="text-[28px] font-semibold leading-tight tracking-[-0.022em]">Inbox</h1>
             <p className="mt-0.5 text-[13px] text-muted-foreground">
               Newest first. Use + / − to train the tape.
+              {cadenceMinutes
+                ? ` Polling ${cadenceLabel(cadenceMinutes).replace(/^Every /, "every ")} — same window as WhatsApp.`
+                : ""}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">

@@ -12,7 +12,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { EmptyState } from "@/components/empty-state";
 import { GroupedRow, SettingsGroup } from "@/components/grouped-list";
 import { PageHeader } from "@/components/page-header";
-import { DEFAULT_POLL_INTERVAL_MS, MIN_POLL_INTERVAL_MS } from "@/lib/config";
 import { formatInterval, formatRelative } from "@/lib/format";
 import { WATCHLIST_SUGGESTIONS } from "@/lib/tickers";
 import type { WatchlistSnapshot } from "@/lib/types";
@@ -24,7 +23,6 @@ export function WatchlistView() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [intervalSec, setIntervalSec] = useState(DEFAULT_POLL_INTERVAL_MS / 1000);
 
   const load = async () => {
     try {
@@ -32,7 +30,6 @@ export function WatchlistView() {
       if (!res.ok) throw new Error("Failed to load watchlist");
       const data = (await res.json()) as { watchlist: WatchlistSnapshot };
       setWatchlist(data.watchlist);
-      setIntervalSec(Math.round(data.watchlist.pollIntervalMs / 1000));
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load watchlist");
@@ -57,7 +54,6 @@ export function WatchlistView() {
       if (!res.ok) throw new Error(data.error || "Save failed");
       if (data.watchlist) {
         setWatchlist(data.watchlist);
-        setIntervalSec(Math.round(data.watchlist.pollIntervalMs / 1000));
       }
       const skipped = data.skipped ?? [];
       if (skipped.length) {
@@ -248,34 +244,19 @@ export function WatchlistView() {
                 ) : null}
               </div>
             </SettingsGroup>
-            <SettingsGroup title="Poll interval">
-              <GroupedRow className="flex-wrap">
-                <Input
-                  id="watchlist-interval"
-                  type="number"
-                  min={MIN_POLL_INTERVAL_MS / 1000}
-                  step={1}
-                  value={intervalSec}
-                  onChange={(event) => setIntervalSec(Number(event.target.value))}
-                  className="max-w-28"
-                  aria-label="Poll interval in seconds"
-                />
-                <span className="text-[13px] text-muted-foreground">seconds</span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="ml-auto"
-                  disabled={saving || !watchlist}
-                  onClick={() => void put({ pollIntervalMs: intervalSec * 1000 }, "Interval saved")}
-                >
-                  Save
-                </Button>
+            <SettingsGroup>
+              <GroupedRow>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[17px] font-medium tracking-[-0.01em]">Poll interval</div>
+                  <div className="mt-0.5 text-[13px] leading-snug text-muted-foreground">
+                    Watchlist polls on the same Inbox & WhatsApp interval as the rest of the desk
+                    {watchlist ? ` (${formatInterval(watchlist.pollIntervalMs)})` : ""}. Change it on Settings.
+                  </div>
+                </div>
               </GroupedRow>
             </SettingsGroup>
             <p className="px-1 text-[13px] leading-5 text-muted-foreground">
-              Default {formatInterval(DEFAULT_POLL_INTERVAL_MS)}. Live mode packs the watchlist with your other rules
-              when they fit in one query, and never polls faster than 60s.
+              Live mode packs the watchlist with your other rules when they fit in one query.
             </p>
             {watchlist?.rules[0] ? (
               <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 px-1 text-[13px] text-muted-foreground">

@@ -1,31 +1,24 @@
-import {
-  DEMO_INJECT_INTERVAL_MS,
-  isDemoMode,
-  LIVE_IDLE_BACKOFF_CAP_MS,
-  POLLER_TICK_MS,
-  xBearerToken,
-} from "../lib/config";
+import { isDemoMode, POLLER_TICK_MS, xBearerToken } from "../lib/config";
 import {
   getDb,
+  getDeskCadenceMinutes,
   getMeta,
-  listEnabledRules,
+  getUserMeta,
+  listDeskUserIds,
+  listEnabledRulesForUser,
   markRulePolled,
   setMeta,
+  setUserMeta,
   takeManualPollRequest,
   tryInsertMatch,
   evaluateTweetSignal,
 } from "../lib/db";
+import { isDigestDue } from "../lib/desk-settings";
 import { DEMO_FIXTURES, VENTURE_DEMO_FIXTURES, fixtureToTweet } from "../lib/demo-fixtures";
-import { notifyMatch, registerWhatsAppSender, flushWhatsAppDigest } from "../lib/notify";
+import { notifyMatch, registerWhatsAppSender, flushWhatsAppDigestForUser } from "../lib/notify";
 import { sendWhatsAppText, startWhatsAppBridge } from "./whatsapp-session";
 import { matchesQuery } from "../lib/query";
-import {
-  batchCursor,
-  combineRuleQueries,
-  isLivePackDue,
-  nextIdleBackoffMs,
-  packRules,
-} from "../lib/query-pack";
+import { batchCursor, combineRuleQueries, packRules } from "../lib/query-pack";
 import type { NormalizedTweet, Rule } from "../lib/types";
 import { recentSearch, XRateLimiter } from "../lib/x-client";
 
@@ -123,8 +116,7 @@ function nextDemoIndex(): number {
 
 const DEMO_POOL = [...DEMO_FIXTURES, ...VENTURE_DEMO_FIXTURES];
 
-async function injectDemoMatches() {
-  const rules = listEnabledRules();
+async function injectDemoMatches(rules: Rule[]) {
   if (rules.length === 0 || DEMO_POOL.length === 0) return;
 
   const index = nextDemoIndex();
@@ -153,6 +145,35 @@ async function injectDemoMatches() {
   setMeta("demo_index", String(index + DEMO_POOL.length));
 }
 
+async function pollUserDesk(userId: string, demo: boolean, token: string | null, limiter: XRateLimiter) {
+  const rules = listEnabledRulesForUser(userId);
+  if (demo) {
+    await injectDemoMatches(rules);
+  } else {
+    if (!token) throw new Error("X_BEARER_TOKEN missing");
+    if (rules.length) {
+      const batches = packRules(rules);
+      setMeta("x_last_packed_queries", String(batches.length));
+      let tweets = 0;
+      for (const batch of batches) {
+        tweets += await pollLiveBatch(batch, token, limiter);
+      }
+      if (batches.length) {
+        console.log(
+          `[poller] ${userId.slice(0, 8)} packed ${rules.length} rules into ${batches.length} search${batches.length === 1 ? "" : "es"}; ${tweets} tweet${tweets === 1 ? "" : "s"}`,
+        );
+      }
+    }
+  }
+  setUserMeta(userId, "inbox_last_polled_at", isoNow());
+  try {
+    const sent = await flushWhatsAppDigestForUser(userId, new Date(), true);
+    if (sent) console.log("[whatsapp] digest sent");
+  } catch (error) {
+    console.error(`[whatsapp] digest failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 export async function runPollerLoop() {
   getDb();
   const demo = isDemoMode();
@@ -165,52 +186,23 @@ export async function runPollerLoop() {
   });
 
   const limiter = new XRateLimiter();
-  let lastDemoInject = 0;
 
   for (;;) {
     try {
       heartbeat(demo ? "demo" : "live");
-      try {
-        const sent = await flushWhatsAppDigest();
-        if (sent) console.log("[whatsapp] digest sent");
-      } catch (error) {
-        console.error(
-          `[whatsapp] digest failed: ${error instanceof Error ? error.message : String(error)}`,
-        );
-      }
       const forced = takeManualPollRequest();
-      if (forced) {
-        setMeta("poller_idle_backoff_ms", "0");
-        console.log("[poller] manual re-poll requested");
+      if (forced) console.log("[poller] manual re-poll requested");
+      const token = demo ? null : xBearerToken();
+      if (!demo && !token) throw new Error("X_BEARER_TOKEN missing");
+      let didPoll = false;
+      for (const userId of listDeskUserIds()) {
+        const minutes = getDeskCadenceMinutes(userId);
+        const lastAt = getUserMeta(userId, "inbox_last_polled_at");
+        if (!forced && !isDigestDue(lastAt, minutes)) continue;
+        await pollUserDesk(userId, demo, token, limiter);
+        didPoll = true;
       }
-      if (demo) {
-        if (forced || Date.now() - lastDemoInject >= DEMO_INJECT_INTERVAL_MS) {
-          await injectDemoMatches();
-          lastDemoInject = Date.now();
-          recordPoll();
-        }
-      } else {
-        const token = xBearerToken();
-        if (!token) throw new Error("X_BEARER_TOKEN missing");
-        const rules = listEnabledRules();
-        const idleBackoffMs = forced ? 0 : Number(getMeta("poller_idle_backoff_ms") ?? "0") || 0;
-        if (forced || isLivePackDue(rules, Date.now(), idleBackoffMs)) {
-          const batches = packRules(rules);
-          setMeta("x_last_packed_queries", String(batches.length));
-          let tweets = 0;
-          for (const batch of batches) {
-            tweets += await pollLiveBatch(batch, token, limiter);
-          }
-          const nextBackoff = nextIdleBackoffMs(idleBackoffMs, tweets, LIVE_IDLE_BACKOFF_CAP_MS);
-          setMeta("poller_idle_backoff_ms", String(nextBackoff));
-          if (batches.length) {
-            console.log(
-              `[poller] packed ${rules.length} rules into ${batches.length} search${batches.length === 1 ? "" : "es"}; ${tweets} tweet${tweets === 1 ? "" : "s"}`,
-            );
-          }
-          recordPoll();
-        }
-      }
+      if (didPoll) recordPoll();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (message.startsWith("X API rate limited")) {

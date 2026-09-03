@@ -6,9 +6,7 @@ import { GroupedRow, SettingsGroup } from "@/components/grouped-list";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { DIGEST_INTERVALS } from "@/lib/desk-settings";
 import { formatClock } from "@/lib/format";
 import type { WhatsAppPublicStatus } from "@/lib/whatsapp-status";
 
@@ -99,23 +97,6 @@ export function WhatsAppSettings() {
     }
   };
 
-  const saveCadence = async (patch: { alertMode?: string; digestMinutes?: number }) => {
-    setBusy(true);
-    try {
-      const res = await fetch("/api/whatsapp", {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(patch),
-      });
-      if (!res.ok) throw new Error("Could not update alert timing");
-      setWa(await res.json());
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not update alert timing");
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const pair = async () => {
     setBusy(true);
     try {
@@ -187,51 +168,12 @@ export function WhatsAppSettings() {
         </div>
       </GroupedRow>
       <GroupedRow className="items-start">
-        <div className="w-full shrink-0 text-[15px] text-muted-foreground sm:w-[9.5rem]">Alert timing</div>
-        <div className="grid min-w-0 flex-1 gap-2">
-          <div className="flex flex-wrap gap-1.5">
-            <Button
-              type="button"
-              size="sm"
-              variant={wa?.alertMode !== "digest" ? "default" : "outline"}
-              disabled={!wa || busy}
-              onClick={() => void saveCadence({ alertMode: "immediate" })}
-            >
-              Immediate
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={wa?.alertMode === "digest" ? "default" : "outline"}
-              disabled={!wa || busy}
-              onClick={() => void saveCadence({ alertMode: "digest" })}
-            >
-              Digest
-            </Button>
-          </div>
-          {wa?.alertMode === "digest" ? (
-            <Select
-              value={String(wa.digestMinutes ?? 60)}
-              onValueChange={(value) => void saveCadence({ digestMinutes: Number(value) })}
-            >
-              <SelectTrigger className="min-w-56" size="sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {DIGEST_INTERVALS.map((item) => (
-                  <SelectItem key={item.minutes} value={String(item.minutes)}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : null}
-          <p className="text-[13px] leading-relaxed text-muted-foreground">
-            Immediate sends one WhatsApp per inbox match. Digest sends the top 20 most important tweets from that window
-            (score, likes, Key Network Nodes first), every 5 / 15 / 30 / 45 minutes or every 1 / 2 / 3 / 4 hours. Extra
-            matches stay in the inbox. Send test is always immediate.
-          </p>
-        </div>
+        <div className="w-full shrink-0 text-[15px] text-muted-foreground sm:w-[9.5rem]">Alerts</div>
+        <p className="min-w-0 flex-1 text-[13px] leading-relaxed text-muted-foreground">
+          WhatsApp uses the <span className="text-foreground">Inbox & WhatsApp</span> interval above. Each window sends
+          the top 20 matches (score, likes, Key Network Nodes first). Extra matches stay in the inbox. Send test is
+          always immediate.
+        </p>
       </GroupedRow>
       <GroupedRow className="items-start">
         <div className="w-full shrink-0 text-[15px] text-muted-foreground sm:w-[9.5rem]">Destination</div>

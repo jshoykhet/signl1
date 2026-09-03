@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getUserMeta, setUserMeta } from "@/lib/db";
-import { parseDigestMinutes, parseWhatsAppAlertMode } from "@/lib/desk-settings";
+import { getUserMeta, setDeskCadenceMinutes, setUserMeta } from "@/lib/db";
 import { requireDeskUser } from "@/lib/session";
 import { normalizeWhatsAppNumber, toWhatsAppJid } from "@/lib/whatsapp";
 import { getWhatsAppPublicStatus } from "@/lib/whatsapp-status";
@@ -42,15 +41,11 @@ export async function PUT(request: Request) {
   if (typeof body.enabled === "boolean") {
     setUserMeta(desk.userId, "whatsapp_enabled", body.enabled ? "1" : "0");
   }
-  if (typeof body.alertMode === "string") {
-    const mode = parseWhatsAppAlertMode(body.alertMode);
-    setUserMeta(desk.userId, "whatsapp_alert_mode", mode);
-    if (mode === "digest" && !getUserMeta(desk.userId, "whatsapp_digest_last_at")) {
+  if (body.digestMinutes != null) {
+    setDeskCadenceMinutes(desk.userId, Number(body.digestMinutes));
+    if (!getUserMeta(desk.userId, "whatsapp_digest_last_at")) {
       setUserMeta(desk.userId, "whatsapp_digest_last_at", new Date().toISOString());
     }
-  }
-  if (body.digestMinutes != null) {
-    setUserMeta(desk.userId, "whatsapp_digest_minutes", String(parseDigestMinutes(String(body.digestMinutes))));
   }
   return NextResponse.json(await getWhatsAppPublicStatus(desk.userId, { canLink: desk.role === "admin" }));
 }

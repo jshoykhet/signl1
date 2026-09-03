@@ -57,6 +57,7 @@ export const SIGNAL_LEVELS: Record<SignalLevel, SignalLevelConfig> = {
 
 export const DIGEST_INTERVALS: { minutes: number; label: string }[] = [
   { minutes: 5, label: "Every 5 minutes" },
+  { minutes: 10, label: "Every 10 minutes" },
   { minutes: 15, label: "Every 15 minutes" },
   { minutes: 30, label: "Every 30 minutes" },
   { minutes: 45, label: "Every 45 minutes" },
@@ -64,7 +65,11 @@ export const DIGEST_INTERVALS: { minutes: number; label: string }[] = [
   { minutes: 120, label: "Every 2 hours" },
   { minutes: 180, label: "Every 3 hours" },
   { minutes: 240, label: "Every 4 hours" },
+  { minutes: 300, label: "Every 5 hours" },
+  { minutes: 600, label: "Every 10 hours" },
 ];
+
+export const DEFAULT_CADENCE_MINUTES = 15;
 
 export const DEFAULT_MIN_LIKES = 5;
 export const MIN_LIKES_SLIDER_MAX = 100;
@@ -105,14 +110,25 @@ export function parseBoolMeta(raw: string | null | undefined, fallback: boolean)
   return raw !== "0" && raw !== "false";
 }
 
-export function parseWhatsAppAlertMode(raw: string | null | undefined): WhatsAppAlertMode {
-  return raw === "digest" ? "digest" : "immediate";
+export function parseWhatsAppAlertMode(_raw?: string | null): WhatsAppAlertMode {
+  return "digest";
 }
 
-export function parseDigestMinutes(raw: string | null | undefined): number {
-  const n = Number(raw);
-  if (DIGEST_INTERVALS.some((item) => item.minutes === n)) return n;
-  return 60;
+export function parseDigestMinutes(raw: string | number | null | undefined): number {
+  const n = typeof raw === "number" ? raw : Number(raw);
+  const allowed = DIGEST_INTERVALS.map((item) => item.minutes);
+  if (Number.isFinite(n) && allowed.includes(n)) return n;
+  if (!Number.isFinite(n) || raw == null || raw === "") return DEFAULT_CADENCE_MINUTES;
+  return allowed.reduce((best, cur) => (Math.abs(cur - n) < Math.abs(best - n) ? cur : best));
+}
+
+export function cadenceLabel(minutes: number): string {
+  const parsed = parseDigestMinutes(minutes);
+  return DIGEST_INTERVALS.find((item) => item.minutes === parsed)?.label ?? `Every ${parsed} minutes`;
+}
+
+export function cadenceMs(minutes: number): number {
+  return parseDigestMinutes(minutes) * 60_000;
 }
 
 export function parseMinLikes(raw: string | number | null | undefined): number | null {

@@ -18,6 +18,7 @@ export function formatRelative(iso: string | null | undefined): string {
 
 export function formatInterval(ms: number): string {
   if (ms < 60_000) return `${Math.round(ms / 1000)}s`;
+  if (ms >= 3_600_000 && ms % 3_600_000 === 0) return `${ms / 3_600_000}h`;
   const min = ms / 60_000;
   if (Number.isInteger(min)) return `${min}m`;
   return `${(ms / 1000).toFixed(0)}s`;

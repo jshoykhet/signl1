@@ -8,6 +8,8 @@ import {
   parseWhatsAppAlertMode,
   effectiveMinLikes,
   SIGNAL_LEVELS,
+  cadenceLabel,
+  cadenceMs,
 } from "./desk-settings";
 
 describe("desk settings parsers", () => {
@@ -24,13 +26,27 @@ describe("desk settings parsers", () => {
   });
 
   it("accepts digest cadence", () => {
-    expect(parseWhatsAppAlertMode("digest")).toBe("digest");
-    expect(parseWhatsAppAlertMode(null)).toBe("immediate");
+    expect(parseWhatsAppAlertMode("immediate")).toBe("digest");
+    expect(parseWhatsAppAlertMode(null)).toBe("digest");
     expect(parseDigestMinutes("15")).toBe(15);
     expect(parseDigestMinutes("5")).toBe(5);
+    expect(parseDigestMinutes("10")).toBe(10);
     expect(parseDigestMinutes("45")).toBe(45);
     expect(parseDigestMinutes("180")).toBe(180);
-    expect(parseDigestMinutes("9")).toBe(60);
+    expect(parseDigestMinutes("300")).toBe(300);
+    expect(parseDigestMinutes("600")).toBe(600);
+    expect(parseDigestMinutes("9")).toBe(10);
+    expect(parseDigestMinutes("7")).toBe(5);
+    expect(parseDigestMinutes("50")).toBe(45);
+    expect(parseDigestMinutes(null)).toBe(15);
+    expect(parseDigestMinutes(120)).toBe(120);
+  });
+
+  it("labels inbox cadence windows", () => {
+    expect(cadenceLabel(10)).toBe("Every 10 minutes");
+    expect(cadenceLabel(60)).toBe("Every 1 hour");
+    expect(cadenceLabel(600)).toBe("Every 10 hours");
+    expect(cadenceMs(15)).toBe(15 * 60_000);
   });
 
   it("parses a custom min-likes override", () => {

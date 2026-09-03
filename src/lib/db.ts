@@ -25,7 +25,6 @@ import {
   parseDigestMinutes,
   parseMinLikes,
   parseSignalLevel,
-  parseWhatsAppAlertMode,
   SIGNAL_LEVELS,
   effectiveMinLikes,
   resolvedMinLikes,
@@ -281,6 +280,7 @@ const DESK_META_KEYS = [
   "whatsapp_alert_mode",
   "whatsapp_digest_minutes",
   "whatsapp_digest_last_at",
+  "inbox_last_polled_at",
   "watchlist_enabled",
   "watchlist_poll_interval_ms",
   "monitor_mode",
@@ -521,9 +521,20 @@ export function getDeskFilterSettings(userId: string, db = getDb()): DeskFilterS
 
 export function getWhatsAppCadenceSettings(userId: string, db = getDb()): WhatsAppCadenceSettings {
   return {
-    alertMode: parseWhatsAppAlertMode(getUserMeta(userId, "whatsapp_alert_mode", db)),
+    alertMode: "digest",
     digestMinutes: parseDigestMinutes(getUserMeta(userId, "whatsapp_digest_minutes", db)),
   };
+}
+
+export function getDeskCadenceMinutes(userId: string, db = getDb()): number {
+  return getWhatsAppCadenceSettings(userId, db).digestMinutes;
+}
+
+export function setDeskCadenceMinutes(userId: string, minutes: number, db = getDb()): number {
+  const next = parseDigestMinutes(minutes);
+  setUserMeta(userId, "whatsapp_digest_minutes", String(next), db);
+  setUserMeta(userId, "whatsapp_alert_mode", "digest", db);
+  return next;
 }
 
 export function evaluateTweetSignal(tweet: NormalizedTweet, userId: string, db = getDb()) {
@@ -669,7 +680,12 @@ function sortMonitors(rules: Rule[]): Rule[] {
 
 function overlayWatchlistEnabled(userId: string, rules: Rule[], db: Database.Database): Rule[] {
   const enabled = watchlistEnabled(userId, db);
-  return rules.map((rule) => (rule.kind === "watchlist" ? { ...rule, enabled } : rule));
+  const cadence = getDeskCadenceMinutes(userId, db) * 60_000;
+  return rules.map((rule) => ({
+    ...rule,
+    enabled: rule.kind === "watchlist" ? enabled : rule.enabled,
+    pollIntervalMs: cadence,
+  }));
 }
 
 function applyMonitorRenames(userId: string, db: Database.Database) {
@@ -889,6 +905,11 @@ export function listEnabledRules(db = getDb()): Rule[] {
     ORDER BY r.created_at ASC
   `).all() as RuleRow[];
   return rows.map(mapRule);
+}
+
+export function listEnabledRulesForUser(userId: string, db = getDb()): Rule[] {
+  if (!userId) return [];
+  return listRules(userId, db).filter((rule) => rule.enabled && rule.query.trim() !== "");
 }
 
 export function getRule(id: string, userId?: string, db = getDb()): Rule | null {
@@ -1391,6 +1412,7 @@ export function getStatus(userId: string, opts: { demoMode: boolean; bearerPrese
       unread: counts.unread,
       tickers: counts.tickers,
     },
+    cadenceMinutes: getDeskCadenceMinutes(userId, db),
   };
 }
 
@@ -1422,7 +1444,7 @@ export function getWatchlist(userId: string, db = getDb()): WatchlistSnapshot {
   return {
     tickers,
     enabled: watchlistEnabled(userId, db),
-    pollIntervalMs: watchlistPollIntervalMs(userId, db),
+    pollIntervalMs: getDeskCadenceMinutes(userId, db) * 60_000,
     compiledQueries: chunkTickersForQuery(tickers).map((chunk) => compileCashtagQuery(chunk)),
     rules: rules.map((rule) => ({
       id: rule.id,

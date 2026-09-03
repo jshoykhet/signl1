@@ -8,9 +8,13 @@ import {
   createRule,
   evaluateTweetSignal,
   getBlockedSpec,
+  getDeskCadenceMinutes,
   getDeskFilterSettings,
   getKolSpec,
+  getStatus,
+  getWatchlist,
   listAuthorFollowerCounts,
+  listEnabledRulesForUser,
   listMatches,
   listRules,
   openDatabase,
@@ -19,6 +23,7 @@ import {
   removeKolHandle,
   resetBlockedHandles,
   resetKolHandles,
+  setDeskCadenceMinutes,
   setDeskFilterSettings,
   tryInsertMatch,
 } from "./db";
@@ -365,5 +370,26 @@ describe("desk filters and KOL list persist in SQLite", () => {
     expect(isKolHandle("DeItaone", getKolSpec(U, db))).toBe(true);
     expect(listRules(U, db).some((rule) => rule.name === "Fed" && rule.enabled)).toBe(true);
     expect(listRules(U, db).some((rule) => rule.name === "Funding Announcements" && rule.enabled)).toBe(true);
+  });
+
+  it("uses one Settings cadence for inbox polling and WhatsApp", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-"));
+    tmpDirs.push(dir);
+    const db = openDatabase(path.join(dir, "test.db"));
+    ensureUserDesk(U, db);
+    expect(getDeskCadenceMinutes(U, db)).toBe(15);
+    expect(getStatus(U, { demoMode: true, bearerPresent: false }, db).cadenceMinutes).toBe(15);
+    expect(new Set(listRules(U, db).map((rule) => rule.pollIntervalMs))).toEqual(new Set([15 * 60_000]));
+    expect(getWatchlist(U, db).pollIntervalMs).toBe(15 * 60_000);
+
+    expect(setDeskCadenceMinutes(U, 45, db)).toBe(45);
+    expect(getDeskCadenceMinutes(U, db)).toBe(45);
+    expect(getStatus(U, { demoMode: true, bearerPresent: false }, db).cadenceMinutes).toBe(45);
+    expect(new Set(listRules(U, db).map((rule) => rule.pollIntervalMs))).toEqual(new Set([45 * 60_000]));
+    expect(getWatchlist(U, db).pollIntervalMs).toBe(45 * 60_000);
+    expect(listEnabledRulesForUser(U, db).every((rule) => rule.pollIntervalMs === 45 * 60_000)).toBe(true);
+
+    expect(setDeskCadenceMinutes(U, 600, db)).toBe(600);
+    expect(getDeskCadenceMinutes(U, db)).toBe(600);
   });
 });

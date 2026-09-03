@@ -2,8 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { QUERY_SYNTAX, compileQuery, normalizeAccounts } from "@/lib/query";
-import { DEFAULT_POLL_INTERVAL_MS, MIN_POLL_INTERVAL_MS } from "@/lib/config";
-import { formatInterval } from "@/lib/format";
 import type { Rule } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +14,6 @@ export type RuleFormValue = {
   enabled: boolean;
   queryInput: string;
   accounts: string;
-  pollIntervalSec: number;
   slackWebhookUrl: string;
   genericWebhookUrl: string;
 };
@@ -27,7 +24,6 @@ export function ruleToForm(rule?: Rule | null): RuleFormValue {
     enabled: rule?.enabled ?? true,
     queryInput: rule?.queryInput ?? "",
     accounts: (rule?.accounts ?? []).join(", "),
-    pollIntervalSec: Math.round((rule?.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS) / 1000),
     slackWebhookUrl: rule?.slackWebhookUrl ?? "",
     genericWebhookUrl: rule?.genericWebhookUrl ?? "",
   };
@@ -118,24 +114,9 @@ export function RuleForm({
           ))}
         </ul>
       </details>
-      <div className="grid gap-1.5">
-        <Label htmlFor="rule-interval">Poll interval (seconds)</Label>
-        <Input
-          id="rule-interval"
-          type="number"
-          min={MIN_POLL_INTERVAL_MS / 1000}
-          step={1}
-          value={value.pollIntervalSec}
-          onChange={(e) =>
-            setValue((v) => ({ ...v, pollIntervalSec: Number(e.target.value) }))
-          }
-        />
-        <p className="text-[13px] text-muted-foreground">
-          Default 120s. Minimum {formatInterval(MIN_POLL_INTERVAL_MS)} for demos. Live mode packs every enabled rule
-          into as few X recent-search calls as possible and will not poll faster than 60s, so a 15s interval does not
-          burn extra credits.
-        </p>
-      </div>
+      <p className="text-[13px] leading-relaxed text-muted-foreground">
+        Polling uses the Inbox & WhatsApp interval on Settings, not a per-monitor timer.
+      </p>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="grid gap-1.5">
           <Label htmlFor="rule-slack">Slack webhook (optional)</Label>
@@ -160,7 +141,7 @@ export function RuleForm({
       </div>
       <p className="text-[13px] text-muted-foreground">
         Inbox always receives matches. Slack can also fall back to the global <code>SLACK_WEBHOOK_URL</code> env var.
-        WhatsApp is linked once on Settings (Baileys) and fans out every new match.
+        WhatsApp sends a digest on the Settings interval, not one message per match.
       </p>
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onCancel}>

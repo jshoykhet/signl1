@@ -127,6 +127,7 @@ export type StatusSnapshot = {
     unread: number;
     tickers: number;
   };
+  cadenceMinutes: number;
 };
 
 export type WatchlistSnapshot = {

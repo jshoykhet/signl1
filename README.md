@@ -1,6 +1,6 @@
 # Signl1
 
-X (Twitter) alerts for investment and research operators. You define watch rules in a web UI; a background poller hits the official X API v2 recent-search endpoint and writes matches into an inbox. Optional Slack and WhatsApp fire on each new tweet.
+X (Twitter) alerts for investment and research operators. You define watch rules in a web UI; a background poller hits the official X API v2 recent-search endpoint and writes matches into an inbox. Slack can fire on each match; WhatsApp sends a digest on the same interval as inbox polling.
 
 Each Google account gets a **private desk** (inbox, rules, watchlist, filters, destination number). The host still runs one poller and one X bearer token. Set `AUTH_PUBLIC_SIGNUP=1` so anyone can sign in with Google, or `0` for an invite-only allowlist.
 
@@ -66,7 +66,7 @@ On the first live poll of a new rule, the client uses `start_time` equal to the 
 
 If the bearer token is missing:
 
-- The poller writes a heartbeat and injects one matching fixture every 10 seconds.
+- The poller writes a heartbeat and injects matching fixtures on the Inbox & WhatsApp interval (and on Re-poll).
 - Fixtures are realistic Fed, oil, and macro posts, plus funding, launch, and tech-leader posts for VC mode.
 - Dedup still applies (`rule_id` + `tweet_id`). After the pool is exhausted, ids cycle with a suffix so the tape keeps moving.
 - Settings shows **Bearer token: Missing** and **Demo mode**. The secret is never displayed because it is never stored.
@@ -111,9 +111,9 @@ The **accounts helper** compiles `nvidia, apple` into `(from:nvidia OR from:appl
 ($AAPL OR $NVDA OR $TSLA) lang:en -is:retweet
 ```
 
-Long lists are split into multiple Watchlist rules so each query stays under the X 512-character limit. Matches land in the inbox like any other rule, named **Watchlist**. Pause screening or change the poll interval on that page without deleting the names.
+Long lists are split into multiple Watchlist rules so each query stays under the X 512-character limit. Matches land in the inbox like any other rule, named **Watchlist**. Pause screening on that page without deleting the names.
 
-Poll interval defaults to **2 minutes**. Live mode **packs every enabled rule** (including Watchlist) into as few `recent search` requests as possible — typically one call per cycle instead of one per rule — and will not poll faster than **60 seconds**, even if a rule is set to 15s. Empty cycles back off further (capped at +4 minutes) so quiet tape does not keep spending credits. Each search asks for up to **100** tweets (`max_results`).
+Poll interval is the **Inbox & WhatsApp** setting (5 / 10 / 15 / 30 / 45 minutes, or 1 / 2 / 3 / 4 / 5 / 10 hours). Live mode **packs every enabled rule** into as few `recent search` requests as possible. Each search asks for up to **100** tweets (`max_results`).
 
 ## Desk tape (Settings)
 
@@ -135,7 +135,7 @@ Inbox + / − labels still train author priors.
 Every match lands in the in-app inbox.
 
 - **Slack:** rule-level incoming webhook, else `SLACK_WEBHOOK_URL`.
-- **WhatsApp:** link a phone on **Settings** with a QR or pairing code ([Baileys](https://baileys.wiki/) WhatsApp Web API). Optional destination (`WHATSAPP_TO` or the Settings field). If that number is the linked account, the text lands in WhatsApp **Message yourself** and often will not push-notify — use another number or a group JID for a normal chat ping. Alerts send only after status is **Linked**. Timing: **Immediate** (one text per match) or **Digest** (top 20 most important tweets every 5 / 15 / 30 / 45 minutes or every 1 / 2 / 3 / 4 hours). After you enter the pairing code, WhatsApp sends a stream restart (code 515); Signl1 reconnects immediately with the new session and does not treat that as an error. Session files live on the data volume so you do not scan again after restart.
+- **WhatsApp:** link a phone on **Settings** with a QR or pairing code ([Baileys](https://baileys.wiki/) WhatsApp Web API). Optional destination (`WHATSAPP_TO` or the Settings field). If that number is the linked account, the text lands in WhatsApp **Message yourself** and often will not push-notify — use another number or a group JID for a normal chat ping. Alerts send only after status is **Linked**. Timing is the same **Inbox & WhatsApp** interval as X polling: every 5 / 10 / 15 / 30 / 45 minutes or every 1 / 2 / 3 / 4 / 5 / 10 hours, sending the top 20 matches from that window. After you enter the pairing code, WhatsApp sends a stream restart (code 515); Signl1 reconnects immediately with the new session and does not treat that as an error. Session files live on the data volume so you do not scan again after restart.
 - **Generic webhook:** `POST` JSON:
 
 ```json

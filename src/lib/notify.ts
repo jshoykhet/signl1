@@ -11,7 +11,6 @@ import {
 import { DIGEST_CANDIDATE_LIMIT, isDigestDue } from "./desk-settings";
 import { buildGenericWebhookPayload, buildSlackWebhookPayload, postJson } from "./webhooks";
 import { buildWhatsAppDigest } from "./whatsapp-digest";
-import { buildWhatsAppText } from "./whatsapp";
 import type { NormalizedTweet, Rule } from "./types";
 
 type WhatsAppSender = (text: string, options?: { mustBeLinked?: boolean; to?: string | null }) => Promise<void>;
@@ -39,53 +38,52 @@ export async function notifyMatch(rule: Rule, tweet: NormalizedTweet): Promise<s
       errors.push(`webhook: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
-  const userId = rule.userId || "";
-  const to = getWhatsAppTo(userId);
-  const cadence = getWhatsAppCadenceSettings(userId);
-  if (whatsappSender && to && isWhatsAppEnabled(userId) && cadence.alertMode === "immediate") {
-    const text = buildWhatsAppText(rule, tweet);
-    void whatsappSender(text, { to }).catch((error) => {
-      console.warn(
-        `[poller] notify failed for ${rule.name}: whatsapp: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    });
-  }
   return errors;
 }
 
+export async function flushWhatsAppDigestForUser(
+  userId: string,
+  now = new Date(),
+  force = false,
+): Promise<boolean> {
+  if (!whatsappSender || !userId) return false;
+  if (!isWhatsAppEnabled(userId)) return false;
+  const to = getWhatsAppTo(userId);
+  if (!to) return false;
+  const cadence = getWhatsAppCadenceSettings(userId);
+  const lastAt = getUserMeta(userId, "whatsapp_digest_last_at");
+  if (!force && !isDigestDue(lastAt, cadence.digestMinutes, now.getTime())) return false;
+  const since = lastAt ?? new Date(now.getTime() - cadence.digestMinutes * 60_000).toISOString();
+  const matches = listMatchesSince(userId, since, DIGEST_CANDIDATE_LIMIT);
+  let sent = false;
+  if (matches.length) {
+    const text = buildWhatsAppDigest(
+      matches.map((match) => ({
+        rule: { name: match.ruleName },
+        tweet: {
+          id: match.tweetId,
+          authorHandle: match.authorHandle,
+          authorName: match.authorName,
+          text: match.text,
+          permalink: match.permalink,
+        },
+        score: match.signalScore,
+        likes: match.likeCount,
+        kol: match.kol,
+      })),
+      cadence.digestMinutes,
+    );
+    await whatsappSender(text, { to });
+    sent = true;
+  }
+  setUserMeta(userId, "whatsapp_digest_last_at", now.toISOString());
+  return sent;
+}
+
 export async function flushWhatsAppDigest(now = new Date()): Promise<boolean> {
-  if (!whatsappSender) return false;
   let sentAny = false;
   for (const userId of listDeskUserIds()) {
-    if (!isWhatsAppEnabled(userId)) continue;
-    const to = getWhatsAppTo(userId);
-    if (!to) continue;
-    const cadence = getWhatsAppCadenceSettings(userId);
-    if (cadence.alertMode !== "digest") continue;
-    const lastAt = getUserMeta(userId, "whatsapp_digest_last_at");
-    if (!isDigestDue(lastAt, cadence.digestMinutes, now.getTime())) continue;
-    const matches = lastAt ? listMatchesSince(userId, lastAt, DIGEST_CANDIDATE_LIMIT) : [];
-    if (matches.length) {
-      const text = buildWhatsAppDigest(
-        matches.map((match) => ({
-          rule: { name: match.ruleName },
-          tweet: {
-            id: match.tweetId,
-            authorHandle: match.authorHandle,
-            authorName: match.authorName,
-            text: match.text,
-            permalink: match.permalink,
-          },
-          score: match.signalScore,
-          likes: match.likeCount,
-          kol: match.kol,
-        })),
-        cadence.digestMinutes,
-      );
-      await whatsappSender(text, { to });
-      sentAny = true;
-    }
-    setUserMeta(userId, "whatsapp_digest_last_at", now.toISOString());
+    if (await flushWhatsAppDigestForUser(userId, now)) sentAny = true;
   }
   return sentAny;
 }

@@ -8,8 +8,10 @@ import { GroupedRow, SettingsGroup } from "@/components/grouped-list";
 import { KolEditor } from "@/components/kol-editor";
 import { PageHeader } from "@/components/page-header";
 import { TeamSettings } from "@/components/team-settings";
+import { CadenceSettings } from "@/components/cadence-settings";
 import { WhatsAppSettings } from "@/components/whatsapp-settings";
 import { formatClock, formatRelative } from "@/lib/format";
+import { cadenceLabel } from "@/lib/desk-settings";
 import type { StatusSnapshot } from "@/lib/types";
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -100,6 +102,7 @@ export function SettingsView() {
                 <Row label="Mode">{status.demoMode ? "Demo (fixtures)" : "Live (X API v2 recent search)"}</Row>
               </SettingsGroup>
               <TeamSettings />
+              <CadenceSettings />
               <WhatsAppSettings />
               <DeskFilters />
               <KolEditor />
@@ -137,10 +140,8 @@ export function SettingsView() {
                     : "—"}
                 </Row>
                 <Row label="Window reset">{formatClock(status.poller.rateLimitResetAt)}</Row>
-                <Row label="Quiet backoff">
-                  {status.poller.idleBackoffMs
-                    ? `+${Math.round(status.poller.idleBackoffMs / 1000)}s after empty polls`
-                    : "None"}
+                <Row label="Inbox interval">
+                  {cadenceLabel(status.cadenceMinutes)}
                 </Row>
                 <Row label="Last error">
                   {status.poller.lastError ? (
