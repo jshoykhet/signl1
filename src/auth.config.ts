@@ -7,7 +7,7 @@ export function resolveAuthSecret(): string {
   const isBuild =
     process.env.NEXT_PHASE === "phase-production-build" || process.env.npm_lifecycle_event === "build";
   if (process.env.NODE_ENV !== "production" || isBuild) {
-    return "signal1-dev-secret-not-for-production";
+    return "signl1-dev-secret-not-for-production";
   }
   throw new Error("AUTH_SECRET is required in production. Generate one with: openssl rand -base64 32");
 }

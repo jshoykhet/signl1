@@ -16,13 +16,13 @@ export function MarketingHome({
       <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-5 py-5">
         <div className="flex items-center gap-2.5">
           <img
-            src="/signal1-logo-256.png"
-            alt="Signal1"
+            src="/signl1-logo-256.png"
+            alt="Signl1"
             width={36}
             height={36}
             className="size-9 rounded-xl ring-1 ring-amber-400/25"
           />
-          <span className="text-[17px] font-semibold tracking-[-0.02em]">Signal1</span>
+          <span className="text-[17px] font-semibold tracking-[-0.02em]">Signl1</span>
         </div>
         {devLogin ? (
           <SkipSignInButton className="rounded-full bg-foreground px-4 py-2 text-[13px] font-medium text-background disabled:opacity-60">
@@ -42,7 +42,7 @@ export function MarketingHome({
         <div className="grid items-start gap-12 lg:grid-cols-[1.15fr_0.85fr]">
           <div>
             <h1 className="max-w-xl text-[40px] leading-[1.08] font-semibold tracking-[-0.035em] md:text-[52px]">
-              Signal1: Filter Signal from the Timeline
+              Signl1: Filter Signal from the Timeline
             </h1>
             <p className="mt-5 max-w-xl text-[17px] leading-relaxed text-muted-foreground">
               Build your own custom X timeline that sends regular WhatsApp updates direct to you.

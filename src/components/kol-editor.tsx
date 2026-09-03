@@ -58,8 +58,8 @@ export function KolEditor() {
     const onMode = () => {
       void load().catch(() => undefined);
     };
-    window.addEventListener("signal1:desk-mode", onMode);
-    return () => window.removeEventListener("signal1:desk-mode", onMode);
+    window.addEventListener("signl1:desk-mode", onMode);
+    return () => window.removeEventListener("signl1:desk-mode", onMode);
   }, []);
 
   const save = async (body: { add?: string; remove?: string; reset?: boolean }, success?: string) => {
@@ -141,7 +141,7 @@ export function KolEditor() {
           <p className="text-[13px] leading-relaxed text-muted-foreground">
             Seeded with {kol.seedCount} {kol.deskMode === "venture" ? "venture, startup, and tech-news" : "markets-desk"}{" "}
             handles. These accounts skip the like floor and get a desk bump unless Require likes is on. Click a handle
-            to open the X profile. Follower counts come from posts Signal1 has already ingested — accounts with no match
+            to open the X profile. Follower counts come from posts Signl1 has already ingested — accounts with no match
             yet show —. Switching desk mode on Desk tape swaps this seed.
           </p>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">

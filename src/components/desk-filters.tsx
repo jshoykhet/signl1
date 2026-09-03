@@ -58,7 +58,7 @@ export function DeskFilters() {
       setLikesDraft(String(data.minLikes));
       setLikesLive(data.minLikes);
       if (patch.deskMode) {
-        window.dispatchEvent(new CustomEvent("signal1:desk-mode", { detail: data.deskMode }));
+        window.dispatchEvent(new CustomEvent("signl1:desk-mode", { detail: data.deskMode }));
         toast.success(
           data.deskMode === "venture"
             ? "Venture desk on — funding and launch rules are live"

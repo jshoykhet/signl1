@@ -67,7 +67,7 @@ export function SettingsView() {
                 <div className="rounded-2xl bg-amber-400/15 px-4 py-3.5">
                   <div className="text-[15px] font-medium text-amber-800 dark:text-amber-200">Demo mode</div>
                   <p className="mt-1 text-[15px] leading-snug text-amber-800/70 dark:text-amber-50/75">
-                    <code className="font-mono text-[13px]">X_BEARER_TOKEN</code> is not set. Signal1 is injecting fixture
+                    <code className="font-mono text-[13px]">X_BEARER_TOKEN</code> is not set. Signl1 is injecting fixture
                     posts for the active desk (markets or venture) so you can exercise rules and the inbox without paid
                     X API access.
                   </p>
@@ -77,11 +77,11 @@ export function SettingsView() {
               <SettingsGroup title="Brand">
                 <Row label="Logo">
                   <a
-                    href="/signal1-logo.png"
-                    download="signal1_logo.png"
+                    href="/signl1-logo.png"
+                    download="signl1_logo.png"
                     className="text-amber-700 underline-offset-4 hover:underline dark:text-amber-300"
                   >
-                    Download Signal1 logo
+                    Download Signl1 logo
                   </a>
                 </Row>
               </SettingsGroup>

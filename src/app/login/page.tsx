@@ -24,14 +24,14 @@ export default async function LoginPage({
       <div className="w-full max-w-[400px]">
         <div className="mb-8 flex flex-col items-center text-center">
           <img
-            src="/signal1-logo-256.png"
-            alt="Signal1"
+            src="/signl1-logo-256.png"
+            alt="Signl1"
             width={72}
             height={72}
             className="size-[72px] rounded-[22px] shadow-lg ring-1 ring-amber-400/25"
           />
           <h1 className="mt-5 text-[28px] font-semibold tracking-[-0.022em]">
-            Signal1: Filter Signal from the Timeline
+            Signl1: Filter Signal from the Timeline
           </h1>
           <p className="mt-2 text-[15px] leading-snug text-muted-foreground">
             Build your own custom X timeline that sends regular WhatsApp updates direct to you.

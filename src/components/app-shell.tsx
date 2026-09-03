@@ -42,11 +42,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const onMode = () => {
       void load();
     };
-    window.addEventListener("signal1:desk-mode", onMode);
+    window.addEventListener("signl1:desk-mode", onMode);
     return () => {
       cancelled = true;
       clearInterval(timer);
-      window.removeEventListener("signal1:desk-mode", onMode);
+      window.removeEventListener("signl1:desk-mode", onMode);
     };
   }, [bare]);
 
@@ -57,14 +57,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <aside className="hidden h-full w-[232px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
         <div className="flex items-center gap-2.5 px-4 pt-5 pb-4">
           <img
-            src="/signal1-logo-256.png"
-            alt="Signal1"
+            src="/signl1-logo-256.png"
+            alt="Signl1"
             width={32}
             height={32}
             className="size-8 rounded-xl ring-1 ring-amber-400/25"
           />
           <div className="min-w-0 leading-tight">
-            <div className="text-[17px] font-semibold tracking-[-0.02em]">Signal1</div>
+            <div className="text-[17px] font-semibold tracking-[-0.02em]">Signl1</div>
             <div className="text-[12px] text-muted-foreground">
               {status?.deskFilters.deskMode === "venture" ? "Venture desk" : "Markets desk"}
             </div>
@@ -123,13 +123,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 md:hidden">
           <div className="flex items-center gap-2.5">
             <img
-              src="/signal1-logo-256.png"
+              src="/signl1-logo-256.png"
               alt=""
               width={32}
               height={32}
               className="size-8 rounded-xl ring-1 ring-amber-400/25"
             />
-            <span className="text-[17px] font-semibold tracking-[-0.02em]">Signal1</span>
+            <span className="text-[17px] font-semibold tracking-[-0.02em]">Signl1</span>
           </div>
           <UserMenu compact />
         </header>

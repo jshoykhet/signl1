@@ -1,6 +1,6 @@
-# Deploy Signal1 on a domain you purchased
+# Deploy Signl1 on a domain you purchased
 
-Signal1 is a long-running desk: Next.js UI, a background X poller, SQLite, and a WhatsApp (Baileys) session on disk. **Do not put this on Vercel.** Vercel cannot keep the poller alive or persist SQLite / WhatsApp auth files. Use a VPS (Hetzner, DigitalOcean, Fly machines, a home box with a public IP) and Docker Compose plus Caddy for TLS.
+Signl1 is a long-running desk: Next.js UI, a background X poller, SQLite, and a WhatsApp (Baileys) session on disk. **Do not put this on Vercel.** Vercel cannot keep the poller alive or persist SQLite / WhatsApp auth files. Use a VPS (Hetzner, DigitalOcean, Fly machines, a home box with a public IP) and Docker Compose plus Caddy for TLS.
 
 This file assumes you already bought a hostname. The stack never hard-codes it — set `DOMAIN` in `.env`.
 
@@ -42,8 +42,8 @@ Use the hostname you want operators to type, for example `signals.yourfund.com`.
 ## 3. Google OAuth client
 
 1. Open [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → the project you use for this desk.
-2. **APIs & Services → OAuth consent screen**. User type **External**. App name **Signal1**.
-3. For a **public** domain, set publishing status to **In production**. Signal1 only requests email, profile, and OpenID (non-sensitive). Until you complete Google’s brand verification, users see an “unverified app” warning they can continue past. **Testing** mode caps you at 100 test users and is not public.
+2. **APIs & Services → OAuth consent screen**. User type **External**. App name **Signl1**.
+3. For a **public** domain, set publishing status to **In production**. Signl1 only requests email, profile, and OpenID (non-sensitive). Until you complete Google’s brand verification, users see an “unverified app” warning they can continue past. **Testing** mode caps you at 100 test users and is not public.
 4. **Credentials → Create credentials → OAuth client ID → Web application**.
 5. Authorized JavaScript origins:
    - `https://YOUR_DOMAIN`
@@ -51,7 +51,7 @@ Use the hostname you want operators to type, for example `signals.yourfund.com`.
    - `https://YOUR_DOMAIN/api/auth/callback/google`
 7. Copy the client ID and secret into `.env` as `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`.
 
-Keep a second OAuth client named “Signal1 local” for `http://127.0.0.1:3847` if you develop on a laptop.
+Keep a second OAuth client named “Signl1 local” for `http://127.0.0.1:3847` if you develop on a laptop.
 
 ## 4. Secrets and the first admin
 
@@ -147,4 +147,4 @@ The instance admin links WhatsApp once. Each user saves **their** destination nu
 | Empty live inbox | Same as README — token, recent-search product, rule `start_time` |
 | WhatsApp unlinked after recreate | Volume was wiped; link the device again |
 
-There is no hosted Signal1 service. You own the VPS, the domain, the Google client, and the SQLite file.
+There is no hosted Signl1 service. You own the VPS, the domain, the Google client, and the SQLite file.

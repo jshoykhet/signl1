@@ -33,8 +33,8 @@ describe("WhatsApp digest copy", () => {
       ],
       60,
     );
-    expect(text).toContain("*Signal1 · digest* (1 match, last 1h)");
-    expect(text).toContain("*Signal1 · Fed Watch*");
+    expect(text).toContain("*Signl1 · digest* (1 match, last 1h)");
+    expect(text).toContain("*Signl1 · Fed Watch*");
     expect(text).toContain("@reuters");
   });
 

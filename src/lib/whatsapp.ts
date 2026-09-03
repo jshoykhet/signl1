@@ -113,7 +113,7 @@ export function buildWhatsAppText(
   const preview = tweet.text.length > 3500 ? `${tweet.text.slice(0, 3497)}...` : tweet.text;
   const name = tweet.authorName ? ` (${tweet.authorName})` : "";
   return [
-    `*Signal1 · ${rule.name}*`,
+    `*Signl1 · ${rule.name}*`,
     `@${tweet.authorHandle}${name}`,
     "",
     preview,

@@ -231,7 +231,7 @@ export function WatchlistView() {
                   ))
                 ) : (
                   <p className="text-[15px] text-muted-foreground">
-                    Add at least one ticker and Signal1 will poll{" "}
+                    Add at least one ticker and Signl1 will poll{" "}
                     <code className="font-mono text-[13px]">($NVDA OR $AAPL) lang:en -is:retweet</code>.
                   </p>
                 )}

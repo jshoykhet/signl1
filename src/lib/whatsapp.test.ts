@@ -65,7 +65,7 @@ describe("WhatsApp alert copy", () => {
         permalink: "https://x.com/reuters/status/1",
       },
     );
-    expect(text).toContain("*Signal1 · Fed Watch*");
+    expect(text).toContain("*Signl1 · Fed Watch*");
     expect(text).toContain("@reuters (Reuters)");
     expect(text).toContain("FOMC holds the funds rate.");
     expect(text).toContain("https://x.com/reuters/status/1");

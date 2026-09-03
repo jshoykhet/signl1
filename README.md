@@ -1,10 +1,10 @@
-# Signal1
+# Signl1
 
 X (Twitter) alerts for investment and research operators. You define watch rules in a web UI; a background poller hits the official X API v2 recent-search endpoint and writes matches into an inbox. Optional Slack and WhatsApp fire on each new tweet.
 
 Each Google account gets a **private desk** (inbox, rules, watchlist, filters, destination number). The host still runs one poller and one X bearer token. Set `AUTH_PUBLIC_SIGNUP=1` so anyone can sign in with Google, or `0` for an invite-only allowlist.
 
-You run it with Docker Compose (or `npm run dev`) against a local SQLite file. To put Signal1 on a domain you purchased, use a VPS — not Vercel. See [DEPLOY.md](DEPLOY.md) for DNS, Caddy TLS, a public Google OAuth client, and signup mode.
+You run it with Docker Compose (or `npm run dev`) against a local SQLite file. To put Signl1 on a domain you purchased, use a VPS — not Vercel. See [DEPLOY.md](DEPLOY.md) for DNS, Caddy TLS, a public Google OAuth client, and signup mode.
 
 ## Quick start
 
@@ -15,7 +15,7 @@ docker compose up --build
 
 Open [http://localhost:3847](http://localhost:3847).
 
-Leave `X_BEARER_TOKEN` empty for **demo mode**. Signal1 injects fixture posts for the active desk (markets or venture) on a timer so the inbox, rules, and settings work without paid X API access. The UI labels this clearly.
+Leave `X_BEARER_TOKEN` empty for **demo mode**. Signl1 injects fixture posts for the active desk (markets or venture) on a timer so the inbox, rules, and settings work without paid X API access. The UI labels this clearly.
 
 ## Environment
 
@@ -58,7 +58,7 @@ Sign-in defaults to **public Google signup**. The first account to sign in becom
 4. Copy the **Bearer Token** (app-only auth). This is not a user access token.
 5. Put it in `.env` as `X_BEARER_TOKEN=...` and restart Compose.
 
-Signal1 talks only to `https://api.x.com/2/tweets/search/recent` (falling back to `api.twitter.com`). It does not scrape `x.com` or `twitter.com`.
+Signl1 talks only to `https://api.x.com/2/tweets/search/recent` (falling back to `api.twitter.com`). It does not scrape `x.com` or `twitter.com`.
 
 On the first live poll of a new rule, the client uses `start_time` equal to the rule's created timestamp so you are not backfilled with seven days of hits. After that it pages with `since_id`.
 
@@ -104,7 +104,7 @@ The **accounts helper** compiles `nvidia, apple` into `(from:nvidia OR from:appl
 
 ## Watchlist (cashtags)
 
-**Watchlist** is a list of stock tickers you want FinTwit alerts on. Paste `NVDA, AAPL, TSLA` — you do not type the `$`. Signal1 compiles an extra recent-search rule:
+**Watchlist** is a list of stock tickers you want FinTwit alerts on. Paste `NVDA, AAPL, TSLA` — you do not type the `$`. Signl1 compiles an extra recent-search rule:
 
 ```
 ($AAPL OR $NVDA OR $TSLA) lang:en -is:retweet
@@ -134,7 +134,7 @@ Inbox + / − labels still train author priors.
 Every match lands in the in-app inbox.
 
 - **Slack:** rule-level incoming webhook, else `SLACK_WEBHOOK_URL`.
-- **WhatsApp:** link a phone on **Settings** with a QR or pairing code ([Baileys](https://baileys.wiki/) WhatsApp Web API). Optional destination (`WHATSAPP_TO` or the Settings field). If that number is the linked account, the text lands in WhatsApp **Message yourself** and often will not push-notify — use another number or a group JID for a normal chat ping. Alerts send only after status is **Linked**. Timing: **Immediate** (one text per match) or **Digest** (top 20 most important tweets every 5 / 15 / 30 / 45 minutes or every 1 / 2 / 3 / 4 hours). After you enter the pairing code, WhatsApp sends a stream restart (code 515); Signal1 reconnects immediately with the new session and does not treat that as an error. Session files live on the data volume so you do not scan again after restart.
+- **WhatsApp:** link a phone on **Settings** with a QR or pairing code ([Baileys](https://baileys.wiki/) WhatsApp Web API). Optional destination (`WHATSAPP_TO` or the Settings field). If that number is the linked account, the text lands in WhatsApp **Message yourself** and often will not push-notify — use another number or a group JID for a normal chat ping. Alerts send only after status is **Linked**. Timing: **Immediate** (one text per match) or **Digest** (top 20 most important tweets every 5 / 15 / 30 / 45 minutes or every 1 / 2 / 3 / 4 hours). After you enter the pairing code, WhatsApp sends a stream restart (code 515); Signl1 reconnects immediately with the new session and does not treat that as an error. Session files live on the data volume so you do not scan again after restart.
 - **Generic webhook:** `POST` JSON:
 
 ```json
@@ -223,7 +223,7 @@ The poller honors `x-rate-limit-remaining`, `x-rate-limit-reset`, and `Retry-Aft
 | Duplicate alerts | Should not happen. Dedup is `UNIQUE(rule_id, tweet_id)`. The same tweet can still match two different rules. |
 | Empty live inbox | Rule `start_time` is the created-at of the rule. Wait for a new matching post, or tighten the query. |
 
-Do not lower every interval to 15s on a live token. Signal1 floors live polls at 60s and packs rules together; the 15s UI value is for demo mode.
+Do not lower every interval to 15s on a live token. Signl1 floors live polls at 60s and packs rules together; the 15s UI value is for demo mode.
 
 ## Tests
 

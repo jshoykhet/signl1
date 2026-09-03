@@ -1,4 +1,4 @@
-# Production stack: Caddy (TLS) + Signal1 web + poller.
+# Production stack: Caddy (TLS) + Signl1 web + poller.
 # Copy .env.example → .env, set DOMAIN and AUTH_*, then:
 #   docker compose -f docker-compose.prod.yml --env-file .env up -d --build
 #

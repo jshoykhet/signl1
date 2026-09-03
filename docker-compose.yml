@@ -15,7 +15,7 @@ services:
       BLOCKED_HANDLES: ${BLOCKED_HANDLES:-}
       WHATSAPP_TO: ${WHATSAPP_TO:-}
       WHATSAPP_AUTH_DIR: /data/whatsapp-auth
-      AUTH_SECRET: ${AUTH_SECRET:-signal1-dev-secret-not-for-production}
+      AUTH_SECRET: ${AUTH_SECRET:-signl1-dev-secret-not-for-production}
       AUTH_URL: ${AUTH_URL:-http://127.0.0.1:3847}
       AUTH_TRUST_HOST: "true"
       AUTH_DEV_LOGIN: ${AUTH_DEV_LOGIN:-1}
