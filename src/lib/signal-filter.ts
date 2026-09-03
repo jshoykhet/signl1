@@ -302,7 +302,9 @@ export function passesSignalFilter(
   }
 
   if (watchedAuthor) {
-    if (desk.score === 0) reasons.push("off-desk");
+    if (desk.reasons.includes("lifestyle") || desk.reasons.includes("dunk")) {
+      reasons.push("off-desk");
+    }
   } else {
     if (!desk.substance) {
       reasons.push("no news or analysis");

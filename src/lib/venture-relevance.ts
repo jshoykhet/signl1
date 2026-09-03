@@ -128,7 +128,7 @@ export function scoreVentureRelevance(text: string, opts: { isReply?: boolean } 
   const substance = hasStrong || hasNews || hasAnalysis || hasPayload;
 
   if (LIFESTYLE.test(t) && !substance) {
-    return { score: 0, spam: false, reasons: [], substance: false };
+    return { score: 0, spam: false, reasons: ["lifestyle"], substance: false };
   }
   if (DUNK.test(t) && !substance) {
     return { score: 0, spam: false, reasons: ["dunk"], substance: false };

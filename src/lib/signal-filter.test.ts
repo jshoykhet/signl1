@@ -152,6 +152,19 @@ describe("passesSignalFilter", () => {
     );
     expect(lifestyle.pass).toBe(false);
     expect(lifestyle.reasons).toContain("off-desk");
+
+    const shortReply = passesSignalFilter(
+      quality({
+        authorHandle: "elonmusk",
+        followersCount: 200_000_000,
+        likeCount: 12_000,
+        isReply: true,
+        text: "Cybercab.",
+      }),
+      now,
+      { deskMode: "both", signalLevel: "high", watchedAuthor: true },
+    );
+    expect(shortReply.pass).toBe(true);
   });
 
   it("still requires substance when the author is not on the watch list", () => {
