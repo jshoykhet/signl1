@@ -67,27 +67,28 @@ On the first live poll of a new rule, the client uses `start_time` equal to the 
 If the bearer token is missing:
 
 - The poller writes a heartbeat and injects one matching fixture every 10 seconds.
-- Fixtures are realistic Fed, Mag 7, and crude/OPEC posts, plus funding/launch posts for Venture mode.
+- Fixtures are realistic Fed, oil, and macro posts, plus funding, launch, and tech-leader posts for VC mode.
 - Dedup still applies (`rule_id` + `tweet_id`). After the pool is exhausted, ids cycle with a suffix so the tape keeps moving.
 - Settings shows **Bearer token: Missing** and **Demo mode**. The secret is never displayed because it is never stored.
 
-Seeded sample rules (15s interval so the demo is obvious). **Markets** (default):
+Seeded monitors live on **Rules**, split into two modes. Each monitor is independently on/off. **Markets**:
 
 | Name | Query |
 | --- | --- |
-| Fed Watch | `(FOMC OR "interest rate" OR "fed funds" OR Powell) lang:en -is:retweet` |
-| Mag 7 tape | `(from:nvidia OR from:apple OR from:meta OR from:microsoft) (earnings OR guidance OR GPU OR AI) lang:en -is:retweet` |
-| Crude & OPEC | `(OPEC OR "crude oil" OR WTI OR Brent) lang:en -is:retweet` |
+| Watchlist | User cashtags from the Watchlist page |
+| Fed | `(FOMC OR "interest rate" OR "fed funds" OR Powell) lang:en -is:retweet` |
+| Oil | `(OPEC OR "crude oil" OR WTI OR Brent) lang:en -is:retweet` |
+| Macro | CPI, PCE, NFP, GDP, Treasury yields, DXY, tariffs, ISM/PMI, and other market-moving prints |
 
-**Venture** (Settings → Desk tape):
+**VC**:
 
 | Name | Query |
 | --- | --- |
-| Funding rounds | `(raised OR raising OR "series a" OR "series b" OR "series c" OR "seed round" OR "pre-seed" OR "led the round" OR "term sheet" OR valuation) lang:en -is:retweet` |
-| Launches & product | `("comes out of stealth" OR "product launch" OR launches OR "open sourced" OR "general availability" OR "demo day") lang:en -is:retweet` |
-| VC desks | `from:` TechCrunch, Techmeme, The Information, PitchBook, Crunchbase News, Axios, YC, a16z, Sequoia, Product Hunt, StrictlyVC, Eric Newcomer |
+| Tech Leaders | Account list of operators, founders, and investors (editable). Not tech publications. |
+| Funding Announcements | `raised` / `raising`, Seed / Series A–D, term sheet, valuation, led the round |
+| Product Launches | product launch, out of stealth, open sourced, generally available, demo day, new model/API/platform |
 
-Disable or edit these like any other rule.
+Disable or edit these like any other rule. Switching Markets / VC does not turn the other mode’s monitors on or off.
 
 ## Example rules
 
@@ -118,7 +119,7 @@ Poll interval defaults to **2 minutes**. Live mode **packs every enabled rule** 
 
 These apply at ingest and again whenever you change them, so the inbox and Slack/WhatsApp stay in sync with the live floors.
 
-- **Desk mode:** Markets (FOMC, earnings, flow) or Venture (funding, launches, tech announcements). Switching swaps the seeded rules and Key Network Node list.
+- **Desk mode:** Markets (FOMC, earnings, flow) or Venture (funding, launches, tech announcements). Switching changes the Key Network Node seed list. Monitor on/off state lives on Rules and is not toggled by desk mode.
 - **Nodes only:** keep posts from Key Network Nodes (plus anything you labeled high).
 - **Key Network Nodes:** seeded per desk mode. Markets is wires and squawk; Venture is the 100-handle VC/startup list. Add, remove, or reset to defaults on Settings.
 - **Blocked:** mute handles so they never land in the inbox or fire Slack/WhatsApp, even if they are a node.
@@ -140,7 +141,7 @@ Every match lands in the in-app inbox.
 ```json
 {
   "event": "signal.match",
-  "rule": { "id": "...", "name": "Fed Watch", "query": "..." },
+  "rule": { "id": "...", "name": "Fed", "query": "..." },
   "tweet": {
     "id": "...",
     "author_handle": "reuters",

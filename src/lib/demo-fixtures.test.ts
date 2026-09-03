@@ -3,22 +3,7 @@ import { compileQuery, matchesQuery } from "./query";
 import { compileCashtagQuery } from "./tickers";
 import { DEMO_FIXTURES, VENTURE_DEMO_FIXTURES, fixtureToTweet } from "./demo-fixtures";
 import { passesSignalFilter } from "./signal-filter";
-import { VENTURE_SEED_RULES } from "./seed-rules";
-
-const SEED_QUERIES = [
-  compileQuery({
-    query: '(FOMC OR "interest rate" OR "fed funds" OR Powell) lang:en -is:retweet',
-    accounts: [],
-  }),
-  compileQuery({
-    query: "(earnings OR guidance OR GPU OR AI) lang:en -is:retweet",
-    accounts: ["nvidia", "apple", "meta", "microsoft"],
-  }),
-  compileQuery({
-    query: '(OPEC OR "crude oil" OR WTI OR Brent) lang:en -is:retweet',
-    accounts: [],
-  }),
-];
+import { MARKETS_SEED_RULES, VENTURE_SEED_RULES } from "./seed-rules";
 
 describe("demo fixtures", () => {
   it("ships a handful of finance/markets tweets", () => {
@@ -32,10 +17,11 @@ describe("demo fixtures", () => {
     }
   });
 
-  it("covers each seeded sample rule with at least two matches", () => {
-    for (const query of SEED_QUERIES) {
+  it("covers each seeded Markets monitor with at least two matches", () => {
+    for (const rule of MARKETS_SEED_RULES) {
+      const query = compileQuery({ query: rule.queryInput, accounts: rule.accounts });
       const hits = DEMO_FIXTURES.filter((fixture) => matchesQuery(fixture, query));
-      expect(hits.length, `expected hits for ${query}`).toBeGreaterThanOrEqual(2);
+      expect(hits.length, `expected hits for ${rule.name}: ${query}`).toBeGreaterThanOrEqual(2);
     }
   });
 
@@ -56,11 +42,11 @@ describe("demo fixtures", () => {
 });
 
 describe("venture demo fixtures", () => {
-  it("covers each venture seed rule with at least two matches", () => {
+  it("covers each VC seed monitor with at least two matches", () => {
     for (const rule of VENTURE_SEED_RULES) {
       const query = compileQuery({ query: rule.queryInput, accounts: rule.accounts });
       const hits = VENTURE_DEMO_FIXTURES.filter((fixture) => matchesQuery(fixture, query));
-      expect(hits.length, `expected hits for ${query}`).toBeGreaterThanOrEqual(2);
+      expect(hits.length, `expected hits for ${rule.name}: ${query}`).toBeGreaterThanOrEqual(2);
     }
   });
 

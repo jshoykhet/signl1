@@ -33,8 +33,18 @@ import {
   type DeskFilterSettings,
   type WhatsAppCadenceSettings,
 } from "./desk-settings";
-import type { DeskMode } from "./desk-mode";
-import { otherSeedRuleNames, seedRulesForMode } from "./seed-rules";
+import {
+  MARKETS_DEFAULT_NAMES,
+  VC_DEFAULT_NAMES,
+  monitorModeFromDeskMode,
+  parseMonitorMode,
+  type MonitorMode,
+} from "./monitor-mode";
+import {
+  DEFAULT_MONITORS,
+  MONITOR_RENAMES,
+  RETIRED_DEFAULT_MONITOR_NAMES,
+} from "./seed-rules";
 import { passesSignalFilter, type AuthorPrior, type UserLabel } from "./signal-filter";
 import { chunkTickersForQuery, compileCashtagQuery, normalizeTickers } from "./tickers";
 import type { Match, NormalizedTweet, Rule, RuleInput, StatusSnapshot, WatchlistSnapshot } from "./types";
@@ -57,6 +67,7 @@ type RuleRow = {
   updated_at: string;
   kind: string | null;
   watchlist_chunk: number | null;
+  mode: string | null;
 };
 
 type MatchRow = {
@@ -114,6 +125,7 @@ function mapRule(row: RuleRow): Rule {
     updatedAt: row.updated_at,
     kind: row.kind === "watchlist" ? "watchlist" : "custom",
     watchlistChunk: typeof row.watchlist_chunk === "number" ? row.watchlist_chunk : null,
+    mode: parseMonitorMode(row.mode),
   };
 }
 
@@ -227,6 +239,7 @@ function migrate(db: Database.Database) {
   ensureColumn(db, "rules", "kind", "TEXT NOT NULL DEFAULT 'custom'");
   ensureColumn(db, "rules", "watchlist_chunk", "INTEGER");
   ensureColumn(db, "rules", "user_id", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(db, "rules", "mode", "TEXT NOT NULL DEFAULT 'markets'");
   ensureColumn(db, "matches", "author_followers", "INTEGER");
   ensureColumn(db, "matches", "like_count", "INTEGER");
   ensureColumn(db, "matches", "signal_score", "REAL");
@@ -269,6 +282,7 @@ const DESK_META_KEYS = [
   "whatsapp_digest_last_at",
   "watchlist_enabled",
   "watchlist_poll_interval_ms",
+  "monitor_mode",
 ] as const;
 
 function migrateTickersToDesk(db: Database.Database) {
@@ -602,18 +616,18 @@ function seedIfNeeded(db: Database.Database) {
   db.prepare("INSERT OR IGNORE INTO meta (key, value) VALUES ('instance_initialized', ?)").run(nowIso());
 }
 
-function insertSeedRules(userId: string, db: Database.Database, mode: DeskMode = "markets") {
+function insertSeedRules(userId: string, db: Database.Database) {
   const insert = db.prepare(`
     INSERT INTO rules (
       id, user_id, name, enabled, query, query_input, accounts_json, poll_interval_ms,
-      slack_webhook_url, generic_webhook_url, created_at, updated_at
+      slack_webhook_url, generic_webhook_url, created_at, updated_at, mode
     ) VALUES (
       @id, @user_id, @name, @enabled, @query, @query_input, @accounts_json, @poll_interval_ms,
-      @slack_webhook_url, @generic_webhook_url, @created_at, @updated_at
+      @slack_webhook_url, @generic_webhook_url, @created_at, @updated_at, @mode
     )
   `);
   const ts = nowIso();
-  for (const rule of seedRulesForMode(mode)) {
+  for (const rule of DEFAULT_MONITORS) {
     const accounts = normalizeAccounts(rule.accounts);
     insert.run({
       id: crypto.randomUUID(),
@@ -628,8 +642,157 @@ function insertSeedRules(userId: string, db: Database.Database, mode: DeskMode =
       generic_webhook_url: null,
       created_at: ts,
       updated_at: ts,
+      mode: rule.mode,
     });
   }
+}
+
+function monitorRank(rule: Rule): number {
+  if (rule.kind === "watchlist") return rule.watchlistChunk ?? 0;
+  const names: readonly string[] = rule.mode === "vc" ? VC_DEFAULT_NAMES : MARKETS_DEFAULT_NAMES;
+  const idx = names.indexOf(rule.name);
+  if (idx >= 0) return 100 + idx;
+  return 1000;
+}
+
+function sortMonitors(rules: Rule[]): Rule[] {
+  return [...rules].sort((a, b) => {
+    if (a.mode !== b.mode) return a.mode === "markets" ? -1 : 1;
+    const rank = monitorRank(a) - monitorRank(b);
+    if (rank !== 0) return rank;
+    const created = a.createdAt.localeCompare(b.createdAt);
+    if (created !== 0) return created;
+    return a.name.localeCompare(b.name);
+  });
+}
+
+function overlayWatchlistEnabled(userId: string, rules: Rule[], db: Database.Database): Rule[] {
+  const enabled = watchlistEnabled(userId, db);
+  return rules.map((rule) => (rule.kind === "watchlist" ? { ...rule, enabled } : rule));
+}
+
+function applyMonitorRenames(userId: string, db: Database.Database) {
+  const existing = new Set(
+    (db.prepare("SELECT name FROM rules WHERE user_id = ?").all(userId) as Array<{ name: string }>).map(
+      (row) => row.name,
+    ),
+  );
+  const ts = nowIso();
+  for (const [from, to] of Object.entries(MONITOR_RENAMES)) {
+    if (!existing.has(from) || existing.has(to)) continue;
+    db.prepare("UPDATE rules SET name = ?, updated_at = ? WHERE user_id = ? AND name = ? AND kind != 'watchlist'").run(
+      to,
+      ts,
+      userId,
+      from,
+    );
+    existing.delete(from);
+    existing.add(to);
+  }
+}
+
+function stampKnownMonitorModes(userId: string, db: Database.Database) {
+  const ts = nowIso();
+  for (const seed of DEFAULT_MONITORS) {
+    db.prepare("UPDATE rules SET mode = ?, updated_at = ? WHERE user_id = ? AND name = ? AND kind != 'watchlist'").run(
+      seed.mode,
+      ts,
+      userId,
+      seed.name,
+    );
+  }
+  db.prepare("UPDATE rules SET mode = 'markets', updated_at = ? WHERE user_id = ? AND kind = 'watchlist'").run(ts, userId);
+}
+
+function insertMissingDefaultMonitors(userId: string, db: Database.Database) {
+  const existing = new Set(
+    (db.prepare("SELECT name FROM rules WHERE user_id = ?").all(userId) as Array<{ name: string }>).map(
+      (row) => row.name,
+    ),
+  );
+  const insert = db.prepare(`
+    INSERT INTO rules (
+      id, user_id, name, enabled, query, query_input, accounts_json, poll_interval_ms,
+      slack_webhook_url, generic_webhook_url, created_at, updated_at, mode
+    ) VALUES (?, ?, ?, 1, ?, ?, ?, ?, NULL, NULL, ?, ?, ?)
+  `);
+  const ts = nowIso();
+  for (const rule of DEFAULT_MONITORS) {
+    if (existing.has(rule.name)) continue;
+    const accounts = normalizeAccounts(rule.accounts);
+    insert.run(
+      crypto.randomUUID(),
+      userId,
+      rule.name,
+      compileQuery({ query: rule.queryInput, accounts }),
+      rule.queryInput,
+      JSON.stringify(accounts),
+      clampPollIntervalMs(rule.pollIntervalMs),
+      ts,
+      ts,
+      rule.mode,
+    );
+  }
+}
+
+function reenablePackDisabledByDeskSwitch(userId: string, db: Database.Database) {
+  const deskMode = parseDeskMode(getUserMeta(userId, "desk_mode", db));
+  const names = deskMode === "venture" ? MARKETS_DEFAULT_NAMES : VC_DEFAULT_NAMES;
+  const ts = nowIso();
+  for (const name of names) {
+    if (name === "Watchlist") continue;
+    db.prepare(
+      "UPDATE rules SET enabled = 1, updated_at = ? WHERE user_id = ? AND name = ? AND kind != 'watchlist'",
+    ).run(ts, userId, name);
+  }
+}
+
+function deleteRetiredDefaultMonitors(userId: string, db: Database.Database) {
+  const placeholders = RETIRED_DEFAULT_MONITOR_NAMES.map(() => "?").join(", ");
+  db.prepare(
+    `DELETE FROM rules WHERE user_id = ? AND kind != 'watchlist' AND name IN (${placeholders})`,
+  ).run(userId, ...RETIRED_DEFAULT_MONITOR_NAMES);
+}
+
+function ensureWatchlistPlaceholder(userId: string, db: Database.Database) {
+  const existing = listWatchlistRules(userId, db);
+  if (existing.length > 0) {
+    stampKnownMonitorModes(userId, db);
+    return;
+  }
+  const ts = nowIso();
+  db.prepare(`
+    INSERT INTO rules (
+      id, user_id, name, enabled, query, query_input, accounts_json, poll_interval_ms,
+      slack_webhook_url, generic_webhook_url, created_at, updated_at, kind, watchlist_chunk, mode
+    ) VALUES (?, ?, 'Watchlist', 0, '', '', '[]', ?, NULL, NULL, ?, ?, 'watchlist', 0, 'markets')
+  `).run(crypto.randomUUID(), userId, watchlistPollIntervalMs(userId, db), ts, ts);
+}
+
+export function ensureMonitorPack(userId: string, db = getDb()) {
+  if (!userId) return;
+  const migrated = Boolean(getUserMeta(userId, "monitor_pack_v2", db));
+  if (!migrated) {
+    applyMonitorRenames(userId, db);
+    stampKnownMonitorModes(userId, db);
+    deleteRetiredDefaultMonitors(userId, db);
+    insertMissingDefaultMonitors(userId, db);
+    reenablePackDisabledByDeskSwitch(userId, db);
+    setUserMeta(userId, "monitor_pack_v2", nowIso(), db);
+  }
+  ensureWatchlistPlaceholder(userId, db);
+}
+
+export function getMonitorMode(userId: string, db = getDb()): MonitorMode {
+  const stored = getUserMeta(userId, "monitor_mode", db);
+  if (stored) return parseMonitorMode(stored);
+  return monitorModeFromDeskMode(getUserMeta(userId, "desk_mode", db));
+}
+
+export function setMonitorMode(userId: string, mode: MonitorMode, db = getDb()): MonitorMode {
+  const next = parseMonitorMode(mode);
+  setUserMeta(userId, "monitor_mode", next, db);
+  return next;
 }
 
 export function adoptOrphanDesk(userId: string, db = getDb()) {
@@ -656,12 +819,16 @@ export function ensureUserDesk(userId: string, db = getDb()) {
   if (first?.id === userId) {
     adoptOrphanDesk(userId, db);
   }
-  if (getUserMeta(userId, "desk_seeded", db)) return;
+  if (getUserMeta(userId, "desk_seeded", db)) {
+    ensureMonitorPack(userId, db);
+    return;
+  }
   const count = db.prepare("SELECT COUNT(*) AS n FROM rules WHERE user_id = ?").get(userId) as { n: number };
   if (Number(count.n) === 0) {
     insertSeedRules(userId, db);
   }
   setUserMeta(userId, "desk_seeded", nowIso(), db);
+  ensureMonitorPack(userId, db);
 }
 
 export function listDeskUserIds(db = getDb()): string[] {
@@ -686,15 +853,25 @@ export function getDb(): Database.Database {
 }
 
 export function listRules(userId: string, db = getDb()): Rule[] {
-  const rows = db.prepare("SELECT * FROM rules WHERE user_id = ? ORDER BY created_at ASC").all(userId) as RuleRow[];
-  return rows.map(mapRule);
+  ensureMonitorPack(userId, db);
+  const rows = db.prepare("SELECT * FROM rules WHERE user_id = ?").all(userId) as RuleRow[];
+  return sortMonitors(overlayWatchlistEnabled(userId, rows.map(mapRule), db));
+}
+
+export function listRulesForMode(userId: string, mode: MonitorMode, db = getDb()): Rule[] {
+  const wanted = parseMonitorMode(mode);
+  return listRules(userId, db).filter((rule) => rule.mode === wanted);
 }
 
 /** Every enabled rule across desks. The poller packs these into X searches. */
 export function listEnabledRules(db = getDb()): Rule[] {
+  for (const userId of listDeskUserIds(db)) {
+    ensureMonitorPack(userId, db);
+  }
   const rows = db.prepare(`
     SELECT r.* FROM rules r
     WHERE r.enabled = 1
+      AND TRIM(r.query) != ''
       AND (r.user_id = '' OR r.user_id NOT IN (SELECT id FROM users WHERE COALESCE(disabled, 0) = 1))
     ORDER BY r.created_at ASC
   `).all() as RuleRow[];
@@ -718,11 +895,12 @@ export function createRule(userId: string, input: RuleInput, db = getDb()): Rule
   }
   const ts = nowIso();
   const id = crypto.randomUUID();
+  const mode = parseMonitorMode(input.mode ?? getMonitorMode(userId, db));
   db.prepare(`
     INSERT INTO rules (
       id, user_id, name, enabled, query, query_input, accounts_json, poll_interval_ms,
-      slack_webhook_url, generic_webhook_url, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      slack_webhook_url, generic_webhook_url, created_at, updated_at, mode
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     userId,
@@ -736,6 +914,7 @@ export function createRule(userId: string, input: RuleInput, db = getDb()): Rule
     input.genericWebhookUrl,
     ts,
     ts,
+    mode,
   );
   return getRule(id, userId, db)!;
 }
@@ -754,6 +933,7 @@ export function updateRule(id: string, input: Partial<RuleInput>, userId: string
     pollIntervalMs: input.pollIntervalMs ?? existing.pollIntervalMs,
     slackWebhookUrl: input.slackWebhookUrl === undefined ? existing.slackWebhookUrl : input.slackWebhookUrl,
     genericWebhookUrl: input.genericWebhookUrl === undefined ? existing.genericWebhookUrl : input.genericWebhookUrl,
+    mode: input.mode ?? existing.mode,
   };
   const accounts = normalizeAccounts(merged.accounts);
   const query = compileQuery({ query: merged.queryInput, accounts });
@@ -762,7 +942,7 @@ export function updateRule(id: string, input: Partial<RuleInput>, userId: string
   db.prepare(`
     UPDATE rules SET
       name = ?, enabled = ?, query = ?, query_input = ?, accounts_json = ?,
-      poll_interval_ms = ?, slack_webhook_url = ?, generic_webhook_url = ?, updated_at = ?
+      poll_interval_ms = ?, slack_webhook_url = ?, generic_webhook_url = ?, mode = ?, updated_at = ?
     WHERE id = ? AND user_id = ?
   `).run(
     merged.name.trim(),
@@ -773,31 +953,12 @@ export function updateRule(id: string, input: Partial<RuleInput>, userId: string
     clampPollIntervalMs(merged.pollIntervalMs),
     merged.slackWebhookUrl,
     merged.genericWebhookUrl,
+    parseMonitorMode(merged.mode),
     ts,
     id,
     userId,
   );
   return getRule(id, userId, db)!;
-}
-
-function applySeedPack(userId: string, mode: DeskMode, db: Database.Database) {
-  const wanted = seedRulesForMode(mode);
-  const otherNames = otherSeedRuleNames(mode);
-  const rules = listRules(userId, db).filter((rule) => rule.kind !== "watchlist");
-  const byName = new Map(rules.map((rule) => [rule.name, rule]));
-  for (const rule of rules) {
-    if (otherNames.has(rule.name) && rule.enabled) {
-      updateRule(rule.id, { enabled: false }, userId, db);
-    }
-  }
-  for (const seed of wanted) {
-    const existing = byName.get(seed.name);
-    if (existing) {
-      if (!existing.enabled) updateRule(existing.id, { enabled: true }, userId, db);
-    } else {
-      createRule(userId, { ...seed, enabled: true }, db);
-    }
-  }
 }
 
 export function deleteRule(id: string, userId: string, db = getDb()): boolean {
@@ -1029,7 +1190,6 @@ export function setDeskFilterSettings(userId: string, input: DeskFilterPatch, db
     const prev = parseDeskMode(getUserMeta(userId, "desk_mode", db));
     setUserMeta(userId, "desk_mode", next, db);
     if (next !== prev) {
-      applySeedPack(userId, next, db);
       requestManualPoll(db);
     }
   }
@@ -1272,8 +1432,24 @@ export function syncWatchlistRules(userId: string, db = getDb()) {
 
   const apply = db.transaction(() => {
     if (chunks.length === 0) {
-      for (const rule of existing) {
-        db.prepare("DELETE FROM rules WHERE id = ? AND user_id = ?").run(rule.id, userId);
+      const keep = existing[0];
+      if (keep) {
+        db.prepare(`
+          UPDATE rules SET
+            name = 'Watchlist', enabled = 0, query = '', query_input = '',
+            poll_interval_ms = ?, watchlist_chunk = 0, kind = 'watchlist', mode = 'markets', updated_at = ?
+          WHERE id = ? AND user_id = ?
+        `).run(interval, ts, keep.id, userId);
+        for (const extra of existing.slice(1)) {
+          db.prepare("DELETE FROM rules WHERE id = ? AND user_id = ?").run(extra.id, userId);
+        }
+      } else {
+        db.prepare(`
+          INSERT INTO rules (
+            id, user_id, name, enabled, query, query_input, accounts_json, poll_interval_ms,
+            slack_webhook_url, generic_webhook_url, created_at, updated_at, kind, watchlist_chunk, mode
+          ) VALUES (?, ?, 'Watchlist', 0, '', '', '[]', ?, NULL, NULL, ?, ?, 'watchlist', 0, 'markets')
+        `).run(crypto.randomUUID(), userId, interval, ts, ts);
       }
       return;
     }
@@ -1285,15 +1461,15 @@ export function syncWatchlistRules(userId: string, db = getDb()) {
         db.prepare(`
           UPDATE rules SET
             name = ?, enabled = ?, query = ?, query_input = ?,
-            poll_interval_ms = ?, watchlist_chunk = ?, kind = 'watchlist', updated_at = ?
+            poll_interval_ms = ?, watchlist_chunk = ?, kind = 'watchlist', mode = 'markets', updated_at = ?
           WHERE id = ? AND user_id = ?
         `).run(name, enabled ? 1 : 0, query, query, interval, i, ts, current.id, userId);
       } else {
         db.prepare(`
           INSERT INTO rules (
             id, user_id, name, enabled, query, query_input, accounts_json, poll_interval_ms,
-            slack_webhook_url, generic_webhook_url, created_at, updated_at, kind, watchlist_chunk
-          ) VALUES (?, ?, ?, ?, ?, ?, '[]', ?, NULL, NULL, ?, ?, 'watchlist', ?)
+            slack_webhook_url, generic_webhook_url, created_at, updated_at, kind, watchlist_chunk, mode
+          ) VALUES (?, ?, ?, ?, ?, ?, '[]', ?, NULL, NULL, ?, ?, 'watchlist', ?, 'markets')
         `).run(crypto.randomUUID(), userId, name, enabled ? 1 : 0, query, query, interval, ts, ts, i);
       }
     }

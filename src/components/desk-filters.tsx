@@ -61,8 +61,8 @@ export function DeskFilters() {
         window.dispatchEvent(new CustomEvent("signl1:desk-mode", { detail: data.deskMode }));
         toast.success(
           data.deskMode === "venture"
-            ? "Venture desk on — funding and launch rules are live"
-            : "Markets desk on — Fed, Mag 7, and crude rules are live",
+            ? "Venture desk on — Key Network Nodes now use the startup list. Monitors stay as you left them."
+            : "Markets desk on — Key Network Nodes now use the markets list. Monitors stay as you left them.",
         );
       }
     } catch (err) {

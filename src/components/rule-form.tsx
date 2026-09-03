@@ -66,7 +66,7 @@ export function RuleForm({
           required
           value={value.name}
           onChange={(e) => setValue((v) => ({ ...v, name: e.target.value }))}
-          placeholder="Fed Watch"
+          placeholder="Fed"
         />
       </div>
       <label className="flex items-center justify-between gap-3 rounded-2xl bg-muted px-4 py-3">

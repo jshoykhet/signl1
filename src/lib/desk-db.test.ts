@@ -332,22 +332,26 @@ describe("desk filters and KOL list persist in SQLite", () => {
     expect(listMatches(b, { quality: true }, db).some((m) => m.tweetId === "tw-iso")).toBe(true);
   });
 
-  it("swaps Key Network Nodes and seed rules when the desk mode changes", () => {
+  it("swaps Key Network Nodes when the desk mode changes without toggling monitors", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-"));
     tmpDirs.push(dir);
     const db = openDatabase(path.join(dir, "test.db"));
     ensureUserDesk(U, db);
     expect(isKolHandle("DeItaone", getKolSpec(U, db))).toBe(true);
     expect(isKolHandle("TechCrunch", getKolSpec(U, db))).toBe(false);
-    expect(listRules(U, db).some((rule) => rule.name === "Fed Watch" && rule.enabled)).toBe(true);
+    const before = listRules(U, db);
+    expect(before.some((rule) => rule.name === "Fed" && rule.enabled && rule.mode === "markets")).toBe(true);
+    expect(before.some((rule) => rule.name === "Funding Announcements" && rule.enabled && rule.mode === "vc")).toBe(
+      true,
+    );
 
     setDeskFilterSettings(U, { deskMode: "venture" }, db);
     expect(getDeskFilterSettings(U, db).deskMode).toBe("venture");
     expect(isKolHandle("TechCrunch", getKolSpec(U, db))).toBe(true);
     expect(isKolHandle("DeItaone", getKolSpec(U, db))).toBe(false);
-    const ventureRules = listRules(U, db);
-    expect(ventureRules.some((rule) => rule.name === "Funding rounds" && rule.enabled)).toBe(true);
-    expect(ventureRules.some((rule) => rule.name === "Fed Watch" && !rule.enabled)).toBe(true);
+    const afterVenture = listRules(U, db);
+    expect(afterVenture.some((rule) => rule.name === "Funding Announcements" && rule.enabled)).toBe(true);
+    expect(afterVenture.some((rule) => rule.name === "Fed" && rule.enabled)).toBe(true);
 
     const round = catalyst("techcrunch", {
       followersCount: 80_000,
@@ -359,7 +363,7 @@ describe("desk filters and KOL list persist in SQLite", () => {
 
     setDeskFilterSettings(U, { deskMode: "markets" }, db);
     expect(isKolHandle("DeItaone", getKolSpec(U, db))).toBe(true);
-    expect(listRules(U, db).some((rule) => rule.name === "Fed Watch" && rule.enabled)).toBe(true);
-    expect(listRules(U, db).some((rule) => rule.name === "Funding rounds" && !rule.enabled)).toBe(true);
+    expect(listRules(U, db).some((rule) => rule.name === "Fed" && rule.enabled)).toBe(true);
+    expect(listRules(U, db).some((rule) => rule.name === "Funding Announcements" && rule.enabled)).toBe(true);
   });
 });

@@ -1,7 +1,8 @@
 import type { DeskFilterSettings } from "./desk-settings";
+import type { MonitorMode } from "./monitor-mode";
 import type { AuthorPrior, UserLabel } from "./signal-filter";
 
-export type { AuthorPrior, UserLabel };
+export type { AuthorPrior, UserLabel, MonitorMode };
 
 export type RuleKind = "custom" | "watchlist";
 
@@ -23,6 +24,7 @@ export type Rule = {
   updatedAt: string;
   kind: RuleKind;
   watchlistChunk: number | null;
+  mode: MonitorMode;
 };
 
 export type Match = {
@@ -73,6 +75,7 @@ export type RuleInput = {
   pollIntervalMs: number;
   slackWebhookUrl: string | null;
   genericWebhookUrl: string | null;
+  mode?: MonitorMode;
 };
 
 export type StatusSnapshot = {

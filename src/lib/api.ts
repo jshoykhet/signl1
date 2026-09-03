@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { clampPollIntervalMs, DEFAULT_POLL_INTERVAL_MS } from "@/lib/config";
+import { parseMonitorMode } from "@/lib/monitor-mode";
 import { normalizeAccounts } from "@/lib/query";
 import type { RuleInput } from "@/lib/types";
 
@@ -42,6 +43,9 @@ export function parseRuleBody(body: unknown, partial = false): Partial<RuleInput
   if (raw.genericWebhookUrl !== undefined || !partial) {
     const url = String(raw.genericWebhookUrl ?? "").trim();
     input.genericWebhookUrl = url || null;
+  }
+  if (raw.mode !== undefined) {
+    input.mode = parseMonitorMode(String(raw.mode));
   }
   return input;
 }

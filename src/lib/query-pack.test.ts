@@ -35,18 +35,20 @@ describe("combineRuleQueries", () => {
 });
 
 describe("packRules", () => {
-  it("packs the seeded desks plus a short watchlist into one request", () => {
+  it("keeps packed Markets queries under the X character budget", () => {
     const batches = packRules([
       rule({ query: '(FOMC OR "interest rate" OR "fed funds" OR Powell) lang:en -is:retweet' }),
+      rule({ query: '(OPEC OR "crude oil" OR WTI OR Brent) lang:en -is:retweet' }),
       rule({
         query:
-          "(from:nvidia OR from:apple OR from:meta OR from:microsoft) (earnings OR guidance OR GPU OR AI) lang:en -is:retweet",
+          '(CPI OR PCE OR NFP OR payrolls OR unemployment OR inflation OR GDP OR "treasury yield" OR Treasuries OR DXY OR "dollar index" OR tariffs OR recession OR "economic data" OR ISM OR PMI OR "jobs report") lang:en -is:retweet',
       }),
-      rule({ query: '(OPEC OR "crude oil" OR WTI OR Brent) lang:en -is:retweet' }),
       rule({ query: "($AAPL OR $NVDA OR $SPY OR $TSLA) lang:en -is:retweet" }),
     ]);
-    expect(batches).toHaveLength(1);
-    expect(combineRuleQueries(batches[0]).length).toBeLessThanOrEqual(X_MAX_QUERY_CHARS);
+    expect(batches.length).toBeGreaterThanOrEqual(1);
+    for (const batch of batches) {
+      expect(combineRuleQueries(batch).length).toBeLessThanOrEqual(X_MAX_QUERY_CHARS);
+    }
   });
 
   it("splits when two fat queries cannot share a 512-char budget", () => {
