@@ -269,20 +269,30 @@ export function RulesView() {
                   <td className="px-3 py-3.5">
                     {rule.kind === "watchlist" && !rule.query ? (
                       <div className="text-[13px] text-muted-foreground">Add cashtags on Watchlist to start polling.</div>
+                    ) : rule.accounts.length ? (
+                      <div>
+                        <div className="text-[13px] text-muted-foreground">
+                          {rule.accounts.length} account{rule.accounts.length === 1 ? "" : "s"}
+                          {rule.queryInput.trim() ? ` · ${rule.queryInput.trim()}` : ""}
+                        </div>
+                        <div className="mt-1.5 flex flex-wrap gap-1">
+                          {rule.accounts.slice(0, 8).map((account) => (
+                            <Badge key={account} variant="outline" className="h-5 rounded-full px-2 font-mono text-[11px]">
+                              @{account}
+                            </Badge>
+                          ))}
+                          {rule.accounts.length > 8 ? (
+                            <Badge variant="outline" className="h-5 rounded-full px-2 text-[11px] font-normal">
+                              +{rule.accounts.length - 8}
+                            </Badge>
+                          ) : null}
+                        </div>
+                      </div>
                     ) : (
                       <code className="block max-w-xl font-mono text-[13px] leading-relaxed break-all text-muted-foreground">
                         {rule.query}
                       </code>
                     )}
-                    {rule.accounts.length ? (
-                      <div className="mt-1.5 flex flex-wrap gap-1">
-                        {rule.accounts.map((account) => (
-                          <Badge key={account} variant="outline" className="h-5 rounded-full px-2 font-mono text-[11px]">
-                            @{account}
-                          </Badge>
-                        ))}
-                      </div>
-                    ) : null}
                   </td>
                   <td className="px-3 py-3.5 text-[13px] tabular-nums">{formatInterval(rule.pollIntervalMs)}</td>
                   <td className="px-3 py-3.5 text-[13px] text-muted-foreground">{formatRelative(rule.lastPolledAt)}</td>
@@ -324,12 +334,17 @@ export function RulesView() {
           if (!next) setEditing(null);
         }}
       >
-        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-3xl sm:max-w-2xl" showCloseButton>
-          <DialogHeader>
-            <DialogTitle>{editing ? "Edit monitor" : "New monitor"}</DialogTitle>
+        <DialogContent className="flex max-h-[92vh] min-h-0 flex-col gap-0 overflow-hidden rounded-[28px] p-0 sm:max-w-3xl" showCloseButton>
+          <DialogHeader className="shrink-0 px-6 pt-6 pr-12 pb-2">
+            <DialogTitle className="text-[22px] tracking-[-0.03em]">
+              {editing ? editing.name : "New monitor"}
+            </DialogTitle>
             <DialogDescription>
-              Queries use official X recent-search operators. The poller sends the compiled string as-is. New monitors
-              are saved in {MONITOR_MODES[mode].label} mode.
+              {editing
+                ? editing.accounts.length
+                  ? "Watch these accounts. Add and remove handles the same way as Key Network Nodes."
+                  : "Keyword search for this monitor. Add accounts if you want to watch people instead."
+                : `Saved in ${MONITOR_MODES[mode].label}. Add accounts to watch people, or a search query for keywords.`}
             </DialogDescription>
           </DialogHeader>
           <RuleForm
