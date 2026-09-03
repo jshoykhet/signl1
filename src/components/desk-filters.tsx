@@ -15,6 +15,7 @@ import {
   type SignalLevel,
 } from "@/lib/desk-settings";
 import { DESK_MODES, signalLevelHint, type DeskMode } from "@/lib/desk-mode";
+import { cn } from "@/lib/utils";
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -110,15 +111,16 @@ export function DeskFilters() {
                       onClick={() => {
                         if (filters.deskMode !== id) void save({ deskMode: id });
                       }}
-                      className={
-                        selected
-                          ? both
-                            ? "min-w-0 flex-1 rounded-full bg-amber-400 px-2 py-1.5 text-[13px] font-medium text-amber-950 shadow-sm"
-                            : "min-w-0 flex-1 rounded-full bg-background px-2 py-1.5 text-[13px] font-medium text-foreground shadow-sm"
-                          : both
-                            ? "min-w-0 flex-1 rounded-full px-2 py-1.5 text-[13px] font-medium text-amber-800 dark:text-amber-300"
-                            : "min-w-0 flex-1 rounded-full px-2 py-1.5 text-[13px] text-muted-foreground"
-                      }
+                      className={cn(
+                        "min-w-0 flex-1 rounded-full px-2 py-1.5 text-[13px] transition-colors",
+                        both
+                          ? selected
+                            ? "bg-amber-400 font-semibold text-amber-950 shadow-sm"
+                            : "bg-amber-400/30 font-medium text-amber-900 dark:bg-amber-400/20 dark:text-amber-200"
+                          : selected
+                            ? "bg-background font-medium text-foreground shadow-sm"
+                            : "text-muted-foreground",
+                      )}
                     >
                       {DESK_MODES[id].label}
                     </button>
