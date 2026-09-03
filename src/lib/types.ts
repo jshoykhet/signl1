@@ -64,6 +64,7 @@ export type NormalizedTweet = {
   retweetCount: number;
   replyCount: number;
   quoteCount: number;
+  impressionCount?: number;
   verified: boolean;
 };
 

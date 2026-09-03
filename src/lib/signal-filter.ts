@@ -20,6 +20,38 @@ export const KOL_MIN_DESK_SCORE = 4;
 export const BOOST_MIN_DESK_SCORE = 8;
 export const ESTABLISHED_MIN_DESK_SCORE = 8;
 export const KOL_SCORE_BONUS = 22;
+/** Sourced prints from accounts this size skip the default like floor — mid-tier wires often ingest at 0 likes. */
+export const PRINT_SKIP_LIKE_FOLLOWERS = 2_500;
+const WATCHED_SPORTS =
+  /\b(seahawks|49ers|yankees|lakers|warriors|home opener|super bowl|world series|nba finals|nfl\b|mlb\b)\b/i;
+const WATCHED_EMPTY =
+  /^(congrats|congratulations|amazing|thank you|thanks|love this|this has happened|i['’]d love to have)\b/i;
+const WATCHED_TECH =
+  /\b(cybercabs?|tesla|gpt|llm|model|api|chip|gpu|launch|ship(?:ping)?|open.?source|startup|fund|raise|neural|robot|ai\b|product|demo|stealth|valuation|starlink|spacex|xai|grok|neuralink|optimus|cybertruck|openai|anthropic)\b/i;
+
+function looksLikeReply(q: TweetQuality): boolean {
+  if (q.isReply === true) return true;
+  const text = (q.text ?? "").trim();
+  return text.startsWith("@");
+}
+
+function stripLeadingMentions(text: string): string {
+  return text.replace(/^(?:@\w+\s+)+/, "").trim();
+}
+
+function watchedAuthorOffDesk(q: TweetQuality, deskMode: DeskMode): string | null {
+  const text = (q.text ?? "").trim();
+  if (!text) return "empty";
+  if (WATCHED_SPORTS.test(text)) return "sports";
+  const body = stripLeadingMentions(text);
+  if (WATCHED_EMPTY.test(body)) return "empty";
+  const words = text.split(/\s+/).filter(Boolean).length;
+  const reply = looksLikeReply(q);
+  const ventureDesk = deskMode === "venture" || deskMode === "both";
+  if (reply && words < 10 && !WATCHED_TECH.test(text)) return "empty reply";
+  if (ventureDesk && !reply && words < 8 && !WATCHED_TECH.test(text)) return "empty";
+  return null;
+}
 
 export type UserLabel = "high" | "low";
 
@@ -34,6 +66,7 @@ export type TweetQuality = {
   retweetCount: number;
   replyCount: number;
   quoteCount: number;
+  impressionCount?: number;
   verified: boolean;
   createdAt: string;
   text?: string;
@@ -86,24 +119,46 @@ function logScale(value: number, decades: number, weight: number): number {
 }
 
 /**
- * 0–100 score. Engagement (likes, retweets, quotes) outweighs raw follower
- * count so a quiet 80k account does not look like a desk print.
+ * 0–100 score. Retweets/quotes (news that travels) outweigh raw likes.
+ * Impression counts are not added here — two days of tape showed views
+ * track viral junk more than investor-useful prints.
  */
 export function signalScore(q: TweetQuality): number {
-  const followScore = logScale(q.followersCount, 6, 32);
-  const likeScore = logScale(q.likeCount, 3.5, 30);
-  const spreadScore = logScale(q.retweetCount + q.quoteCount, 3, 18);
+  const followScore = logScale(q.followersCount, 6, 28);
+  const likeScore = logScale(q.likeCount, 3.5, 22);
+  const spreadScore = logScale(q.retweetCount + q.quoteCount, 3, 24);
   const replyScore = logScale(q.replyCount, 3, 4);
   const verifiedBonus = q.verified ? 6 : 0;
   const density =
     q.followersCount >= 400
-      ? clamp((q.likeCount / Math.sqrt(q.followersCount)) * 8, 0, 10)
+      ? clamp((q.likeCount / Math.sqrt(q.followersCount)) * 6, 0, 8)
       : 0;
   return Math.round(followScore + likeScore + spreadScore + replyScore + verifiedBonus + density);
 }
 
 export function engagementSpread(q: TweetQuality): number {
   return q.likeCount + 2 * q.retweetCount + 2 * q.quoteCount;
+}
+
+/** Likes / impressions when X actually returned a view count. */
+export function likeRate(q: TweetQuality): number | null {
+  const impressions = q.impressionCount ?? 0;
+  if (impressions < 100) return null;
+  return q.likeCount / impressions;
+}
+
+/**
+ * Tweet has been on the network long enough to be seen, racked up views,
+ * and still has no likes/RTs/quotes. Predictive of "nobody cared" — not of
+ * a fresh print (those often have 0 likes at ingest).
+ */
+export function wasSeenAndIgnored(q: TweetQuality, now = Date.now()): boolean {
+  const impressions = q.impressionCount ?? 0;
+  if (impressions < 400) return false;
+  if (engagementSpread(q) > 0) return false;
+  const created = new Date(q.createdAt).getTime();
+  if (!Number.isFinite(created)) return false;
+  return now - created >= 12 * 60_000;
 }
 
 export function isEstablishedFresh(q: TweetQuality, now = Date.now(), freshMs = FRESH_TWEET_MS): boolean {
@@ -156,7 +211,7 @@ export function passesSignalFilter(
   const requireEngagement = ctx.requireEngagement === true;
   const kolOnly = ctx.kolOnly === true;
   const deskMode = ctx.deskMode ?? "markets";
-  const desk = scoreDeskRelevance(q.text ?? "", { isReply: q.isReply === true, mode: deskMode });
+  const desk = scoreDeskRelevance(q.text ?? "", { isReply: looksLikeReply(q), mode: deskMode });
   const baseScore = signalScore(q);
   const score = clamp(baseScore + prior.scoreDelta + (kol ? KOL_SCORE_BONUS : 0), 0, 100);
   const establishedFresh = isEstablishedFresh(q, now, level.freshMs);
@@ -252,6 +307,19 @@ export function passesSignalFilter(
     };
   }
 
+  if (/^grok$/i.test(q.authorHandle ?? "") && looksLikeReply(q) && !ctx.watchedAuthor) {
+    return {
+      pass: false,
+      score,
+      reasons: ["model reply"],
+      establishedFresh,
+      userLabel,
+      prior,
+      kol,
+      deskScore: desk.score,
+    };
+  }
+
   if (kolOnly && !kol) {
     return {
       pass: false,
@@ -266,13 +334,19 @@ export function passesSignalFilter(
   }
 
   const watchedAuthor = ctx.watchedAuthor === true;
+  const investorPrint = desk.print === true;
   const skipFloors =
     prior.boost ||
     watchedAuthor ||
     (!requireEngagement && ((allowFresh && establishedFresh) || kol));
   const minDesk = deskFloor(q, { kol, boost: prior.boost, signalLevel: ctx.signalLevel });
   const minLikes = typeof ctx.minLikes === "number" ? ctx.minLikes : DEFAULT_MIN_LIKES;
-  const skipLikeFloor = skipFloors;
+  const skipLikeFloor =
+    skipFloors ||
+    (investorPrint &&
+      !requireEngagement &&
+      q.followersCount >= PRINT_SKIP_LIKE_FOLLOWERS &&
+      minLikes <= DEFAULT_MIN_LIKES);
 
   if (q.followersCount < level.minFollowers && !prior.boost && !kol && !watchedAuthor) {
     reasons.push(`followers ${q.followersCount} < ${level.minFollowers}`);
@@ -286,18 +360,23 @@ export function passesSignalFilter(
     const spread = engagementSpread(q);
     const created = new Date(q.createdAt).getTime();
     const ageMs = Number.isFinite(created) ? now - created : 0;
-    if (q.followersCount < 2_500) {
+    if (q.followersCount < PRINT_SKIP_LIKE_FOLLOWERS) {
       const need = Math.max(minLikes + 3, 8);
       if (spread < need) reasons.push(`thin engagement ${spread} < ${need}`);
-    } else if (ageMs >= 8 * 60_000 && q.followersCount >= 8_000 && spread < minLikes) {
+    } else if (!investorPrint && ageMs >= 8 * 60_000 && q.followersCount >= 8_000 && spread < minLikes) {
       reasons.push(`stale engagement ${spread} < ${minLikes}`);
     }
-    if (q.replyCount >= 8 && q.likeCount + q.retweetCount + q.quoteCount < minLikes) {
+    if (!investorPrint && q.replyCount >= 8 && q.likeCount + q.retweetCount + q.quoteCount < minLikes) {
       reasons.push("reply-only engagement");
     }
   }
 
-  if (score < level.minScore && !skipFloors) {
+  if (!skipFloors && !investorPrint && !watchedAuthor && wasSeenAndIgnored(q, now)) {
+    reasons.push("seen but ignored");
+  }
+
+  const skipMinScore = skipFloors || (investorPrint && (ctx.signalLevel ?? "standard") !== "high");
+  if (score < level.minScore && !skipMinScore) {
     reasons.push(`score ${score} < ${level.minScore}`);
   }
 
@@ -305,6 +384,8 @@ export function passesSignalFilter(
     if (desk.reasons.includes("lifestyle") || desk.reasons.includes("dunk")) {
       reasons.push("off-desk");
     }
+    const noise = watchedAuthorOffDesk(q, deskMode);
+    if (noise) reasons.push("off-desk");
   } else {
     if (!desk.substance) {
       reasons.push("no news or analysis");

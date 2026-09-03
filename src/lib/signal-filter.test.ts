@@ -52,6 +52,7 @@ describe("passesSignalFilter", () => {
         likeCount: 0,
         retweetCount: 0,
         createdAt: "2026-09-01T15:55:00.000Z",
+        text: CHATTER,
       }),
       now,
     );
@@ -72,16 +73,33 @@ describe("passesSignalFilter", () => {
     expect(verdict.pass).toBe(true);
   });
 
-  it("still rejects a stale zero-like post from an established desk", () => {
+  it("still rejects a stale zero-like chatter post from an established desk", () => {
     const verdict = passesSignalFilter(
       quality({
         followersCount: ESTABLISHED_FOLLOWERS,
         likeCount: 0,
         createdAt: "2026-09-01T14:00:00.000Z",
+        text: CHATTER,
       }),
       now,
     );
     expect(verdict.pass).toBe(false);
+  });
+
+  it("lets a sourced print through from a mid-tier desk before likes accrue", () => {
+    const verdict = passesSignalFilter(
+      quality({
+        followersCount: 19_000,
+        likeCount: 0,
+        retweetCount: 0,
+        quoteCount: 0,
+        replyCount: 0,
+        createdAt: "2026-09-01T14:00:00.000Z",
+        text: "Brent Tops $92 on Hormuz Tanker Strikes, yields climb on fresh inflation fears",
+      }),
+      now,
+    );
+    expect(verdict.pass).toBe(true);
   });
 
   it("drops mid-size chatter even when follower and like floors clear", () => {
@@ -165,6 +183,50 @@ describe("passesSignalFilter", () => {
       { deskMode: "both", signalLevel: "high", watchedAuthor: true },
     );
     expect(shortReply.pass).toBe(true);
+
+    const cybercab = passesSignalFilter(
+      quality({
+        authorHandle: "elonmusk",
+        followersCount: 200_000_000,
+        likeCount: 0,
+        retweetCount: 0,
+        quoteCount: 0,
+        replyCount: 0,
+        impressionCount: 993_382,
+        verified: true,
+        createdAt: "2026-09-01T10:00:00.000Z",
+        text: "A Storm of Cybercabs",
+      }),
+      now,
+      { deskMode: "both", signalLevel: "high", watchedAuthor: true },
+    );
+    expect(cybercab.pass).toBe(true);
+
+    const seahawks = passesSignalFilter(
+      quality({
+        authorHandle: "vkhosla",
+        followersCount: 768_211,
+        likeCount: 1_707,
+        text: "Excited for the @Seahawks home opener",
+      }),
+      now,
+      { deskMode: "both", signalLevel: "high", watchedAuthor: true },
+    );
+    expect(seahawks.pass).toBe(false);
+    expect(seahawks.reasons).toContain("off-desk");
+
+    const congrats = passesSignalFilter(
+      quality({
+        authorHandle: "elonmusk",
+        followersCount: 200_000_000,
+        likeCount: 708,
+        isReply: true,
+        text: "@MichaelDell Congrats",
+      }),
+      now,
+      { deskMode: "both", signalLevel: "high", watchedAuthor: true },
+    );
+    expect(congrats.pass).toBe(false);
   });
 
   it("still requires substance when the author is not on the watch list", () => {
@@ -415,6 +477,24 @@ describe("passesSignalFilter", () => {
     });
     expect(standard.pass).toBe(true);
     expect(high.pass).toBe(false);
+  });
+
+  it("drops a high-view tweet that nobody engaged with when it is not a print", () => {
+    const ignored = passesSignalFilter(
+      quality({
+        followersCount: 40_000,
+        likeCount: 0,
+        retweetCount: 0,
+        quoteCount: 0,
+        replyCount: 0,
+        impressionCount: 2_400,
+        createdAt: "2026-09-01T15:00:00.000Z",
+        text: "$AAPL $MSFT looking clean into the close",
+      }),
+      now,
+    );
+    expect(ignored.pass).toBe(false);
+    expect(ignored.reasons).toContain("seen but ignored");
   });
 
   it("drops a blocked account even when it is a node labeled high", () => {

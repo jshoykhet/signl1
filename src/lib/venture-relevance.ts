@@ -8,6 +8,7 @@ export type VentureScore = {
   spam: boolean;
   reasons: string[];
   substance: boolean;
+  print: boolean;
 };
 
 const SPAM =
@@ -19,6 +20,10 @@ const LIFESTYLE =
 const DUNK =
   /\b(ratio(?:ed|['’]d)?|l take|w take|this you\b|imagine thinking|let him cook|ngmi|wagmi|this is the way|so true\b|touched grass|get a load of|ratio this)\b/i;
 
+/** Same P&L-flex spam as markets — cashtag + % win is not a venture print. */
+const TRADE_CALL =
+  /\b(join the team|wet your beaks?|monster winners?|vwap retest|scalp the|caught a \d+% win|\d+%\s*win(?:s)? in \d+|lets goooo+|give this a|who wants more|works done in)\b/i;
+
 const FLASH = /\b(breaking|just in|flash|developing|urgent|exclusive|scoop)\b/i;
 
 type Weighted = { re: RegExp; w: number };
@@ -29,7 +34,7 @@ const STRONG: Weighted[] = [
     w: 14,
   },
   {
-    re: /\b(raised|raising|raises|funding round|term sheet|post-money|pre-money|unicorn|decacorn|valuation)\b/i,
+    re: /\b(funding round|term sheet|post-money|pre-money|unicorn|decacorn|valuation|raise[sd]? funds|raise[sd]? capital|raising \$?\d|raises \$?\d|raised \$?\d)\b/i,
     w: 12,
   },
   {
@@ -37,7 +42,7 @@ const STRONG: Weighted[] = [
     w: 12,
   },
   {
-    re: /\b(ipo|s-1|direct listing|goes public|debuts on|spac)\b/i,
+    re: /\b(ipo|s-1|direct listing|goes public|debuts on|spac|hong kong (?:stock exchange|ipo)|hk(?:ex)? ipo|confidential(?:ly)? (?:filed|files|filing)|filed confidentially|in confidence)\b/i,
     w: 12,
   },
   {
@@ -104,8 +109,10 @@ function hitsOf(text: string, list: Weighted[], reason: string, reasons: string[
 
 export function scoreVentureRelevance(text: string, opts: { isReply?: boolean } = {}): VentureScore {
   const t = text.trim();
-  if (!t) return { score: 0, spam: false, reasons: [], substance: false };
-  if (SPAM.test(t)) return { score: 0, spam: true, reasons: ["promo/spam phrasing"], substance: false };
+  if (!t) return { score: 0, spam: false, reasons: [], substance: false, print: false };
+  if (SPAM.test(t) || TRADE_CALL.test(t)) {
+    return { score: 0, spam: true, reasons: ["promo/spam phrasing"], substance: false, print: false };
+  }
 
   const reasons: string[] = [];
   const cashtags = t.match(CASHTAG) ?? [];
@@ -128,15 +135,15 @@ export function scoreVentureRelevance(text: string, opts: { isReply?: boolean } 
   const substance = hasStrong || hasNews || hasAnalysis || hasPayload;
 
   if (LIFESTYLE.test(t) && !substance) {
-    return { score: 0, spam: false, reasons: ["lifestyle"], substance: false };
+    return { score: 0, spam: false, reasons: ["lifestyle"], substance: false, print: false };
   }
   if (DUNK.test(t) && !substance) {
-    return { score: 0, spam: false, reasons: ["dunk"], substance: false };
+    return { score: 0, spam: false, reasons: ["dunk"], substance: false, print: false };
   }
 
   const words = t.split(/\s+/).filter(Boolean).length;
   if (opts.isReply && words < 14 && !substance) {
-    return { score: 0, spam: false, reasons: ["reply dunk"], substance: false };
+    return { score: 0, spam: false, reasons: ["reply dunk"], substance: false, print: false };
   }
 
   let score = strongScore + newsScore + analysisScore;
@@ -170,5 +177,6 @@ export function scoreVentureRelevance(text: string, opts: { isReply?: boolean } 
     score = Math.min(score, 3);
   }
 
-  return { score, spam: false, reasons, substance };
+  const print = substance && (hasStrong || hasNews || hasAnalysis || hasSize);
+  return { score, spam: false, reasons, substance, print };
 }

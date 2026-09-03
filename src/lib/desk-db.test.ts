@@ -57,7 +57,7 @@ function catalyst(handle: string, extras: Partial<NormalizedTweet> = {}): Normal
     createdAt: extras.createdAt ?? new Date().toISOString(),
     lang: "en",
     isRetweet: false,
-    isReply: false,
+    isReply: extras.isReply ?? false,
     permalink: `https://x.com/${handle}/status/${extras.id ?? "tw-1"}`,
     raw: extras.raw ?? {
       tweet: { public_metrics: { like_count: extras.likeCount ?? 0, retweet_count: 0, reply_count: 0, quote_count: 0 } },
@@ -68,6 +68,7 @@ function catalyst(handle: string, extras: Partial<NormalizedTweet> = {}): Normal
     retweetCount: extras.retweetCount ?? 0,
     replyCount: extras.replyCount ?? 0,
     quoteCount: extras.quoteCount ?? 0,
+    impressionCount: extras.impressionCount,
     verified: extras.verified ?? false,
   };
 }
@@ -448,6 +449,43 @@ describe("desk filters and KOL list persist in SQLite", () => {
     expect(evaluateTweetSignal(tweet, U, db).pass).toBe(false);
     expect(evaluateTweetSignal(tweet, U, db, { watchedAuthor: true }).pass).toBe(true);
     expect(tryInsertMatch(leaders, tweet, db).inserted).toBe(true);
+  });
+
+  it("keeps a watched Tech Leader post after quality recompute", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-"));
+    tmpDirs.push(dir);
+    const db = openDatabase(path.join(dir, "test.db"));
+    ensureUserDesk(U, db);
+    setDeskFilterSettings(U, { deskMode: "both", signalLevel: "high" }, db);
+    const leaders = listRules(U, db).find((rule) => rule.name === "Tech Leaders")!;
+    const tweet = catalyst("elonmusk", {
+      id: "tw-cybercab-1",
+      followersCount: 200_000_000,
+      likeCount: 0,
+      retweetCount: 0,
+      quoteCount: 0,
+      replyCount: 0,
+      impressionCount: 993_382,
+      verified: true,
+      createdAt: "2026-09-01T10:00:00.000Z",
+      text: "A Storm of Cybercabs",
+      raw: {
+        tweet: {
+          text: "A Storm of Cybercabs",
+          public_metrics: {
+            like_count: 0,
+            retweet_count: 0,
+            reply_count: 0,
+            quote_count: 0,
+            impression_count: 993_382,
+          },
+        },
+        author: { verified: true, public_metrics: { followers_count: 200_000_000 } },
+      },
+    });
+    expect(tryInsertMatch(leaders, tweet, db).inserted).toBe(true);
+    setDeskFilterSettings(U, { deskMode: "both", signalLevel: "high" }, db);
+    expect(listMatches(U, { quality: true }, db).some((match) => match.text.includes("Cybercabs"))).toBe(true);
   });
 
   it("copies legacy Key Network Node lists onto both packs once", () => {

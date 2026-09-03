@@ -106,7 +106,10 @@ function parseSearchPayload(payload: unknown): {
         retweet_count?: number;
         reply_count?: number;
         quote_count?: number;
+        impression_count?: number;
+        bookmark_count?: number;
       };
+      in_reply_to_user_id?: string | null;
     }>;
     includes?: {
       users?: Array<{
@@ -124,15 +127,16 @@ function parseSearchPayload(payload: unknown): {
     const user = tweet.author_id ? users.get(tweet.author_id) : undefined;
     const handle = user?.username ?? "unknown";
     const metrics = tweet.public_metrics ?? {};
+    const text = tweet.text;
     return {
       id: tweet.id,
       authorHandle: handle,
       authorName: user?.name ?? handle,
-      text: tweet.text,
+      text,
       createdAt: tweet.created_at ?? new Date().toISOString(),
       lang: tweet.lang ?? "und",
-      isRetweet: tweet.text.startsWith("RT @"),
-      isReply: false,
+      isRetweet: text.startsWith("RT @"),
+      isReply: Boolean(tweet.in_reply_to_user_id) || /^@\w/.test(text),
       permalink: `https://x.com/${handle}/status/${tweet.id}`,
       raw: {
         tweet,
@@ -143,6 +147,7 @@ function parseSearchPayload(payload: unknown): {
       retweetCount: metrics.retweet_count ?? 0,
       replyCount: metrics.reply_count ?? 0,
       quoteCount: metrics.quote_count ?? 0,
+      impressionCount: metrics.impression_count ?? 0,
       verified: Boolean(user?.verified),
     };
   });
@@ -172,7 +177,7 @@ export async function recentSearch(opts: {
   const params = new URLSearchParams({
     query: opts.query,
     max_results: String(X_MAX_RESULTS),
-    "tweet.fields": "created_at,author_id,lang,public_metrics",
+    "tweet.fields": "created_at,author_id,lang,public_metrics,in_reply_to_user_id",
     expansions: "author_id",
     "user.fields": "username,name,verified,public_metrics",
   });

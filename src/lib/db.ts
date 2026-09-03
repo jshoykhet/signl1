@@ -337,15 +337,37 @@ function metricsFromRaw(rawJson: string): {
   retweetCount: number;
   replyCount: number;
   quoteCount: number;
+  impressionCount: number;
   verified: boolean;
+  isReply: boolean;
 } {
   try {
     const raw = JSON.parse(rawJson) as {
-      public_metrics?: { like_count?: number; retweet_count?: number; reply_count?: number; quote_count?: number };
-      tweet?: { public_metrics?: { like_count?: number; retweet_count?: number; reply_count?: number; quote_count?: number } };
+      text?: string;
+      in_reply_to_user_id?: string | null;
+      public_metrics?: {
+        like_count?: number;
+        retweet_count?: number;
+        reply_count?: number;
+        quote_count?: number;
+        impression_count?: number;
+      };
+      tweet?: {
+        text?: string;
+        in_reply_to_user_id?: string | null;
+        public_metrics?: {
+          like_count?: number;
+          retweet_count?: number;
+          reply_count?: number;
+          quote_count?: number;
+          impression_count?: number;
+        };
+      };
       author?: { verified?: boolean; public_metrics?: { followers_count?: number } };
     };
-    const tweetMetrics = raw.tweet?.public_metrics ?? raw.public_metrics;
+    const tweet = raw.tweet ?? raw;
+    const tweetMetrics = tweet.public_metrics ?? raw.public_metrics;
+    const text = String(tweet.text ?? raw.text ?? "");
     const followers = raw.author?.public_metrics?.followers_count;
     return {
       followersCount: typeof followers === "number" ? followers : null,
@@ -353,10 +375,21 @@ function metricsFromRaw(rawJson: string): {
       retweetCount: tweetMetrics?.retweet_count ?? 0,
       replyCount: tweetMetrics?.reply_count ?? 0,
       quoteCount: tweetMetrics?.quote_count ?? 0,
+      impressionCount: tweetMetrics?.impression_count ?? 0,
       verified: Boolean(raw.author?.verified),
+      isReply: Boolean(tweet.in_reply_to_user_id) || /^@\w/.test(text.trim()),
     };
   } catch {
-    return { followersCount: null, likeCount: null, retweetCount: 0, replyCount: 0, quoteCount: 0, verified: false };
+    return {
+      followersCount: null,
+      likeCount: null,
+      retweetCount: 0,
+      replyCount: 0,
+      quoteCount: 0,
+      impressionCount: 0,
+      verified: false,
+      isReply: false,
+    };
   }
 }
 
@@ -370,8 +403,8 @@ function backfillMatchQuality(db: Database.Database, userId?: string) {
     return next;
   };
   const sql =
-    "SELECT id, user_id, tweet_id, raw_json, tweet_created_at, author_handle, text, author_followers, like_count, signal_pass, user_label FROM matches" +
-    (userId ? " WHERE user_id = ?" : "");
+    "SELECT m.id, m.user_id, m.tweet_id, m.raw_json, m.tweet_created_at, m.author_handle, m.text, m.author_followers, m.like_count, m.signal_pass, m.user_label, r.accounts_json FROM matches m LEFT JOIN rules r ON r.id = m.rule_id" +
+    (userId ? " WHERE m.user_id = ?" : "");
   const rows = (userId ? db.prepare(sql).all(userId) : db.prepare(sql).all()) as Array<{
     id: string;
     user_id: string | null;
@@ -384,6 +417,7 @@ function backfillMatchQuality(db: Database.Database, userId?: string) {
     like_count: number | null;
     signal_pass: number | null;
     user_label: string | null;
+    accounts_json: string | null;
   }>;
   const update = db.prepare(
     "UPDATE matches SET author_followers = ?, like_count = ?, signal_score = ?, signal_pass = ? WHERE id = ?",
@@ -415,10 +449,12 @@ function backfillMatchQuality(db: Database.Database, userId?: string) {
       retweetCount: metrics.retweetCount,
       replyCount: metrics.replyCount,
       quoteCount: metrics.quoteCount,
+      impressionCount: metrics.impressionCount,
       verified: metrics.verified,
       createdAt: row.tweet_created_at,
       text: row.text,
       authorHandle: row.author_handle,
+      isReply: metrics.isReply || /^@\w/.test((row.text ?? "").trim()),
     };
     const flags = authorSignalFlags(row.author_handle, uid, db);
     const verdict = passesSignalFilter(quality, Date.now(), {
@@ -426,18 +462,9 @@ function backfillMatchQuality(db: Database.Database, userId?: string) {
       prior: priorsFor(uid).get(row.author_handle.toLowerCase()) ?? { high: 0, low: 0 },
       ...flags,
       ...filters,
+      watchedAuthor: isWatchedAuthor(parseAccounts(row.accounts_json ?? "[]"), row.author_handle),
     });
-    const pass =
-      followers == null && parseUserLabel(row.user_label) == null
-        ? likes != null && likes >= effectiveMinLikes(filters)
-          ? 1
-          : likes != null
-            ? 0
-            : null
-        : verdict.pass
-          ? 1
-          : 0;
-    update.run(followers, likes, verdict.score, pass, row.id);
+    update.run(followers, likes, verdict.score, verdict.pass ? 1 : 0, row.id);
   }
 }
 
@@ -630,8 +657,10 @@ function getMatchById(id: string, userId: string, db: Database.Database): Match 
 function recomputeAuthorQuality(handle: string, userId: string, db: Database.Database) {
   const prior = getAuthorPrior(handle, userId, db);
   const rows = db.prepare(
-    `SELECT id, tweet_id, raw_json, tweet_created_at, author_handle, text, author_followers, like_count, user_label
-     FROM matches WHERE user_id = ? AND lower(author_handle) = lower(?)`,
+    `SELECT m.id, m.tweet_id, m.raw_json, m.tweet_created_at, m.author_handle, m.text, m.author_followers, m.like_count, m.user_label, r.accounts_json
+     FROM matches m
+     LEFT JOIN rules r ON r.id = m.rule_id
+     WHERE m.user_id = ? AND lower(m.author_handle) = lower(?)`,
   ).all(userId, handle) as Array<{
     id: string;
     tweet_id: string;
@@ -642,6 +671,7 @@ function recomputeAuthorQuality(handle: string, userId: string, db: Database.Dat
     author_followers: number | null;
     like_count: number | null;
     user_label: string | null;
+    accounts_json: string | null;
   }>;
   const update = db.prepare("UPDATE matches SET signal_score = ?, signal_pass = ? WHERE id = ?");
   for (const row of rows) {
@@ -656,10 +686,12 @@ function recomputeAuthorQuality(handle: string, userId: string, db: Database.Dat
         retweetCount: metrics.retweetCount,
         replyCount: metrics.replyCount,
         quoteCount: metrics.quoteCount,
+        impressionCount: metrics.impressionCount,
         verified: metrics.verified,
         createdAt: row.tweet_created_at,
         text: row.text,
         authorHandle: row.author_handle,
+        isReply: metrics.isReply || /^@\w/.test((row.text ?? "").trim()),
       },
       Date.now(),
       {
@@ -667,6 +699,7 @@ function recomputeAuthorQuality(handle: string, userId: string, db: Database.Dat
         prior,
         ...authorSignalFlags(row.author_handle, userId, db),
         ...filters,
+        watchedAuthor: isWatchedAuthor(parseAccounts(row.accounts_json ?? "[]"), row.author_handle),
       },
     );
     update.run(verdict.score, verdict.pass ? 1 : 0, row.id);

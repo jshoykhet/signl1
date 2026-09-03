@@ -17,6 +17,10 @@ const LIFESTYLE =
 const DUNK =
   /\b(ratio(?:ed|['’]d)?|l take|w take|this you\b|imagine thinking|let him cook|ngmi|wagmi|this is the way|so true\b|touched grass|get a load of|ratio this)\b/i;
 
+/** P&L flex / “join my room” — high likes, zero information. */
+export const TRADE_CALL =
+  /\b(join the team|wet your beaks?|monster winners?|vwap retest|scalp the|caught a \d+% win|\d+%\s*win(?:s)? in \d+|lets goooo+|give this a|who wants more|works done in|tp\d+\s*hit|signal:\s*buy)\b/i;
+
 /** Flash language is not substance by itself. */
 const FLASH = /\b(breaking|just in|flash|developing|urgent|exclusive)\b/i;
 
@@ -41,7 +45,7 @@ const STRONG: Weighted[] = [
     w: 12,
   },
   {
-    re: /\b(opec|opec\+|production cuts?|spr\b|strategic petroleum|brent|wti|crack spread|rig count|inventory (?:draw|build)|inventories)\b/i,
+    re: /\b(opec|opec\+|production cuts?|spr\b|strategic petroleum|brent (?:crude|oil|futures?|balances)|wti|crack spread|rig count|inventory (?:draw|build)|inventories)\b/i,
     w: 12,
   },
   {
@@ -53,7 +57,15 @@ const STRONG: Weighted[] = [
     w: 10,
   },
   {
-    re: /\b(tariff|sanction|export control|chip ban|geopolitics|strait of hormuz|red sea)\b/i,
+    re: /\b(antitrust|consent decree|breakup|divest(?:iture)?|doj\b|ftc\b|judge rul(?:ed|ing)|court (?:ruled|ruling)|ad exchange)\b/i,
+    w: 12,
+  },
+  {
+    re: /\b(strait of hormuz|hormuz|supertankers?|tanker (?:struck|hit|strikes?)|crude futures?|brent crude|vlccs?)\b/i,
+    w: 12,
+  },
+  {
+    re: /\b(house prices|home prices|housing market|house[- ]price)\b/i,
     w: 10,
   },
   {
@@ -96,7 +108,11 @@ const WEAK: Weighted[] = [
 
 const NEWS: Weighted[] = [
   {
-    re: /\b(according to|sources (?:say|said|tell|told)|people familiar|reports that|reported that|per (?:bloomberg|reuters|wsj|ft|cnbc|ap\b)|press release|announces|announced|confirmed|statement from|decided to|data (?:show|shows|showed)|came in at|published|(?:vs|versus)\b.{0,24}\b(?:expected|estimates?|consensus|exp)\b)\b/i,
+    re: /\b(according to|sources (?:say|said|tell|told)|people familiar|reports that|reported that|per (?:bloomberg|reuters|wsj|ft|cnbc|ap\b|axios|kpler|marisks)|press release|announces|announced|confirmed|statement from|decided to|data (?:show|shows|showed)|came in at|published|(?:vs|versus)\b.{0,24}\b(?:expected|estimates?|consensus|exp)\b)\b/i,
+    w: 12,
+  },
+  {
+    re: /\bsource:\s*(?:the )?(?:guardian|bloomberg|reuters|wsj|ft|cnbc|axios)\b/i,
     w: 12,
   },
   {
@@ -142,6 +158,8 @@ export type DeskScore = {
   reasons: string[];
   /** True when the copy has a news hook or an analytical take, not just tickers or "breaking". */
   substance: boolean;
+  /** Sourced catalyst, filing, or take a smart investor would want on the tape. */
+  print: boolean;
 };
 
 export type DeskRelevanceOpts = {
@@ -161,14 +179,16 @@ function hitsOf(text: string, list: Weighted[], reason: string, reasons: string[
 }
 
 function pickBetterDeskScore(a: DeskScore, b: DeskScore): DeskScore {
-  const rank = (s: DeskScore) => (s.spam ? -1 : (s.substance ? 1_000 : 0) + s.score);
+  const rank = (s: DeskScore) => (s.spam ? -1 : (s.print ? 2_000 : 0) + (s.substance ? 1_000 : 0) + s.score);
   return rank(b) > rank(a) ? b : a;
 }
 
 function scoreMarketsRelevance(text: string, opts: DeskRelevanceOpts = {}): DeskScore {
   const t = text.trim();
-  if (!t) return { score: 0, spam: false, reasons: [], substance: false };
-  if (SPAM.test(t)) return { score: 0, spam: true, reasons: ["promo/spam phrasing"], substance: false };
+  if (!t) return { score: 0, spam: false, reasons: [], substance: false, print: false };
+  if (SPAM.test(t) || TRADE_CALL.test(t)) {
+    return { score: 0, spam: true, reasons: ["promo/spam phrasing"], substance: false, print: false };
+  }
 
   const reasons: string[] = [];
   const cashtags = t.match(CASHTAG) ?? [];
@@ -192,15 +212,15 @@ function scoreMarketsRelevance(text: string, opts: DeskRelevanceOpts = {}): Desk
   const substance = hasStrong || hasNews || hasAnalysis || hasPayload || hasPositioning;
 
   if (LIFESTYLE.test(t) && !substance) {
-    return { score: 0, spam: false, reasons: ["lifestyle"], substance: false };
+    return { score: 0, spam: false, reasons: ["lifestyle"], substance: false, print: false };
   }
   if (DUNK.test(t) && !substance) {
-    return { score: 0, spam: false, reasons: ["dunk"], substance: false };
+    return { score: 0, spam: false, reasons: ["dunk"], substance: false, print: false };
   }
 
   const words = t.split(/\s+/).filter(Boolean).length;
   if (opts.isReply && words < 14 && !substance) {
-    return { score: 0, spam: false, reasons: ["reply dunk"], substance: false };
+    return { score: 0, spam: false, reasons: ["reply dunk"], substance: false, print: false };
   }
 
   let score = strongScore + newsScore + analysisScore;
@@ -243,14 +263,18 @@ function scoreMarketsRelevance(text: string, opts: DeskRelevanceOpts = {}): Desk
     score = Math.min(score, 3);
   }
 
-  return { score, spam: false, reasons, substance };
+  const print = substance && (hasStrong || hasNews || hasAnalysis || hasSize);
+  return { score, spam: false, reasons, substance, print };
 }
 
 export function scoreDeskRelevance(text: string, opts: DeskRelevanceOpts = {}): DeskScore {
   if (opts.mode === "venture") return scoreVentureRelevance(text, opts);
   const markets = scoreMarketsRelevance(text, opts);
   if (opts.mode !== "both") return markets;
-  return pickBetterDeskScore(markets, scoreVentureRelevance(text, opts));
+  const venture = scoreVentureRelevance(text, opts);
+  if (markets.spam) return markets;
+  if (venture.spam) return venture;
+  return pickBetterDeskScore(markets, venture);
 }
 
 export function hasAnalyticalOrNewsValue(text: string, opts: DeskRelevanceOpts = {}): boolean {

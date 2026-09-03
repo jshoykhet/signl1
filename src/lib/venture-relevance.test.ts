@@ -29,4 +29,25 @@ describe("venture relevance", () => {
   it("does not treat FOMC prints as venture substance", () => {
     expect(scoreDeskRelevance("BREAKING: FOMC holds the funds rate", vc).substance).toBe(false);
   });
+
+  it("keeps a confidential HK IPO and drops 'concerns raised' politics", () => {
+    const ipo = scoreDeskRelevance(
+      "Moonshot AI has reportedly filed confidentially for a Hong Kong IPO and plans to raise funds at a $50B pre-money valuation.",
+      vc,
+    );
+    expect(ipo.substance).toBe(true);
+    expect(ipo.print).toBe(true);
+    expect(
+      scoreDeskRelevance(
+        "We have heard the concerns raised by traders. The measures agreed upon must now be implemented.",
+        vc,
+      ).substance,
+    ).toBe(false);
+    expect(
+      scoreDeskRelevance(
+        "LNG prices in Asia rose to the highest in more than three years after hostilities raised concerns over Hormuz.",
+        vc,
+      ).substance,
+    ).toBe(false);
+  });
 });
