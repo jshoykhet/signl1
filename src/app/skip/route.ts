@@ -1,28 +1,38 @@
 import { redirect } from "next/navigation";
+import { NextResponse } from "next/server";
 import { signIn } from "@/auth";
 import { isDevLoginEnabled } from "@/lib/access";
 import { DEV_PREVIEW_EMAIL } from "@/lib/dev-preview";
+import { isPrefetchRequest, publicOrigin } from "@/lib/request-origin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Preview-only skip login. Uses Auth.js server signIn, which skips the CSRF
- * cookie the client fetch cannot set on the Cursor preview host
- * (*.agent.cvm.dev) when AUTH_URL is http://127.0.0.1:3847.
+ * Preview skip login as a normal GET (and POST) navigation.
+ * A form POST never fired: Base UI buttons force type="button", and the
+ * Cursor preview host often drops POSTs. /skip is a link instead.
  */
-async function skipSignIn() {
+async function skipSignIn(request: Request) {
+  const origin = publicOrigin(request);
   if (!isDevLoginEnabled()) {
-    redirect("/login?error=Configuration");
+    redirect(`${origin}/login?error=Configuration`);
   }
   await signIn("dev", {
     email: DEV_PREVIEW_EMAIL,
     redirectTo: "/",
     redirect: false,
   });
-  redirect("/");
+  redirect(`${origin}/`);
 }
 
-export async function POST() {
-  await skipSignIn();
+export async function GET(request: Request) {
+  if (isPrefetchRequest(request)) {
+    return new NextResponse(null, { status: 204, headers: { "Cache-Control": "no-store" } });
+  }
+  await skipSignIn(request);
+}
+
+export async function POST(request: Request) {
+  await skipSignIn(request);
 }

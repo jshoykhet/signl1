@@ -2,10 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { signIn } from "next-auth/react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { sameOriginCallbackPath } from "@/lib/dev-preview";
+import { cn } from "@/lib/utils";
 
 const ERRORS: Record<string, string> = {
   AccessDenied:
@@ -72,11 +73,9 @@ export function SkipSignInButton({
   children?: React.ReactNode;
 }) {
   return (
-    <form action="/skip" method="post" className="contents">
-      <button type="submit" className={className}>
-        {children ?? "Skip sign-in"}
-      </button>
-    </form>
+    <a href="/skip" className={className}>
+      {children ?? "Skip sign-in"}
+    </a>
   );
 }
 
@@ -138,11 +137,9 @@ export function LoginForm({
 
       {devLogin ? (
         <div className="space-y-2">
-          <form action="/skip" method="post">
-            <Button type="submit" size="lg" className="w-full" disabled={pending !== null}>
-              Skip sign-in
-            </Button>
-          </form>
+          <a href="/skip" className={cn(buttonVariants({ size: "lg" }), "w-full")}>
+            Skip sign-in
+          </a>
           <p className="text-[13px] leading-relaxed text-muted-foreground">
             Opens this host’s preview desk. Google and a desk email still work below if you need a separate account.
           </p>
