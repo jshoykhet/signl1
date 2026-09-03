@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Activity, BadgeDollarSign, Inbox, Settings2, SlidersHorizontal } from "lucide-react";
 import { UserMenu } from "@/components/user-menu";
 import { cn } from "@/lib/utils";
+import { DESK_MODES } from "@/lib/desk-mode";
 import type { StatusSnapshot } from "@/lib/types";
 
 const NAV = [
@@ -66,7 +67,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="min-w-0 leading-tight">
             <div className="text-[17px] font-semibold tracking-[-0.02em]">Signl1</div>
             <div className="text-[12px] text-muted-foreground">
-              {status?.deskFilters.deskMode === "venture" ? "Venture desk" : "Markets desk"}
+              {status ? DESK_MODES[status.deskFilters.deskMode].shortLabel : "Desk"}
             </div>
           </div>
         </div>

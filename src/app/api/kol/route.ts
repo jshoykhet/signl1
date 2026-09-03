@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { listAuthorFollowerCounts, addKolHandle, getKolSpec, removeKolHandle, resetKolHandles } from "@/lib/db";
+import { parseDeskMode } from "@/lib/desk-mode";
 import { kolMode, kolProfileUrl, listKolHandles, listKolRows, normalizeHandle, seedKolHandles } from "@/lib/kol";
 import { requireDeskUser } from "@/lib/session";
 
@@ -8,8 +9,9 @@ export const dynamic = "force-dynamic";
 
 function snapshot(userId: string) {
   const spec = getKolSpec(userId);
+  const deskMode = parseDeskMode(spec.deskMode);
   const handles = listKolHandles(spec);
-  const seed = new Set(seedKolHandles(spec.deskMode === "venture" ? "venture" : "markets").map(normalizeHandle));
+  const seed = new Set(seedKolHandles(deskMode).map(normalizeHandle));
   const rows = listKolRows(spec);
   const followers = listAuthorFollowerCounts(userId);
   return {
@@ -18,7 +20,7 @@ function snapshot(userId: string) {
     added: spec.added ?? [],
     removed: spec.removed ?? [],
     seedCount: seed.size,
-    deskMode: spec.deskMode === "venture" ? "venture" : "markets",
+    deskMode,
     mode: kolMode(),
     items: rows.map((row) => ({
       handle: row.handle,

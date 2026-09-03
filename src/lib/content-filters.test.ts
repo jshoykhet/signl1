@@ -34,6 +34,15 @@ describe("crypto tape filter", () => {
     );
     expect(isCryptoNoise("New memecoin airdrop tonight, 100x gem", undefined, "venture")).toBe(true);
   });
+
+  it("in both mode keeps sector funding, listed names, and still drops memes and token chatter", () => {
+    expect(isCryptoNoise("Crypto startup raises $40m Series A for on-chain settlement", undefined, "both")).toBe(
+      false,
+    );
+    expect(isCryptoNoise("$MSTR added more bitcoin to the treasury", undefined, "both")).toBe(false);
+    expect(isCryptoNoise("New memecoin airdrop tonight, 100x gem", undefined, "both")).toBe(true);
+    expect(isCryptoNoise("Long $BTC here, easy 100x", undefined, "both")).toBe(true);
+  });
 });
 
 describe("messaging promo filter", () => {

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCompact } from "@/lib/format";
+import type { DeskMode } from "@/lib/desk-mode";
 import type { KolSource } from "@/lib/kol";
 
 type KolItem = {
@@ -25,7 +26,7 @@ type KolSnapshot = {
   added: string[];
   removed: string[];
   seedCount: number;
-  deskMode?: "markets" | "venture";
+  deskMode?: DeskMode;
   items: KolItem[];
 };
 
@@ -139,7 +140,12 @@ export function KolEditor() {
       ) : (
         <div className="grid gap-3 px-4 py-3.5">
           <p className="text-[13px] leading-relaxed text-muted-foreground">
-            Seeded with {kol.seedCount} {kol.deskMode === "venture" ? "venture, startup, and tech-news" : "markets-desk"}{" "}
+            Seeded with {kol.seedCount}{" "}
+            {kol.deskMode === "venture"
+              ? "venture, startup, and tech-news"
+              : kol.deskMode === "both"
+                ? "markets and venture"
+                : "markets-desk"}{" "}
             handles. These accounts skip the like floor and get a desk bump unless Require likes is on. Click a handle
             to open the X profile. Follower counts come from posts Signl1 has already ingested — accounts with no match
             yet show —. Switching desk mode on Desk tape swaps this seed.

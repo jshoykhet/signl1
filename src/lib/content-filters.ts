@@ -1,4 +1,5 @@
 import type { DeskMode } from "./desk-mode";
+import { scoreVentureRelevance } from "./venture-relevance";
 
 export const CRYPTO_EQUITY_TICKERS = new Set([
   "COIN",
@@ -118,6 +119,10 @@ export function isCryptoNoise(text: string, handle?: string, mode: DeskMode = "m
   if (hasCryptoEquityCashtag(text)) return false;
   if (mode === "venture") {
     return MEME_CRYPTO.test(text);
+  }
+  if (mode === "both") {
+    if (MEME_CRYPTO.test(text)) return true;
+    if (scoreVentureRelevance(text).substance) return false;
   }
   if (hasCryptoTokenCashtag(text)) return true;
   if (CRYPTO_TALK.test(text)) return true;

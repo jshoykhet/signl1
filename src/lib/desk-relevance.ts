@@ -160,8 +160,12 @@ function hitsOf(text: string, list: Weighted[], reason: string, reasons: string[
   return score;
 }
 
-export function scoreDeskRelevance(text: string, opts: DeskRelevanceOpts = {}): DeskScore {
-  if (opts.mode === "venture") return scoreVentureRelevance(text, opts);
+function pickBetterDeskScore(a: DeskScore, b: DeskScore): DeskScore {
+  const rank = (s: DeskScore) => (s.spam ? -1 : (s.substance ? 1_000 : 0) + s.score);
+  return rank(b) > rank(a) ? b : a;
+}
+
+function scoreMarketsRelevance(text: string, opts: DeskRelevanceOpts = {}): DeskScore {
   const t = text.trim();
   if (!t) return { score: 0, spam: false, reasons: [], substance: false };
   if (SPAM.test(t)) return { score: 0, spam: true, reasons: ["promo/spam phrasing"], substance: false };
@@ -240,6 +244,13 @@ export function scoreDeskRelevance(text: string, opts: DeskRelevanceOpts = {}): 
   }
 
   return { score, spam: false, reasons, substance };
+}
+
+export function scoreDeskRelevance(text: string, opts: DeskRelevanceOpts = {}): DeskScore {
+  if (opts.mode === "venture") return scoreVentureRelevance(text, opts);
+  const markets = scoreMarketsRelevance(text, opts);
+  if (opts.mode !== "both") return markets;
+  return pickBetterDeskScore(markets, scoreVentureRelevance(text, opts));
 }
 
 export function hasAnalyticalOrNewsValue(text: string, opts: DeskRelevanceOpts = {}): boolean {

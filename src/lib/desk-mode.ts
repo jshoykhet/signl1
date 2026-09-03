@@ -1,4 +1,4 @@
-export type DeskMode = "markets" | "venture";
+export type DeskMode = "markets" | "both" | "venture";
 
 export const DESK_MODES: Record<
   DeskMode,
@@ -10,6 +10,12 @@ export const DESK_MODES: Record<
     shortLabel: "Markets desk",
     hint: "FOMC, earnings, flow, and policy — for traders and public-markets research.",
   },
+  both: {
+    id: "both",
+    label: "Both",
+    shortLabel: "Both desks",
+    hint: "Markets prints and venture announcements — Key Network Nodes use both seed lists.",
+  },
   venture: {
     id: "venture",
     label: "Venture",
@@ -19,13 +25,28 @@ export const DESK_MODES: Record<
 };
 
 export function parseDeskMode(raw: string | null | undefined): DeskMode {
-  return raw === "venture" ? "venture" : "markets";
+  if (raw === "both") return "both";
+  if (raw === "venture" || raw === "vc") return "venture";
+  return "markets";
+}
+
+export function includesMarketsTape(mode: DeskMode): boolean {
+  return mode === "markets" || mode === "both";
+}
+
+export function includesVentureTape(mode: DeskMode): boolean {
+  return mode === "venture" || mode === "both";
 }
 
 export function signalLevelHint(
   level: "low" | "standard" | "high",
   mode: DeskMode,
 ): string {
+  if (mode === "both") {
+    if (level === "low") return "More tape, still needs a news, funding, launch, or analytical hook";
+    if (level === "high") return "Less tape — sourced news, priced rounds, and real analysis";
+    return "Wires, prints, funding, and launches — not cashtag chatter or founder lifestyle";
+  }
   if (mode === "venture") {
     if (level === "low") return "More tape, still needs a funding, launch, or deal hook";
     if (level === "high") return "Less tape — priced rounds, M&A, and sourced announcements";

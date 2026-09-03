@@ -15,7 +15,7 @@ docker compose up --build
 
 Open [http://localhost:3847](http://localhost:3847).
 
-Leave `X_BEARER_TOKEN` empty for **demo mode**. Signl1 injects fixture posts for the active desk (markets or venture) on a timer so the inbox, rules, and settings work without paid X API access. The UI labels this clearly.
+Leave `X_BEARER_TOKEN` empty for **demo mode**. Signl1 injects fixture posts for the active desk (markets, venture, or both) on a timer so the inbox, rules, and settings work without paid X API access. The UI labels this clearly.
 
 ## Environment
 
@@ -24,7 +24,7 @@ Leave `X_BEARER_TOKEN` empty for **demo mode**. Signl1 injects fixture posts for
 | `X_BEARER_TOKEN` | No | X API v2 app bearer token. If unset, demo mode runs. Never pasted into the UI. |
 | `SLACK_WEBHOOK_URL` | No | Global Slack incoming webhook. Per-rule Slack URLs in the database override nothing — a rule-level URL is used when set, otherwise this fallback. |
 | `DATABASE_PATH` | No | SQLite file path. Defaults to `./data/signal.db`. Compose sets `/data/signal.db` on a named volume. |
-| `KOL_HANDLES` | No | Extra Key Network Node handles (comma, space, or newline; `@` optional). Unioned with the seeded list for the active desk mode (markets or venture). |
+| `KOL_HANDLES` | No | Extra Key Network Node handles (comma, space, or newline; `@` optional). Unioned with the seeded list for the active desk mode (markets, both, or venture). |
 | `KOL_HANDLES_MODE` | No | `append` (default) keeps the seed and adds `KOL_HANDLES`. `replace` uses only the env list. |
 | `BLOCKED_HANDLES` | No | Accounts to drop from inbox and alerts (comma, space, or newline; `@` optional). Also editable on Settings. |
 | `WHATSAPP_TO` | No | Default WhatsApp destination (country code + digits, or a group JID). Editable on Settings. |
@@ -119,9 +119,9 @@ Poll interval is the **Inbox & WhatsApp** setting (5 / 10 / 15 / 30 / 45 minutes
 
 These apply at ingest and again whenever you change them, so the inbox and Slack/WhatsApp stay in sync with the live floors.
 
-- **Desk mode:** Markets (FOMC, earnings, flow) or Venture (funding, launches, tech announcements). Switching changes the Key Network Node seed list. Monitor on/off state lives on Rules and is not toggled by desk mode.
+- **Desk mode:** Markets (FOMC, earnings, flow), Venture (funding, launches, tech announcements), or **Both**. Switching changes the Key Network Node seed list (Both unions the two lists). Monitor on/off state lives on Rules and is not toggled by desk mode.
 - **Nodes only:** keep posts from Key Network Nodes (plus anything you labeled high).
-- **Key Network Nodes:** seeded per desk mode. Markets is wires and squawk; Venture is the 100-handle VC/startup list. Add, remove, or reset to defaults on Settings.
+- **Key Network Nodes:** seeded per desk mode. Markets is wires and squawk; Venture is the 100-handle VC/startup list; Both is the union. Add, remove, or reset to defaults on Settings.
 - **Blocked:** mute handles so they never land in the inbox or fire Slack/WhatsApp, even if they are a node.
 - **Signal level:** Lower (more tape, still needs news or analysis), Standard, or Higher (stricter follower/desk/score floors).
 - **Min likes:** set the engagement floor (0–10000, or inherit the level default). A number you pick applies to every account, including Key Network Nodes. Changing it re-filters the inbox.
@@ -196,7 +196,7 @@ npm run poller
 
 ## Quality filter
 
-The inbox is tuned per **desk mode**. **Markets** is for an event-driven trader, fundamental investor, or market maker: prints vs expected, filings, policy, sourced takes. **Venture** is for sourcing: priced rounds, launches, M&A, and tech announcements from a 100-handle seed list (TechCrunch, a16z, YC, Newcomer, and the rest). Cashtag-only posts, empty flashes, vibe, and dunks are dropped in both modes.
+The inbox is tuned per **desk mode**. **Markets** is for an event-driven trader, fundamental investor, or market maker: prints vs expected, filings, policy, sourced takes. **Venture** is for sourcing: priced rounds, launches, M&A, and tech announcements from a 100-handle seed list (TechCrunch, a16z, YC, Newcomer, and the rest). **Both** keeps either kind of tape and unions the two Key Network Node lists. Cashtag-only posts, empty flashes, vibe, and dunks are dropped in every mode.
 
 Floors still apply to unknown accounts:
 
@@ -205,7 +205,7 @@ Floors still apply to unknown accounts:
 - A **signal score** (0–100) from follower scale, likes, retweets/quotes, replies, and verified status
 - A **desk-relevance score** from the tweet text, plus a **substance** gate (news hook or analytical take)
 
-**Key Network Nodes** skip the like floor and get a score bump unless **Require likes** is on in Settings. They still need news or analysis for the active desk — a node saying “watching” does not print. Markets seeds wires, squawk, All-In, CNBC/FT talent, and official desks. Venture seeds the VC/startup list on Settings. Edit either list there, or with `KOL_HANDLES` (append) / `KOL_HANDLES_MODE=replace`. Promo spam (giveaways, signal groups) is dropped even from a node. **Blocked** accounts are dropped entirely.
+**Key Network Nodes** skip the like floor and get a score bump unless **Require likes** is on in Settings. They still need news or analysis for the active desk — a node saying “watching” does not print. Markets seeds wires, squawk, All-In, CNBC/FT talent, and official desks. Venture seeds the VC/startup list on Settings. Both unions those lists. Edit either list there, or with `KOL_HANDLES` (append) / `KOL_HANDLES_MODE=replace`. Promo spam (giveaways, signal groups) is dropped even from a node. **Blocked** accounts are dropped entirely.
 
 A post from an account with **10k+ followers** that is less than the current fresh window (10 minutes on Standard) can still alert before likes accrue, if the text is desk-relevant and **Recent tweets** is on. Settings lists the live floors, the editable node list, and the blocked list.
 

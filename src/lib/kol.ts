@@ -116,8 +116,24 @@ export const DEFAULT_KOL_HANDLES: readonly string[] = [
   "BIS_org",
 ];
 
+function uniqueHandles(lists: readonly (readonly string[])[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const list of lists) {
+    for (const handle of list) {
+      const key = handle.replace(/^@/, "").trim().toLowerCase();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      out.push(handle);
+    }
+  }
+  return out;
+}
+
 export function seedKolHandles(mode: DeskMode = "markets"): readonly string[] {
-  return mode === "venture" ? VENTURE_KOL_HANDLES : DEFAULT_KOL_HANDLES;
+  if (mode === "venture") return VENTURE_KOL_HANDLES;
+  if (mode === "both") return uniqueHandles([DEFAULT_KOL_HANDLES, VENTURE_KOL_HANDLES]);
+  return DEFAULT_KOL_HANDLES;
 }
 
 export function parseHandleList(raw: string | undefined | null): string[] {

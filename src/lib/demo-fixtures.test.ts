@@ -56,4 +56,11 @@ describe("venture demo fixtures", () => {
       expect(passesSignalFilter(tweet, Date.now(), { deskMode: "venture" }).pass, fixture.authorHandle).toBe(true);
     }
   });
+
+  it("in both mode keeps markets and venture fixtures", () => {
+    for (const fixture of [...DEMO_FIXTURES, ...VENTURE_DEMO_FIXTURES]) {
+      const tweet = fixtureToTweet(fixture, fixture.id, fixture.createdAt);
+      expect(passesSignalFilter(tweet, Date.now(), { deskMode: "both" }).pass, fixture.authorHandle).toBe(true);
+    }
+  });
 });

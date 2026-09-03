@@ -370,6 +370,15 @@ describe("desk filters and KOL list persist in SQLite", () => {
     expect(isKolHandle("DeItaone", getKolSpec(U, db))).toBe(true);
     expect(listRules(U, db).some((rule) => rule.name === "Fed" && rule.enabled)).toBe(true);
     expect(listRules(U, db).some((rule) => rule.name === "Funding Announcements" && rule.enabled)).toBe(true);
+
+    setDeskFilterSettings(U, { deskMode: "both" }, db);
+    expect(getDeskFilterSettings(U, db).deskMode).toBe("both");
+    expect(isKolHandle("DeItaone", getKolSpec(U, db))).toBe(true);
+    expect(isKolHandle("TechCrunch", getKolSpec(U, db))).toBe(true);
+    expect(evaluateTweetSignal(round, U, db).pass).toBe(true);
+    expect(evaluateTweetSignal(catalyst("DeItaone"), U, db).pass).toBe(true);
+    expect(listRules(U, db).some((rule) => rule.name === "Fed" && rule.enabled)).toBe(true);
+    expect(listRules(U, db).some((rule) => rule.name === "Funding Announcements" && rule.enabled)).toBe(true);
   });
 
   it("uses one Settings cadence for inbox polling and WhatsApp", () => {

@@ -59,11 +59,12 @@ export function DeskFilters() {
       setLikesLive(data.minLikes);
       if (patch.deskMode) {
         window.dispatchEvent(new CustomEvent("signl1:desk-mode", { detail: data.deskMode }));
-        toast.success(
-          data.deskMode === "venture"
-            ? "Venture desk on — Key Network Nodes now use the startup list. Monitors stay as you left them."
-            : "Markets desk on — Key Network Nodes now use the markets list. Monitors stay as you left them.",
-        );
+        const toasts: Record<DeskMode, string> = {
+          markets: "Markets desk on — Key Network Nodes now use the markets list. Monitors stay as you left them.",
+          both: "Both desks on — Key Network Nodes now use the markets and venture lists. Monitors stay as you left them.",
+          venture: "Venture desk on — Key Network Nodes now use the startup list. Monitors stay as you left them.",
+        };
+        toast.success(toasts[data.deskMode]);
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not save desk filters");
@@ -85,7 +86,9 @@ export function DeskFilters() {
   const footer =
     mode === "venture"
       ? "Venture keeps funding rounds, launches, M&A, and sourced tech announcements. Founder lifestyle and dunks are dropped. Hide crypto only drops memecoins and airdrops — sector news still prints. Hide chat apps drops Telegram and WhatsApp. High labels still come through."
-      : "The tape keeps news and analysis: prints vs expected, filings, policy, sourced takes. Cashtag-only posts and dunks are dropped. Hide crypto keeps listed names like $COIN and $MSTR. Hide chat apps drops Telegram and WhatsApp. High labels still come through.";
+      : mode === "both"
+        ? "Both keeps markets prints and venture announcements. Cashtag chatter, founder lifestyle, and dunks are dropped. Hide crypto drops memecoins and token-only chatter, but listed names and sourced crypto-sector news still print. Hide chat apps drops Telegram and WhatsApp. High labels still come through."
+        : "The tape keeps news and analysis: prints vs expected, filings, policy, sourced takes. Cashtag-only posts and dunks are dropped. Hide crypto keeps listed names like $COIN and $MSTR. Hide chat apps drops Telegram and WhatsApp. High labels still come through.";
 
   return (
     <SettingsGroup title="Desk tape" footer={footer}>
@@ -106,8 +109,8 @@ export function DeskFilters() {
                     }}
                     className={
                       filters.deskMode === id
-                        ? "flex-1 rounded-full bg-background px-3 py-1.5 text-[13px] font-medium text-foreground shadow-sm"
-                        : "flex-1 rounded-full px-3 py-1.5 text-[13px] text-muted-foreground"
+                        ? "min-w-0 flex-1 rounded-full bg-background px-2 py-1.5 text-[13px] font-medium text-foreground shadow-sm"
+                        : "min-w-0 flex-1 rounded-full px-2 py-1.5 text-[13px] text-muted-foreground"
                     }
                   >
                     {DESK_MODES[id].label}

@@ -75,4 +75,14 @@ describe("KOL list", () => {
     expect(loadKolHandleSet({ deskMode: "markets" }).has("deitaone")).toBe(true);
     expect(loadKolHandleSet({ deskMode: "venture" }).has("techcrunch")).toBe(true);
   });
+
+  it("unions markets and venture seeds in both mode", () => {
+    const set = loadKolHandleSet({ deskMode: "both" });
+    expect(set.has("deitaone")).toBe(true);
+    expect(set.has("techcrunch")).toBe(true);
+    expect(set.has("a16z")).toBe(true);
+    expect(set.size).toBe(new Set(seedKolHandles("both").map(normalizeHandle)).size);
+    expect(set.size).toBeGreaterThan(seedKolHandles("markets").length);
+    expect(set.size).toBeGreaterThan(seedKolHandles("venture").length);
+  });
 });

@@ -72,4 +72,18 @@ describe("desk relevance", () => {
     expect(hasAnalyticalOrNewsValue("man inflation is crazy out here")).toBe(false);
     expect(hasAnalyticalOrNewsValue("the fed really hates us")).toBe(false);
   });
+
+  it("in both mode keeps a markets print and a venture round", () => {
+    expect(
+      scoreDeskRelevance("BREAKING: FOMC holds the funds rate", { mode: "both" }).substance,
+    ).toBe(true);
+    expect(
+      scoreDeskRelevance("Anthropic raises $3.5bn Series E at a $60bn valuation, sources say.", {
+        mode: "both",
+      }).substance,
+    ).toBe(true);
+    expect(scoreDeskRelevance("Great dinner with friends last night.", { mode: "both" }).substance).toBe(
+      false,
+    );
+  });
 });

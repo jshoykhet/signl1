@@ -10,6 +10,7 @@ import {
   SIGNAL_LEVELS,
   cadenceLabel,
   cadenceMs,
+  parseDeskMode,
 } from "./desk-settings";
 
 describe("desk settings parsers", () => {
@@ -17,6 +18,14 @@ describe("desk settings parsers", () => {
     expect(parseSignalLevel(null)).toBe("standard");
     expect(parseSignalLevel("high")).toBe("high");
     expect(SIGNAL_LEVELS.high.minLikes).toBeGreaterThan(SIGNAL_LEVELS.low.minLikes);
+  });
+
+  it("parses desk mode including Both", () => {
+    expect(parseDeskMode(null)).toBe("markets");
+    expect(parseDeskMode("markets")).toBe("markets");
+    expect(parseDeskMode("venture")).toBe("venture");
+    expect(parseDeskMode("vc")).toBe("venture");
+    expect(parseDeskMode("both")).toBe("both");
   });
 
   it("parses boolean meta with a fallback", () => {

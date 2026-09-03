@@ -754,7 +754,12 @@ function insertMissingDefaultMonitors(userId: string, db: Database.Database) {
 
 function reenablePackDisabledByDeskSwitch(userId: string, db: Database.Database) {
   const deskMode = parseDeskMode(getUserMeta(userId, "desk_mode", db));
-  const names = deskMode === "venture" ? MARKETS_DEFAULT_NAMES : VC_DEFAULT_NAMES;
+  const names =
+    deskMode === "both"
+      ? [...MARKETS_DEFAULT_NAMES, ...VC_DEFAULT_NAMES]
+      : deskMode === "venture"
+        ? MARKETS_DEFAULT_NAMES
+        : VC_DEFAULT_NAMES;
   const ts = nowIso();
   for (const name of names) {
     if (name === "Watchlist") continue;

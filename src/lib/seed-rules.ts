@@ -144,6 +144,7 @@ export const MARKETS_SEED_RULES: SeedMonitor[] = DEFAULT_MONITORS.filter((rule) 
 export const VENTURE_SEED_RULES: SeedMonitor[] = DEFAULT_MONITORS.filter((rule) => rule.mode === "vc");
 
 export function seedRulesForMode(mode: DeskMode | MonitorMode): SeedMonitor[] {
+  if (mode === "both") return DEFAULT_MONITORS;
   const monitor = parseMonitorMode(mode);
   return DEFAULT_MONITORS.filter((rule) => rule.mode === monitor);
 }
