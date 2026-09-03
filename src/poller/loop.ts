@@ -184,10 +184,10 @@ async function pollLiveShared(
   token: string,
   limiter: XRateLimiter,
 ) {
+  const cleared = resetAccountWatchCursors();
+  if (cleared) console.log(`[poller] reset ${cleared} account-watch cursor${cleared === 1 ? "" : "s"} for 6h lookback`);
   const rules = due.flatMap((item) => listEnabledRulesForUser(item.userId));
   if (rules.length) {
-    const cleared = resetAccountWatchCursors();
-    if (cleared) console.log(`[poller] reset ${cleared} account-watch cursor${cleared === 1 ? "" : "s"} for 6h lookback`);
     const batches = packQueryGroups(indexRulesByQuery(rules));
     setMeta("x_last_packed_queries", String(batches.length));
     const cadenceMinutes = Math.max(...due.map((item) => item.minutes));

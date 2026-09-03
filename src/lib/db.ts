@@ -1166,9 +1166,10 @@ export function markAllMatchesRead(userId: string, ruleId?: string, db = getDb()
   return db.prepare("UPDATE matches SET read = 1 WHERE read = 0 AND user_id = ?").run(userId).changes;
 }
 
-export const ACCOUNT_WATCH_LOOKBACK_META = "account_watch_lookback_v2";
+export const ACCOUNT_WATCH_LOOKBACK_META = "account_watch_lookback_v3";
 
-/** Clear since_id on account-watch rules once so the next poll uses the 6–12h lookback. */
+/** Clear since_id on account-watch rules once so the next poll uses the 6–12h lookback.
+ *  Callers must reload rules after this — in-memory lastSinceId is otherwise stale. */
 export function resetAccountWatchCursors(db = getDb()): number {
   if (getMeta(ACCOUNT_WATCH_LOOKBACK_META, db)) return 0;
   const result = db
