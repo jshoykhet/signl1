@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Search } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -16,9 +15,12 @@ import {
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { EmptyState } from "@/components/empty-state";
+import { GroupedRow, SettingsGroup } from "@/components/grouped-list";
+import { HandleTable } from "@/components/handle-table";
 import { PageHeader } from "@/components/page-header";
 import { RuleForm, type RuleFormValue } from "@/components/rule-form";
 import { formatInterval, formatRelative } from "@/lib/format";
+import { buildHandleListItems, seedAccountsForMonitor } from "@/lib/handle-list";
 import { MONITOR_MODES, parseMonitorMode, type MonitorMode } from "@/lib/monitor-mode";
 import { tokenizeSearch } from "@/lib/search";
 import type { Rule } from "@/lib/types";
@@ -32,6 +34,7 @@ export function RulesView() {
   const [editing, setEditing] = useState<Rule | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [query, setQuery] = useState("");
+  const [followers, setFollowers] = useState<Record<string, number>>({});
 
   const applyPayload = (data: { rules: Rule[]; mode?: string }) => {
     setRules(data.rules);
@@ -64,6 +67,20 @@ export function RulesView() {
     };
     // Initial load only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/authors", { cache: "no-store" })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const data = (await res.json()) as { followers?: Record<string, number> };
+        if (!cancelled && data.followers) setFollowers(data.followers);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const switchMode = async (next: MonitorMode) => {
@@ -237,94 +254,96 @@ export function RulesView() {
         ) : visibleRules.length === 0 ? (
           <EmptyState title="No matches" description={`Nothing found for “${query.trim()}”.`} />
         ) : (
-          <table className="w-full text-left text-[15px]">
-            <thead className="sticky top-0 bg-background/90 text-[13px] text-muted-foreground backdrop-blur">
-              <tr className="border-b border-border">
-                <th className="px-5 py-2.5 font-normal">On</th>
-                <th className="px-3 py-2.5 font-normal">Name</th>
-                <th className="px-3 py-2.5 font-normal">Query</th>
-                <th className="px-3 py-2.5 font-normal">Interval</th>
-                <th className="px-3 py-2.5 font-normal">Last poll</th>
-                <th className="px-5 py-2.5 font-normal"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibleRules.map((rule) => (
-                <tr key={rule.id} className="border-b border-border align-top">
-                  <td className="px-5 py-3.5">
+          <div className="mx-auto w-full max-w-5xl space-y-6 px-5 py-6">
+            {visibleRules.map((rule) => {
+              const accountItems =
+                rule.accounts.length > 0
+                  ? buildHandleListItems(seedAccountsForMonitor(rule.name), rule.accounts, followers)
+                  : [];
+              return (
+                <SettingsGroup
+                  key={rule.id}
+                  title={rule.kind === "watchlist" ? "Watchlist" : undefined}
+                  footer={
+                    rule.lastError ? (
+                      <span className="text-destructive">{rule.lastError}</span>
+                    ) : undefined
+                  }
+                >
+                  <GroupedRow>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[17px] font-medium tracking-[-0.01em]">{rule.name}</div>
+                      <div className="mt-0.5 text-[13px] leading-snug text-muted-foreground">
+                        {rule.kind === "watchlist"
+                          ? "Managed from Watchlist · cashtags"
+                          : rule.accounts.length
+                            ? `${rule.accounts.length} accounts${rule.queryInput.trim() ? ` · ${rule.queryInput.trim()}` : ""}`
+                            : "Keyword search"}
+                        {" · "}
+                        {formatInterval(rule.pollIntervalMs)}
+                        {" · "}
+                        {formatRelative(rule.lastPolledAt)}
+                      </div>
+                    </div>
                     <Switch
                       checked={rule.enabled}
+                      aria-label={`Turn ${rule.name} ${rule.enabled ? "off" : "on"}`}
                       onCheckedChange={(checked) => toggle(rule, Boolean(checked))}
                     />
-                  </td>
-                  <td className="px-3 py-3.5">
-                    <div className="font-medium tracking-[-0.01em]">{rule.name}</div>
-                    {rule.kind === "watchlist" ? (
-                      <div className="mt-1 text-[13px] text-muted-foreground">Managed from Watchlist · cashtags</div>
-                    ) : null}
-                    {rule.lastError ? (
-                      <div className="mt-1 max-w-56 truncate text-[13px] text-destructive">{rule.lastError}</div>
-                    ) : null}
-                  </td>
-                  <td className="px-3 py-3.5">
-                    {rule.kind === "watchlist" && !rule.query ? (
-                      <div className="text-[13px] text-muted-foreground">Add cashtags on Watchlist to start polling.</div>
-                    ) : rule.accounts.length ? (
-                      <div>
-                        <div className="text-[13px] text-muted-foreground">
-                          {rule.accounts.length} account{rule.accounts.length === 1 ? "" : "s"}
-                          {rule.queryInput.trim() ? ` · ${rule.queryInput.trim()}` : ""}
-                        </div>
-                        <div className="mt-1.5 flex flex-wrap gap-1">
-                          {rule.accounts.slice(0, 8).map((account) => (
-                            <Badge key={account} variant="outline" className="h-5 rounded-full px-2 font-mono text-[11px]">
-                              @{account}
-                            </Badge>
-                          ))}
-                          {rule.accounts.length > 8 ? (
-                            <Badge variant="outline" className="h-5 rounded-full px-2 text-[11px] font-normal">
-                              +{rule.accounts.length - 8}
-                            </Badge>
-                          ) : null}
-                        </div>
-                      </div>
-                    ) : (
-                      <code className="block max-w-xl font-mono text-[13px] leading-relaxed break-all text-muted-foreground">
-                        {rule.query}
-                      </code>
-                    )}
-                  </td>
-                  <td className="px-3 py-3.5 text-[13px] tabular-nums">{formatInterval(rule.pollIntervalMs)}</td>
-                  <td className="px-3 py-3.5 text-[13px] text-muted-foreground">{formatRelative(rule.lastPolledAt)}</td>
-                  <td className="px-5 py-3.5">
-                    <div className="flex justify-end gap-1">
-                      {rule.kind === "watchlist" ? (
-                        <Link href="/watchlist" className={buttonVariants({ variant: "ghost", size: "sm" })}>
-                          Edit list
-                        </Link>
+                  </GroupedRow>
+                  {accountItems.length ? (
+                    <HandleTable
+                      embedded
+                      readOnly
+                      compact
+                      items={accountItems}
+                      emptyLabel="No accounts on this monitor."
+                    />
+                  ) : (
+                    <GroupedRow className="items-start">
+                      <div className="w-[4.5rem] shrink-0 pt-0.5 text-[15px] text-muted-foreground">Query</div>
+                      {rule.kind === "watchlist" && !rule.query ? (
+                        <p className="min-w-0 flex-1 text-[15px] text-muted-foreground">
+                          Add cashtags on Watchlist to start polling.
+                        </p>
                       ) : (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => {
-                              setEditing(rule);
-                              setOpen(true);
-                            }}
-                          >
-                            <Pencil className="size-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon-sm" onClick={() => remove(rule)}>
-                            <Trash2 className="size-3.5" />
-                          </Button>
-                        </>
+                        <code className="min-w-0 flex-1 font-mono text-[13px] leading-relaxed break-all text-foreground line-clamp-3">
+                          {rule.query}
+                        </code>
                       )}
+                    </GroupedRow>
+                  )}
+                  <GroupedRow>
+                    <div className="min-w-0 flex-1 text-[13px] text-muted-foreground">
+                      {rule.enabled ? "Polling" : "Paused"}
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    {rule.kind === "watchlist" ? (
+                      <Link href="/watchlist" className={buttonVariants({ variant: "ghost", size: "sm" })}>
+                        Edit list
+                      </Link>
+                    ) : (
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setEditing(rule);
+                            setOpen(true);
+                          }}
+                        >
+                          <Pencil className="size-3.5" />
+                          Edit
+                        </Button>
+                        <Button variant="ghost" size="icon-sm" onClick={() => remove(rule)} aria-label={`Delete ${rule.name}`}>
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </div>
+                    )}
+                  </GroupedRow>
+                </SettingsGroup>
+              );
+            })}
+          </div>
         )}
       </div>
       <Dialog

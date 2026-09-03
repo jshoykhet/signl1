@@ -145,10 +145,9 @@ export function RuleForm({
 
         <HandleTable
           title="Accounts"
-          compact
           description={
             accountWatch
-              ? "Same table as Key Network Nodes. Seeded handles can be removed and restored. Follower counts come from posts already on this desk — new handles show — until they match."
+              ? "Seeded handles can be removed and restored. Follower counts come from posts already on this desk."
               : "Optional. Add X handles to watch people instead of keywords. Leave empty for a search-only monitor like Fed or Macro."
           }
           items={items}
