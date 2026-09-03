@@ -142,8 +142,8 @@ describe("searchWindow", () => {
 
 describe("batchIsAccountWatch", () => {
   it("is true when any packed rule lists accounts", () => {
-    expect(batchIsAccountWatch([{ query: "from:pmarca", accounts: ["pmarca"] }])).toBe(true);
-    expect(batchIsAccountWatch([{ query: "FOMC", accounts: [] }, { query: "Oil" }])).toBe(false);
+    expect(batchIsAccountWatch([{ accounts: ["pmarca"] }])).toBe(true);
+    expect(batchIsAccountWatch([{ accounts: [] }, {}])).toBe(false);
   });
 });
 

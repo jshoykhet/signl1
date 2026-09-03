@@ -93,7 +93,7 @@ export function batchCursor(rules: Array<Pick<Rule, "lastSinceId" | "createdAt">
   return { sinceId: null, startTime };
 }
 
-export function batchIsAccountWatch(rules: Array<{ accounts?: string[] | null }>): boolean {
+export function batchIsAccountWatch(rules: Array<{ accounts?: readonly string[] | null }>): boolean {
   return rules.some((rule) => (rule.accounts?.length ?? 0) > 0);
 }
 
