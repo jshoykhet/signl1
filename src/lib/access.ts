@@ -207,12 +207,8 @@ function touchLogin(
 }
 
 /**
- * Gate for Google / local desk login.
- *
- * AUTH_PUBLIC_SIGNUP=1: any valid Google (or local desk) email gets a private desk.
- * Otherwise access is invite-only. First user becomes instance admin. If the
- * allowlist already has rows (including AUTH_ALLOWED_EMAILS), that first user
- * must still be on the list.
+ * Solo desk: the first sign-in owns the instance. Later emails are refused.
+ * Returning owners are touched and admitted.
  */
 export function admitUser(
   input: { email: string; name?: string | null; image?: string | null },
@@ -223,37 +219,24 @@ export function admitUser(
   if (!email) return null;
 
   const existing = getUserByEmail(email, conn);
-  const allowed = isEmailAllowed(email, conn);
-  const userCount = countUsers(conn);
-  const allowCount = countAllowedEmails(conn);
-  const publicSignup = isPublicSignup();
-
   if (existing) {
     if (existing.disabled) return null;
-    if (!publicSignup && allowCount > 0 && !allowed) return null;
     touchLogin(existing.id, input, conn);
     ensureUserDesk(existing.id, conn);
     return getUserByEmail(email, conn);
   }
 
-  if (!publicSignup) {
-    const bootstrap = userCount === 0 && allowCount === 0;
-    if (!bootstrap && !allowed) return null;
-  }
+  const userCount = countUsers(conn);
+  if (userCount > 0) return null;
 
   const ts = nowIso();
   const id = crypto.randomUUID();
-  const role: DeskRole = userCount === 0 ? "admin" : "operator";
   conn
     .prepare(
       `INSERT INTO users (id, email, name, image, role, created_at, last_login_at, disabled)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
+       VALUES (?, ?, ?, ?, 'admin', ?, ?, 0)`,
     )
-    .run(id, email, input.name?.trim() || null, input.image?.trim() || null, role, ts, ts);
-
-  if (!publicSignup && userCount === 0 && allowCount === 0) {
-    addAllowedEmail(email, "bootstrap", conn);
-  }
+    .run(id, email, input.name?.trim() || null, input.image?.trim() || null, ts, ts);
 
   ensureUserDesk(id, conn);
   return getUserByEmail(email, conn);

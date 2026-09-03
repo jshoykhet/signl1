@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { NextResponse } from "next/server";
 import { signIn } from "@/auth";
-import { isDevLoginEnabled } from "@/lib/access";
+import { isDevLoginEnabled, listUsers } from "@/lib/access";
 import { DEV_PREVIEW_EMAIL } from "@/lib/dev-preview";
 import { isPrefetchRequest, publicOrigin } from "@/lib/request-origin";
 
@@ -18,8 +18,9 @@ async function skipSignIn(request: Request) {
   if (!isDevLoginEnabled()) {
     redirect(`${origin}/login?error=Configuration`);
   }
+  const owner = listUsers()[0]?.email ?? DEV_PREVIEW_EMAIL;
   await signIn("dev", {
-    email: DEV_PREVIEW_EMAIL,
+    email: owner,
     redirectTo: "/",
     redirect: false,
   });

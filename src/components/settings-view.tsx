@@ -8,7 +8,6 @@ import { BlockedEditor } from "@/components/blocked-editor";
 import { DeskFilters } from "@/components/desk-filters";
 import { GroupedRow, SettingsGroup } from "@/components/grouped-list";
 import { PageHeader } from "@/components/page-header";
-import { TeamSettings } from "@/components/team-settings";
 import { CadenceSettings } from "@/components/cadence-settings";
 import { WhatsAppSettings } from "@/components/whatsapp-settings";
 import { formatClock, formatRelative } from "@/lib/format";
@@ -57,7 +56,7 @@ export function SettingsView() {
       <div className="mx-auto w-full max-w-[680px] flex-1 px-5 py-8">
         <PageHeader
           title="Settings"
-          description="Secrets stay in the process environment. This page never prints the bearer token or Google client secret."
+          description="Secrets stay in the process environment. This page never prints the bearer token."
         />
         <div className="mt-8 space-y-8">
           {error ? (
@@ -103,7 +102,6 @@ export function SettingsView() {
                 </Row>
                 <Row label="Mode">{status.demoMode ? "Demo (fixtures)" : "Live (X API v2 recent search)"}</Row>
               </SettingsGroup>
-              <TeamSettings />
               <CadenceSettings />
               <WhatsAppSettings />
               <DeskFilters />

@@ -1,21 +1,28 @@
 import NextAuth from "next-auth";
 import type { NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import Google from "next-auth/providers/google";
 import { authConfig } from "./auth.config";
-import { admitUser, getUserByEmail, isDevLoginEnabled, isGoogleAuthConfigured } from "./lib/access";
+import { admitUser, getUserByEmail, isDevLoginEnabled } from "./lib/access";
+import { verifySoloOtp } from "./lib/solo-auth";
 
 function buildProviders(): NextAuthConfig["providers"] {
-  const providers: NextAuthConfig["providers"] = [];
-
-  if (isGoogleAuthConfigured()) {
-    providers.push(
-      Google({
-        clientId: process.env.GOOGLE_CLIENT_ID,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      }),
-    );
-  }
+  const providers: NextAuthConfig["providers"] = [
+    Credentials({
+      id: "otp",
+      name: "Authenticator",
+      credentials: {
+        phone: { label: "Phone", type: "tel" },
+        code: { label: "Code", type: "text" },
+      },
+      authorize: async (credentials) => {
+        const phone = typeof credentials?.phone === "string" ? credentials.phone : "";
+        const code = typeof credentials?.code === "string" ? credentials.code : "";
+        const user = verifySoloOtp(phone, code);
+        if (!user) return null;
+        return { id: user.id, email: user.email, name: user.name, image: user.image };
+      },
+    }),
+  ];
 
   if (isDevLoginEnabled()) {
     providers.push(

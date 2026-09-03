@@ -2,9 +2,9 @@
 
 X (Twitter) alerts for investment and research operators. You define watch rules in a web UI; a background poller hits the official X API v2 recent-search endpoint and writes matches into an inbox. Slack can fire on each match; WhatsApp sends a digest on the same interval as inbox polling.
 
-Each Google account gets a **private desk** (inbox, rules, watchlist, filters, destination number). The host still runs one poller and one X bearer token. Set `AUTH_PUBLIC_SIGNUP=1` so anyone can sign in with Google, or `0` for an invite-only allowlist.
+Sign-in is solo: your phone number plus a 6-digit code from an open-source authenticator ([Ente Auth](https://ente.io/auth/) on iOS/Android, or [Aegis](https://github.com/beemdevelopment/Aegis) on Android). The first number to enroll owns the desk. There is no team or invite list.
 
-You run it with Docker Compose (or `npm run dev`) against a local SQLite file. To put Signl1 on a domain you purchased, use a VPS — not Vercel. See [DEPLOY.md](DEPLOY.md) for DNS, Caddy TLS, a public Google OAuth client, and signup mode.
+You run it with Docker Compose (or `npm run dev`) against a local SQLite file. To put Signl1 on a domain you purchased, use a VPS — not Vercel. See [DEPLOY.md](DEPLOY.md) for DNS, Caddy TLS, and first-time authenticator setup.
 
 ## Quick start
 
@@ -29,12 +29,9 @@ Leave `X_BEARER_TOKEN` empty for **demo mode**. Signl1 injects fixture posts for
 | `BLOCKED_HANDLES` | No | Accounts to drop from inbox and alerts (comma, space, or newline; `@` optional). Also editable on Settings. |
 | `WHATSAPP_TO` | No | Default WhatsApp destination (country code + digits, or a group JID). Editable on Settings. |
 | `WHATSAPP_AUTH_DIR` | No | Baileys session folder. Defaults next to the SQLite file; Compose uses `/data/whatsapp-auth`. |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Prod | Google OAuth Web client. Redirect URI is `https://<domain>/api/auth/callback/google`. |
 | `AUTH_SECRET` | Prod | Session secret (`openssl rand -base64 32`). Optional locally. |
 | `AUTH_URL` | Prod | Public desk URL, e.g. `https://signals.example.com`. |
-| `AUTH_DEV_LOGIN` | No | `1` enables a passwordless email field and a **Skip sign-in** button for local preview. Production Compose forces `0`. |
-| `AUTH_PUBLIC_SIGNUP` | Prod | `1` (default in Compose) lets any Google account create a private desk. `0` is invite-only. |
-| `AUTH_ALLOWED_EMAILS` | Invite-only | Comma-separated Google accounts allowed to join when `AUTH_PUBLIC_SIGNUP=0`. |
+| `AUTH_DEV_LOGIN` | No | `1` enables a **Skip sign-in** button for local preview. Production Compose forces `0`. |
 | `DOMAIN` | Prod | Hostname for `docker-compose.prod.yml` + Caddy. |
 
 Copy `.env.example` to `.env` and fill in what you need. Compose interpolates those values; an empty token is demo mode.
@@ -48,7 +45,7 @@ DATABASE_PATH=./data/signal.db
 
 Do not commit `.env`. Per-rule Slack and generic webhook URLs live in SQLite on purpose so different desks can fan out without extra env vars.
 
-Sign-in defaults to **public Google signup**. The first account to sign in becomes the instance **admin** (they link WhatsApp for the host). Everyone else gets their own desk. Set `AUTH_PUBLIC_SIGNUP=0` and `AUTH_ALLOWED_EMAILS` for invite-only. The first admitted user still becomes admin. Later operators can be invited on **Settings → Access**.
+On first visit, enter your mobile number, scan the QR with Ente Auth or Aegis, and confirm the 6-digit code. Later visits only ask for the current code. Local preview can still **Skip sign-in** when `AUTH_DEV_LOGIN=1`.
 
 ## X bearer token (live mode)
 
@@ -240,7 +237,7 @@ Do not lower every interval to 15s on a live token. Signl1 floors live polls at 
 npm test
 ```
 
-Covers query compilation (including the accounts helper), tweet/rule dedup against SQLite, demo fixture coverage of the sample rules, webhook payload shape, +/− training labels, watchlist cashtags, packed live-search query budgets, desk-relevance scoring, Key Network Nodes, the blocked list, desk-tape floors, WhatsApp digest copy, WhatsApp JID formatting, Google admission, public signup, and per-desk isolation.
+Covers query compilation (including the accounts helper), tweet/rule dedup against SQLite, demo fixture coverage of the sample rules, webhook payload shape, +/− training labels, watchlist cashtags, packed live-search query budgets, desk-relevance scoring, Key Network Nodes, the blocked list, desk-tape floors, WhatsApp digest copy, WhatsApp JID formatting, solo OTP admission, and per-desk isolation.
 
 ## Layout
 

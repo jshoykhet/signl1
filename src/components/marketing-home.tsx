@@ -1,16 +1,15 @@
 import { LoginForm, SkipSignInButton } from "@/components/login-form";
+import { isDevLoginEnabled } from "@/lib/access";
 
 export function MarketingHome({
-  googleConfigured,
-  devLogin,
   errorCode,
-  publicSignup,
 }: {
-  googleConfigured: boolean;
-  devLogin: boolean;
+  googleConfigured?: boolean;
+  devLogin?: boolean;
   errorCode: string | null;
-  publicSignup: boolean;
+  publicSignup?: boolean;
 }) {
+  const devLogin = isDevLoginEnabled();
   return (
     <div className="min-h-dvh bg-background text-foreground">
       <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-5 py-5">
@@ -25,15 +24,12 @@ export function MarketingHome({
           <span className="text-[17px] font-semibold tracking-[-0.02em]">Signl1</span>
         </div>
         {devLogin ? (
-          <SkipSignInButton className="rounded-full bg-foreground px-4 py-2 text-[13px] font-medium text-background disabled:opacity-60">
+          <SkipSignInButton className="rounded-full bg-foreground px-4 py-2 text-[13px] font-medium text-background">
             Skip sign-in
           </SkipSignInButton>
         ) : (
-          <a
-            href="#start"
-            className="rounded-full bg-foreground px-4 py-2 text-[13px] font-medium text-background"
-          >
-            Get your desk
+          <a href="#start" className="rounded-full bg-foreground px-4 py-2 text-[13px] font-medium text-background">
+            Sign in
           </a>
         )}
       </header>
@@ -50,23 +46,10 @@ export function MarketingHome({
           </div>
 
           <div id="start" className="rounded-3xl bg-card p-6 shadow-sm ring-1 ring-border">
-            <h2 className="text-[20px] font-semibold tracking-[-0.02em]">
-              {devLogin ? "Open the desk" : publicSignup ? "Create your desk" : "Sign in"}
-            </h2>
-            <p className="mt-1.5 mb-5 text-[15px] leading-snug text-muted-foreground">
-              {devLogin
-                ? "Skip sign-in for this preview. Google still works if you want a separate account."
-                : publicSignup
-                  ? "Google sign-in is enough. No invite code. Your inbox stays private to this account."
-                  : "Use the Google account an admin invited on Settings → Access."}
-            </p>
-            <LoginForm
-              googleConfigured={googleConfigured}
-              devLogin={devLogin}
-              callbackUrl="/"
-              errorCode={errorCode}
-              publicSignup={publicSignup}
-            />
+            <h2 className="text-[20px] font-semibold tracking-[-0.02em]">Sign in to Signl1</h2>
+            <div className="mt-5">
+              <LoginForm devLogin={devLogin} callbackUrl="/" errorCode={errorCode} />
+            </div>
           </div>
         </div>
       </main>

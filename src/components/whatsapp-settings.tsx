@@ -193,7 +193,7 @@ export function WhatsAppSettings() {
           <p className="text-[13px] leading-relaxed text-muted-foreground">
             Number that should receive <span className="text-foreground">your</span> alerts, with country
             code. Or paste a group JID ending in{" "}
-            <code className="font-mono text-[12px]">@g.us</code>. The instance admin links one sending
+            <code className="font-mono text-[12px]">@g.us</code>. You link one sending
             WhatsApp; alerts to you come from that number. Sending to the linked account is a note to
             yourself — look for <span className="text-foreground">Message yourself</span>; it often will
             not push-notify.
@@ -256,7 +256,7 @@ export function WhatsAppSettings() {
           ) : (
             <>
               <p className="text-[13px] leading-relaxed text-muted-foreground">
-                The instance admin links one sending WhatsApp. Save your destination above, then send a
+                Link one sending WhatsApp. Save your destination above, then send a
                 test once status is <span className="text-foreground">Linked</span>.
               </p>
               <div className="flex flex-wrap gap-2">

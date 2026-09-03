@@ -4,66 +4,24 @@ import { useMemo, useState } from "react";
 import { signIn } from "next-auth/react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { sameOriginCallbackPath } from "@/lib/dev-preview";
+import { DIAL_COUNTRIES, formatPhone, normalizePhone } from "@/lib/phone";
 import { cn } from "@/lib/utils";
 
+const ENTE_AUTH = "https://ente.io/auth/";
+const ENTE_IOS = "https://apps.apple.com/app/ente-auth/id6444121398";
+const ENTE_ANDROID = "https://play.google.com/store/apps/details?id=io.ente.auth";
+const AEGIS = "https://github.com/beemdevelopment/Aegis";
+
+type StartPayload =
+  | { mode: "challenge"; phone: string }
+  | { mode: "enroll"; phone: string; qrDataUrl: string; otpauthUrl: string; secret: string };
+
 const ERRORS: Record<string, string> = {
-  AccessDenied:
-    "That Google account cannot use this desk. If signup is invite-only, ask an admin to invite the email on Settings → Access.",
-  Configuration: "Sign-in is not configured. Set AUTH_SECRET and a Google OAuth client, or enable AUTH_DEV_LOGIN=1 locally.",
-  Verification: "That sign-in link is invalid or expired. Try again.",
-  OAuthSignin: "Google did not start the sign-in. Check GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET.",
-  OAuthCallback: "Google redirected back with an error. Confirm the authorized redirect URI is https://<domain>/api/auth/callback/google.",
-  Callback: "Sign-in callback failed. Confirm AUTH_URL matches the URL in the browser.",
-  CredentialsSignin: "That email is not allowed to sign in.",
-  MissingCSRF: "Sign-in was blocked on this preview host. Use Skip sign-in again.",
+  CredentialsSignin: "That code is wrong or expired. Try the current 6-digit code.",
+  Configuration: "Sign-in is not configured. Set AUTH_SECRET, or enable AUTH_DEV_LOGIN=1 locally.",
   Default: "Sign-in failed. Try again.",
 };
-
-const PUBLIC_ERRORS: Record<string, string> = {
-  AccessDenied: "This Google account is disabled on this host. Contact the operator if that is a mistake.",
-  CredentialsSignin: "That email could not be signed in.",
-  MissingCSRF: "Sign-in was blocked on this preview host. Use Skip sign-in again.",
-  Default: "Sign-in failed. Try Google again.",
-};
-
-function GoogleMark() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
-      <path
-        fill="#4285F4"
-        d="M23.49 12.27c0-.82-.07-1.64-.23-2.43H12v4.6h6.46a5.52 5.52 0 0 1-2.4 3.63v3h3.87c2.26-2.08 3.56-5.15 3.56-8.8Z"
-      />
-      <path
-        fill="#34A853"
-        d="M12 24c3.24 0 5.97-1.07 7.96-2.93l-3.87-3c-1.08.74-2.47 1.16-4.09 1.16-3.14 0-5.8-2.12-6.75-4.97H1.27v3.09A12 12 0 0 0 12 24Z"
-      />
-      <path
-        fill="#FBBC05"
-        d="M5.25 14.26A7.2 7.2 0 0 1 4.87 12c0-.79.14-1.55.38-2.26V6.65H1.27A12 12 0 0 0 0 12c0 1.94.46 3.77 1.27 5.35l3.98-3.09Z"
-      />
-      <path
-        fill="#EA4335"
-        d="M12 4.75c1.76 0 3.34.6 4.59 1.79l3.44-3.44C17.96 1.14 15.23 0 12 0 7.31 0 3.26 2.69 1.27 6.65l3.98 3.09C6.2 6.87 8.86 4.75 12 4.75Z"
-      />
-    </svg>
-  );
-}
-
-async function signInDev(email: string, callbackUrl: string): Promise<string | null> {
-  const next = sameOriginCallbackPath(callbackUrl);
-  const result = await signIn("dev", {
-    email,
-    callbackUrl: next,
-    redirect: false,
-  });
-  if (result?.error || !result?.ok) {
-    return result?.error ?? "CredentialsSignin";
-  }
-  window.location.assign(next);
-  return null;
-}
 
 export function SkipSignInButton({
   className,
@@ -80,122 +38,215 @@ export function SkipSignInButton({
 }
 
 export function LoginForm({
-  googleConfigured,
   devLogin,
   callbackUrl,
   errorCode,
-  publicSignup = false,
 }: {
-  googleConfigured: boolean;
+  googleConfigured?: boolean;
+  publicSignup?: boolean;
   devLogin: boolean;
   callbackUrl: string;
   errorCode: string | null;
-  publicSignup?: boolean;
 }) {
-  const [email, setEmail] = useState("");
-  const [pending, setPending] = useState<"google" | "dev" | null>(null);
+  const [iso, setIso] = useState("US");
+  const [national, setNational] = useState("");
+  const [code, setCode] = useState("");
+  const [step, setStep] = useState<"phone" | "enroll" | "challenge">("phone");
+  const [start, setStart] = useState<StartPayload | null>(null);
+  const [pending, setPending] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+
+  const country = DIAL_COUNTRIES.find((row) => row.iso === iso) ?? DIAL_COUNTRIES[0]!;
   const error = useMemo(() => {
-    const code = localError ?? errorCode;
-    if (!code) return null;
-    const table = publicSignup ? { ...ERRORS, ...PUBLIC_ERRORS } : ERRORS;
-    return table[code] ?? table.Default;
-  }, [errorCode, localError, publicSignup]);
+    const raw = localError ?? errorCode;
+    if (!raw) return null;
+    if (ERRORS[raw]) return ERRORS[raw];
+    if (raw.length > 8 && !ERRORS[raw]) return raw;
+    return ERRORS.Default;
+  }, [errorCode, localError]);
 
-  const hasAny = googleConfigured || devLogin;
-
-  async function onGoogle() {
-    setPending("google");
-    await signIn("google", { callbackUrl });
-  }
-
-  async function onDev(event: React.FormEvent) {
+  async function onContinue(event: React.FormEvent) {
     event.preventDefault();
     setLocalError(null);
-    setPending("dev");
-    const error = await signInDev(email, callbackUrl);
-    if (error) {
-      setLocalError(error);
-      setPending(null);
+    const phone = normalizePhone(country.dial, national);
+    if (!phone) {
+      setLocalError("Enter a valid mobile number.");
+      return;
+    }
+    setPending(true);
+    try {
+      const res = await fetch("/api/auth/otp/start", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ phone }),
+      });
+      const data = (await res.json()) as StartPayload & { error?: string };
+      if (!res.ok) {
+        setLocalError(data.error ?? "Could not start sign-in.");
+        return;
+      }
+      setStart(data);
+      setStep(data.mode);
+      setCode("");
+    } catch {
+      setLocalError("Could not reach the desk. Try again.");
+    } finally {
+      setPending(false);
     }
   }
 
+  async function onVerify(event: React.FormEvent) {
+    event.preventDefault();
+    if (!start) return;
+    setLocalError(null);
+    setPending(true);
+    const next = sameOriginCallbackPath(callbackUrl);
+    const result = await signIn("otp", {
+      phone: start.phone,
+      code,
+      callbackUrl: next,
+      redirect: false,
+    });
+    if (result?.error || !result?.ok) {
+      setLocalError(result?.error ?? "CredentialsSignin");
+      setPending(false);
+      return;
+    }
+    window.location.assign(next);
+  }
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {error ? (
-        <div className="rounded-2xl bg-destructive/10 px-3.5 py-2.5 text-[15px] text-destructive">
-          {error}
-        </div>
+        <div className="rounded-2xl bg-destructive/10 px-3.5 py-2.5 text-[15px] text-destructive">{error}</div>
       ) : null}
 
-      {!hasAny ? (
-        <div className="rounded-2xl bg-amber-400/15 px-3.5 py-2.5 text-[15px] text-amber-800 dark:bg-amber-400/10 dark:text-amber-100/80">
-          No sign-in provider is enabled. Add a Google OAuth client, or set{" "}
-          <code className="font-mono text-[13px]">AUTH_DEV_LOGIN=1</code> for a local desk email.
-        </div>
+      {step === "phone" ? (
+        <form onSubmit={onContinue} className="space-y-4">
+          <p className="text-[15px] leading-snug text-muted-foreground">
+            We&apos;ll ask for a code from your authenticator app to sign in.
+          </p>
+          <div className="flex gap-2">
+            <label className="sr-only" htmlFor="desk-country">
+              Country
+            </label>
+            <select
+              id="desk-country"
+              value={iso}
+              onChange={(event) => setIso(event.target.value)}
+              className="h-12 max-w-[42%] shrink-0 rounded-xl border-0 bg-muted px-3 text-[15px] outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
+            >
+              {DIAL_COUNTRIES.map((row) => (
+                <option key={row.iso} value={row.iso}>
+                  {row.name} +{row.dial}
+                </option>
+              ))}
+            </select>
+            <Input
+              id="desk-phone"
+              type="tel"
+              inputMode="numeric"
+              autoComplete="tel-national"
+              required
+              value={national}
+              onChange={(event) => setNational(event.target.value)}
+              placeholder="Phone number"
+              className="h-12 flex-1 rounded-xl text-[16px]"
+            />
+          </div>
+          <Button type="submit" size="lg" className="h-12 w-full rounded-xl text-[16px]" disabled={pending}>
+            {pending ? "Checking…" : "Continue"}
+          </Button>
+          <p className="text-[13px] leading-relaxed text-muted-foreground">
+            Use an open-source authenticator on your phone —{" "}
+            <a href={ENTE_AUTH} className="underline underline-offset-2" target="_blank" rel="noreferrer">
+              Ente Auth
+            </a>{" "}
+            (iOS and Android) or{" "}
+            <a href={AEGIS} className="underline underline-offset-2" target="_blank" rel="noreferrer">
+              Aegis
+            </a>{" "}
+            (Android).
+          </p>
+        </form>
+      ) : null}
+
+      {step !== "phone" && start ? (
+        <form onSubmit={onVerify} className="space-y-4">
+          <button
+            type="button"
+            className="text-[13px] text-muted-foreground underline-offset-2 hover:underline"
+            onClick={() => {
+              setStep("phone");
+              setStart(null);
+              setCode("");
+              setLocalError(null);
+            }}
+          >
+            ← {formatPhone(start.phone)}
+          </button>
+
+          {start.mode === "enroll" ? (
+            <div className="space-y-3">
+              <p className="text-[15px] leading-snug text-muted-foreground">
+                Scan this with{" "}
+                <a href={ENTE_AUTH} className="underline underline-offset-2" target="_blank" rel="noreferrer">
+                  Ente Auth
+                </a>{" "}
+                or Aegis, then enter the 6-digit code.
+              </p>
+              <div className="flex justify-center rounded-2xl bg-white p-4">
+                <img src={start.qrDataUrl} alt="Authenticator QR code" width={200} height={200} className="size-[200px]" />
+              </div>
+              <p className="break-all text-center font-mono text-[12px] text-muted-foreground">{start.secret}</p>
+              <div className="flex justify-center gap-3 text-[13px]">
+                <a href={ENTE_IOS} className="underline underline-offset-2" target="_blank" rel="noreferrer">
+                  Ente Auth for iPhone
+                </a>
+                <a href={ENTE_ANDROID} className="underline underline-offset-2" target="_blank" rel="noreferrer">
+                  Android
+                </a>
+              </div>
+            </div>
+          ) : (
+            <p className="text-[15px] leading-snug text-muted-foreground">
+              Enter the current 6-digit code from Ente Auth or Aegis.
+            </p>
+          )}
+
+          <Input
+            id="desk-otp"
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            pattern="[0-9]{6}"
+            maxLength={6}
+            required
+            value={code}
+            onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+            placeholder="000000"
+            className="h-14 rounded-xl text-center font-mono text-[28px] tracking-[0.35em]"
+          />
+          <Button
+            type="submit"
+            size="lg"
+            className="h-12 w-full rounded-xl text-[16px]"
+            disabled={pending || code.length !== 6}
+          >
+            {pending ? "Signing in…" : "Sign in"}
+          </Button>
+        </form>
       ) : null}
 
       {devLogin ? (
-        <div className="space-y-2">
-          <a href="/skip" className={cn(buttonVariants({ size: "lg" }), "w-full")}>
+        <div className="space-y-2 border-t border-border pt-4">
+          <a href="/skip" className={cn(buttonVariants({ size: "lg", variant: "outline" }), "h-12 w-full rounded-xl")}>
             Skip sign-in
           </a>
           <p className="text-[13px] leading-relaxed text-muted-foreground">
-            Opens this host’s preview desk. Google and a desk email still work below if you need a separate account.
+            Local preview only. Production Compose sets <code className="font-mono">AUTH_DEV_LOGIN=0</code>.
           </p>
         </div>
-      ) : null}
-
-      {googleConfigured ? (
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          className="w-full gap-2 rounded-xl"
-          onClick={onGoogle}
-          disabled={pending !== null}
-        >
-          <GoogleMark />
-          {pending === "google" ? "Redirecting to Google…" : "Continue with Google"}
-        </Button>
-      ) : devLogin ? null : (
-        <p className="text-[13px] leading-relaxed text-muted-foreground">
-          Google sign-in is off until <code className="font-mono">GOOGLE_CLIENT_ID</code> and{" "}
-          <code className="font-mono">GOOGLE_CLIENT_SECRET</code> are set. Production should use Google only —
-          see <span className="font-medium text-foreground">DEPLOY.md</span>.
-        </p>
-      )}
-
-      {devLogin ? (
-        <div className="flex items-center gap-3 text-[13px] text-muted-foreground">
-          <span className="h-px flex-1 bg-border" />
-          or another account
-          <span className="h-px flex-1 bg-border" />
-        </div>
-      ) : null}
-
-      {devLogin ? (
-        <form onSubmit={onDev} className="space-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="desk-email">Desk email</Label>
-            <Input
-              id="desk-email"
-              type="email"
-              autoComplete="username"
-              required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="you@desk.com"
-            />
-          </div>
-          <Button type="submit" size="lg" variant="outline" className="w-full" disabled={pending !== null}>
-            {pending === "dev" ? "Signing in…" : "Sign in with email"}
-          </Button>
-          <p className="text-[13px] leading-relaxed text-muted-foreground">
-            Local fallback only. The production Compose file sets{" "}
-            <code className="font-mono">AUTH_DEV_LOGIN=0</code> so operators must use Google.
-          </p>
-        </form>
       ) : null}
     </div>
   );

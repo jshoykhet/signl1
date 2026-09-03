@@ -10,6 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { displayIdentity } from "@/lib/phone";
 import { cn } from "@/lib/utils";
 
 function initials(name: string | null | undefined, email: string | null | undefined): string {
@@ -41,19 +42,17 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
         )}
         {compact ? null : (
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[13px] font-medium text-foreground">{user.name || user.email}</span>
-            <span className="block truncate text-[12px] text-muted-foreground">
-              {user.role === "admin" ? "Admin" : "Operator"}
+            <span className="block truncate text-[13px] font-medium text-foreground">
+              {displayIdentity(user.email, user.name)}
             </span>
+            <span className="block truncate text-[12px] text-muted-foreground">Solo desk</span>
           </span>
         )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align={compact ? "end" : "start"} className="w-56 rounded-2xl">
         <DropdownMenuLabel className="font-normal">
-          <div className="truncate text-[13px] text-foreground">{user.email}</div>
-          <div className="text-[12px] text-muted-foreground">
-            Private desk · {user.role === "admin" ? "admin" : "operator"}
-          </div>
+          <div className="truncate text-[13px] text-foreground">{displayIdentity(user.email, user.name)}</div>
+          <div className="text-[12px] text-muted-foreground">This instance is yours alone</div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem
