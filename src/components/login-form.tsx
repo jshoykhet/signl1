@@ -5,7 +5,7 @@ import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { DEV_PREVIEW_EMAIL, sameOriginCallbackPath } from "@/lib/dev-preview";
+import { sameOriginCallbackPath } from "@/lib/dev-preview";
 
 const ERRORS: Record<string, string> = {
   AccessDenied:
@@ -16,12 +16,14 @@ const ERRORS: Record<string, string> = {
   OAuthCallback: "Google redirected back with an error. Confirm the authorized redirect URI is https://<domain>/api/auth/callback/google.",
   Callback: "Sign-in callback failed. Confirm AUTH_URL matches the URL in the browser.",
   CredentialsSignin: "That email is not allowed to sign in.",
+  MissingCSRF: "Sign-in was blocked on this preview host. Use Skip sign-in again.",
   Default: "Sign-in failed. Try again.",
 };
 
 const PUBLIC_ERRORS: Record<string, string> = {
   AccessDenied: "This Google account is disabled on this host. Contact the operator if that is a mistake.",
   CredentialsSignin: "That email could not be signed in.",
+  MissingCSRF: "Sign-in was blocked on this preview host. Use Skip sign-in again.",
   Default: "Sign-in failed. Try Google again.",
 };
 
@@ -63,32 +65,18 @@ async function signInDev(email: string, callbackUrl: string): Promise<string | n
 }
 
 export function SkipSignInButton({
-  callbackUrl = "/",
   className,
   children,
 }: {
-  callbackUrl?: string;
   className?: string;
   children?: React.ReactNode;
 }) {
-  const [pending, setPending] = useState(false);
   return (
-    <button
-      type="button"
-      className={className}
-      disabled={pending}
-      onClick={() => {
-        setPending(true);
-        void signInDev(DEV_PREVIEW_EMAIL, callbackUrl).then((error) => {
-          if (error) {
-            setPending(false);
-            window.location.assign(`/?error=${encodeURIComponent(error)}`);
-          }
-        });
-      }}
-    >
-      {pending ? "Opening…" : (children ?? "Skip sign-in")}
-    </button>
+    <form action="/skip" method="post" className="contents">
+      <button type="submit" className={className}>
+        {children ?? "Skip sign-in"}
+      </button>
+    </form>
   );
 }
 
@@ -106,7 +94,7 @@ export function LoginForm({
   publicSignup?: boolean;
 }) {
   const [email, setEmail] = useState("");
-  const [pending, setPending] = useState<"google" | "dev" | "skip" | null>(null);
+  const [pending, setPending] = useState<"google" | "dev" | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const error = useMemo(() => {
     const code = localError ?? errorCode;
@@ -133,16 +121,6 @@ export function LoginForm({
     }
   }
 
-  async function onSkip() {
-    setLocalError(null);
-    setPending("skip");
-    const error = await signInDev(DEV_PREVIEW_EMAIL, callbackUrl);
-    if (error) {
-      setLocalError(error);
-      setPending(null);
-    }
-  }
-
   return (
     <div className="space-y-4">
       {error ? (
@@ -160,15 +138,11 @@ export function LoginForm({
 
       {devLogin ? (
         <div className="space-y-2">
-          <Button
-            type="button"
-            size="lg"
-            className="w-full"
-            onClick={() => void onSkip()}
-            disabled={pending !== null}
-          >
-            {pending === "skip" ? "Opening desk…" : "Skip sign-in"}
-          </Button>
+          <form action="/skip" method="post">
+            <Button type="submit" size="lg" className="w-full" disabled={pending !== null}>
+              Skip sign-in
+            </Button>
+          </form>
           <p className="text-[13px] leading-relaxed text-muted-foreground">
             Opens this host’s preview desk. Google and a desk email still work below if you need a separate account.
           </p>

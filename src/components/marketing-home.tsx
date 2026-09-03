@@ -25,10 +25,7 @@ export function MarketingHome({
           <span className="text-[17px] font-semibold tracking-[-0.02em]">Signal1</span>
         </div>
         {devLogin ? (
-          <SkipSignInButton
-            callbackUrl="/"
-            className="rounded-full bg-foreground px-4 py-2 text-[13px] font-medium text-background disabled:opacity-60"
-          >
+          <SkipSignInButton className="rounded-full bg-foreground px-4 py-2 text-[13px] font-medium text-background disabled:opacity-60">
             Skip sign-in
           </SkipSignInButton>
         ) : (
