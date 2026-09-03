@@ -12,6 +12,7 @@ import { CadenceSettings } from "@/components/cadence-settings";
 import { WhatsAppSettings } from "@/components/whatsapp-settings";
 import { formatClock, formatRelative } from "@/lib/format";
 import { cadenceLabel } from "@/lib/desk-settings";
+import { formatUsd } from "@/lib/x-cost";
 import type { StatusSnapshot } from "@/lib/types";
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -133,6 +134,15 @@ export function SettingsView() {
                   {status.poller.lastPackedQueries
                     ? `${status.poller.lastPackedQueries} packed recent-search request${status.poller.lastPackedQueries === 1 ? "" : "s"}`
                     : "—"}
+                </Row>
+                <Row label="Last search">
+                  {status.poller.lastPollAt
+                    ? `${status.poller.lastPollPosts} post${status.poller.lastPollPosts === 1 ? "" : "s"} · ${status.poller.lastPollUsers} author${status.poller.lastPollUsers === 1 ? "" : "s"} (~${formatUsd(status.poller.lastPollCostUsd)})`
+                    : "—"}
+                </Row>
+                <Row label="Session reads">
+                  {status.poller.postsRead} posts · {status.poller.usersRead} authors (upper bound{" "}
+                  {formatUsd(status.poller.estimatedCostUsd)}; X does not rebill the same id the same UTC day)
                 </Row>
                 <Row label="X remaining">
                   {status.poller.rateLimitRemaining != null

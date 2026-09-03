@@ -18,7 +18,8 @@ import { DEMO_FIXTURES, VENTURE_DEMO_FIXTURES, fixtureToTweet } from "../lib/dem
 import { notifyMatch, registerWhatsAppSender, flushWhatsAppDigestForUser } from "../lib/notify";
 import { sendWhatsAppText, startWhatsAppBridge } from "./whatsapp-session";
 import { matchesQuery } from "../lib/query";
-import { batchCursor, combineRuleQueries, packRules } from "../lib/query-pack";
+import { indexRulesByQuery, packQueryGroups, searchWindow } from "../lib/query-pack";
+import { estimateReadUsd, searchLookbackMs } from "../lib/x-cost";
 import type { NormalizedTweet, Rule } from "../lib/types";
 import { recentSearch, XRateLimiter } from "../lib/x-client";
 
@@ -46,6 +47,17 @@ function bumpSearchRequests() {
   setMeta("x_search_requests", String(current + 1));
 }
 
+function recordSearchCost(posts: number, users: number) {
+  const nextPosts = (Number(getMeta("x_posts_read") ?? "0") || 0) + posts;
+  const nextUsers = (Number(getMeta("x_users_read") ?? "0") || 0) + users;
+  setMeta("x_posts_read", String(nextPosts));
+  setMeta("x_users_read", String(nextUsers));
+  setMeta("x_last_poll_posts", String(posts));
+  setMeta("x_last_poll_users", String(users));
+  setMeta("x_estimated_cost_usd", estimateReadUsd(nextPosts, nextUsers).toFixed(4));
+  setMeta("x_last_poll_cost_usd", estimateReadUsd(posts, users).toFixed(4));
+}
+
 function noteRateLimit(info: { remaining: number | null; limit: number | null; resetAt: number | null }) {
   if (info.remaining != null) setMeta("x_rate_limit_remaining", String(info.remaining));
   if (info.limit != null) setMeta("x_rate_limit_limit", String(info.limit));
@@ -64,21 +76,25 @@ async function ingestTweet(rule: Rule, tweet: NormalizedTweet): Promise<boolean>
   return true;
 }
 
-async function pollLiveBatch(rules: Rule[], token: string, limiter: XRateLimiter): Promise<number> {
-  const query = combineRuleQueries(rules);
-  if (!query) return 0;
-  const cursor = batchCursor(rules);
+async function pollLiveBatch(
+  query: string,
+  rules: Rule[],
+  token: string,
+  limiter: XRateLimiter,
+  window: { sinceId: string | null; startTime: string | null },
+): Promise<{ tweets: number; users: number }> {
+  if (!query || rules.length === 0) return { tweets: 0, users: 0 };
   bumpSearchRequests();
   try {
     const result = await recentSearch({
       bearerToken: token,
       query,
-      sinceId: cursor.sinceId,
-      startTime: cursor.startTime,
+      sinceId: window.sinceId,
+      startTime: window.startTime,
       limiter,
     });
     noteRateLimit(result.rateLimit);
-    let newest = cursor.sinceId;
+    let newest = window.sinceId;
     for (const tweet of result.tweets) {
       for (const rule of rules) {
         if (!matchesQuery(tweet, rule.query)) continue;
@@ -97,7 +113,7 @@ async function pollLiveBatch(rules: Rule[], token: string, limiter: XRateLimiter
         lastError: null,
       });
     }
-    return result.tweets.length;
+    return { tweets: result.tweets.length, users: result.usersRead };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const polledAt = isoNow();
@@ -145,32 +161,54 @@ async function injectDemoMatches(rules: Rule[]) {
   setMeta("demo_index", String(index + DEMO_POOL.length));
 }
 
-async function pollUserDesk(userId: string, demo: boolean, token: string | null, limiter: XRateLimiter) {
-  const rules = listEnabledRulesForUser(userId);
-  if (demo) {
-    await injectDemoMatches(rules);
-  } else {
-    if (!token) throw new Error("X_BEARER_TOKEN missing");
-    if (rules.length) {
-      const batches = packRules(rules);
-      setMeta("x_last_packed_queries", String(batches.length));
-      let tweets = 0;
-      for (const batch of batches) {
-        tweets += await pollLiveBatch(batch, token, limiter);
-      }
-      if (batches.length) {
-        console.log(
-          `[poller] ${userId.slice(0, 8)} packed ${rules.length} rules into ${batches.length} search${batches.length === 1 ? "" : "es"}; ${tweets} tweet${tweets === 1 ? "" : "s"}`,
-        );
-      }
-    }
-  }
+async function finishUserWindow(userId: string) {
   setUserMeta(userId, "inbox_last_polled_at", isoNow());
   try {
     const sent = await flushWhatsAppDigestForUser(userId, new Date(), true);
     if (sent) console.log("[whatsapp] digest sent");
   } catch (error) {
     console.error(`[whatsapp] digest failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+async function pollDemoDesk(userId: string) {
+  await injectDemoMatches(listEnabledRulesForUser(userId));
+  await finishUserWindow(userId);
+}
+
+async function pollLiveShared(
+  due: Array<{ userId: string; minutes: number }>,
+  token: string,
+  limiter: XRateLimiter,
+) {
+  const rules = due.flatMap((item) => listEnabledRulesForUser(item.userId));
+  if (rules.length) {
+    const batches = packQueryGroups(indexRulesByQuery(rules));
+    setMeta("x_last_packed_queries", String(batches.length));
+    const lookbackMs = searchLookbackMs(Math.max(...due.map((item) => item.minutes)));
+    let posts = 0;
+    let users = 0;
+    for (const batch of batches) {
+      const result = await pollLiveBatch(
+        batch.query,
+        batch.rules,
+        token,
+        limiter,
+        searchWindow(batch.rules, lookbackMs),
+      );
+      posts += result.tweets;
+      users += result.users;
+    }
+    recordSearchCost(posts, users);
+    const desks = new Set(rules.map((rule) => rule.userId).filter(Boolean)).size;
+    console.log(
+      `[poller] shared ${due.length} desk${due.length === 1 ? "" : "s"} (${desks} with rules) into ${batches.length} search${batches.length === 1 ? "" : "es"}; ${posts} tweet${posts === 1 ? "" : "s"}`,
+    );
+  } else {
+    recordSearchCost(0, 0);
+  }
+  for (const { userId } of due) {
+    await finishUserWindow(userId);
   }
 }
 
@@ -194,15 +232,23 @@ export async function runPollerLoop() {
       if (forced) console.log("[poller] manual re-poll requested");
       const token = demo ? null : xBearerToken();
       if (!demo && !token) throw new Error("X_BEARER_TOKEN missing");
-      let didPoll = false;
+      const due: Array<{ userId: string; minutes: number }> = [];
       for (const userId of listDeskUserIds()) {
         const minutes = getDeskCadenceMinutes(userId);
         const lastAt = getUserMeta(userId, "inbox_last_polled_at");
         if (!forced && !isDigestDue(lastAt, minutes)) continue;
-        await pollUserDesk(userId, demo, token, limiter);
-        didPoll = true;
+        due.push({ userId, minutes });
       }
-      if (didPoll) recordPoll();
+      if (due.length) {
+        if (demo) {
+          for (const { userId } of due) {
+            await pollDemoDesk(userId);
+          }
+        } else {
+          await pollLiveShared(due, token as string, limiter);
+        }
+        recordPoll();
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (message.startsWith("X API rate limited")) {

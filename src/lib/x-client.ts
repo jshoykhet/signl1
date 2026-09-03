@@ -11,6 +11,7 @@ export type RecentSearchResult = {
   tweets: NormalizedTweet[];
   newestId: string | null;
   resultCount: number;
+  usersRead: number;
   rateLimit: RateLimitInfo;
   status: number;
 };
@@ -87,7 +88,12 @@ export class XRateLimiter {
   }
 }
 
-function parseSearchPayload(payload: unknown): { tweets: NormalizedTweet[]; newestId: string | null; resultCount: number } {
+function parseSearchPayload(payload: unknown): {
+  tweets: NormalizedTweet[];
+  newestId: string | null;
+  resultCount: number;
+  usersRead: number;
+} {
   const body = payload as {
     data?: Array<{
       id: string;
@@ -144,6 +150,7 @@ function parseSearchPayload(payload: unknown): { tweets: NormalizedTweet[]; newe
     tweets,
     newestId: body.meta?.newest_id ?? tweets[0]?.id ?? null,
     resultCount: body.meta?.result_count ?? tweets.length,
+    usersRead: users.size,
   };
 }
 

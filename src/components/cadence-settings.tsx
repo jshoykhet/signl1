@@ -42,7 +42,7 @@ export function CadenceSettings() {
   return (
     <SettingsGroup
       title="Inbox & WhatsApp"
-      footer="Signl1 polls X on this schedule and WhatsApp sends the top 20 matches from that window. Nothing is sent immediately. Extra matches stay in the inbox. Re-poll on Inbox still runs now."
+      footer="Signl1 polls X on this schedule and WhatsApp sends the top 20 matches from that window. Live X bills about $0.005 per post returned and $0.010 per author — shorter intervals cost more. Identical queries are shared across desks. Re-poll still runs now."
     >
       <GroupedRow className="items-start sm:items-center">
         <div className="w-full shrink-0 text-[15px] text-muted-foreground sm:w-[9.5rem]">Interval</div>

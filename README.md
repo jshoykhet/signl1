@@ -113,7 +113,9 @@ The **accounts helper** compiles `nvidia, apple` into `(from:nvidia OR from:appl
 
 Long lists are split into multiple Watchlist rules so each query stays under the X 512-character limit. Matches land in the inbox like any other rule, named **Watchlist**. Pause screening on that page without deleting the names.
 
-Poll interval is the **Inbox & WhatsApp** setting (5 / 10 / 15 / 30 / 45 minutes, or 1 / 2 / 3 / 4 / 5 / 10 hours). Live mode **packs every enabled rule** into as few `recent search` requests as possible. Each search asks for up to **100** tweets (`max_results`).
+Poll interval is the **Inbox & WhatsApp** setting (5 / 10 / 15 / 30 / 45 minutes, or 1 / 2 / 3 / 4 / 5 / 10 hours). Live mode **packs every enabled rule across due desks** into as few `recent search` requests as possible, and identical queries (shared default monitors) are searched once. Each search asks for up to **100** tweets (`max_results`) **since the last cursor**, or a two-window lookback on first poll — not days of history.
+
+X pay-per-use bills **per resource returned**, not per HTTP call: about **$0.005 per post** and **$0.010 per author** (`expansions=author_id`). Repeats of the same post or user id are not rebilled the same UTC day. Settings → Poller shows last-search and session upper-bound cost. Shorter intervals cost more because each window is new posts.
 
 ## Desk tape (Settings)
 

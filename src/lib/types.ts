@@ -97,6 +97,12 @@ export type StatusSnapshot = {
     idleBackoffMs: number;
     manualPollPending: boolean;
     lastManualPollAt: string | null;
+    postsRead: number;
+    usersRead: number;
+    estimatedCostUsd: number;
+    lastPollPosts: number;
+    lastPollUsers: number;
+    lastPollCostUsd: number;
   };
   qualityFilter: {
     minFollowers: number;

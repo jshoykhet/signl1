@@ -47,6 +47,7 @@ import {
 } from "./seed-rules";
 import { passesSignalFilter, type AuthorPrior, type UserLabel } from "./signal-filter";
 import { chunkTickersForQuery, compileCashtagQuery, normalizeTickers } from "./tickers";
+import { estimateReadUsd } from "./x-cost";
 import type { Match, NormalizedTweet, Rule, RuleInput, StatusSnapshot, WatchlistSnapshot } from "./types";
 
 type RuleRow = {
@@ -1362,6 +1363,10 @@ export function getStatus(userId: string, opts: { demoMode: boolean; bearerPrese
   const idleBackoffMs = Number(getMeta("poller_idle_backoff_ms", db) ?? "0") || 0;
   const forceNow = getMeta("poller_force_now", db);
   const lastManualPollAt = getMeta("poller_manual_ack_at", db);
+  const postsRead = Number(getMeta("x_posts_read", db) ?? "0") || 0;
+  const usersRead = Number(getMeta("x_users_read", db) ?? "0") || 0;
+  const lastPollPosts = Number(getMeta("x_last_poll_posts", db) ?? "0") || 0;
+  const lastPollUsers = Number(getMeta("x_last_poll_users", db) ?? "0") || 0;
   const spec = getKolSpec(userId, db);
   const kolHandles = listKolHandles(spec);
   const blockedSpec = getBlockedSpec(userId, db);
@@ -1387,6 +1392,12 @@ export function getStatus(userId: string, opts: { demoMode: boolean; bearerPrese
       idleBackoffMs,
       manualPollPending: Boolean(forceNow),
       lastManualPollAt,
+      postsRead,
+      usersRead,
+      estimatedCostUsd: estimateReadUsd(postsRead, usersRead),
+      lastPollPosts,
+      lastPollUsers,
+      lastPollCostUsd: estimateReadUsd(lastPollPosts, lastPollUsers),
     },
     qualityFilter: {
       minFollowers: floors.minFollowers,

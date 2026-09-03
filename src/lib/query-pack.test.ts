@@ -3,10 +3,13 @@ import { LIVE_MIN_POLL_INTERVAL_MS, X_MAX_QUERY_CHARS } from "./config";
 import {
   batchCursor,
   combineRuleQueries,
+  indexRulesByQuery,
   isLivePackDue,
   liveCadenceMs,
   nextIdleBackoffMs,
+  packQueryGroups,
   packRules,
+  searchWindow,
 } from "./query-pack";
 
 function rule(partial: { query: string; lastSinceId?: string | null; createdAt?: string; pollIntervalMs?: number; lastPolledAt?: string | null }) {
@@ -32,6 +35,15 @@ describe("combineRuleQueries", () => {
   it("leaves a single rule unwrapped", () => {
     expect(combineRuleQueries([rule({ query: "$AAPL lang:en -is:retweet" })])).toBe("$AAPL lang:en -is:retweet");
   });
+
+  it("does not OR the same query twice", () => {
+    expect(
+      combineRuleQueries([
+        rule({ query: "FOMC lang:en -is:retweet" }),
+        rule({ query: "FOMC lang:en -is:retweet" }),
+      ]),
+    ).toBe("FOMC lang:en -is:retweet");
+  });
 });
 
 describe("packRules", () => {
@@ -52,10 +64,34 @@ describe("packRules", () => {
   });
 
   it("splits when two fat queries cannot share a 512-char budget", () => {
-    const fat = `(${Array.from({ length: 40 }, (_, i) => `$T${String(i).padStart(2, "0")}`).join(" OR ")}) lang:en -is:retweet`;
-    expect(fat.length).toBeGreaterThan(X_MAX_QUERY_CHARS / 2);
-    const batches = packRules([rule({ query: fat }), rule({ query: fat })]);
+    const fatA = `(${Array.from({ length: 40 }, (_, i) => `$A${String(i).padStart(2, "0")}`).join(" OR ")}) lang:en -is:retweet`;
+    const fatB = `(${Array.from({ length: 40 }, (_, i) => `$B${String(i).padStart(2, "0")}`).join(" OR ")}) lang:en -is:retweet`;
+    expect(fatA.length).toBeGreaterThan(X_MAX_QUERY_CHARS / 2);
+    const batches = packRules([rule({ query: fatA }), rule({ query: fatB })]);
     expect(batches.length).toBe(2);
+  });
+
+  it("keeps two copies of the same fat query in one search", () => {
+    const fat = `(${Array.from({ length: 40 }, (_, i) => `$T${String(i).padStart(2, "0")}`).join(" OR ")}) lang:en -is:retweet`;
+    const batches = packRules([rule({ query: fat }), rule({ query: fat })]);
+    expect(batches.length).toBe(1);
+    expect(combineRuleQueries(batches[0]!)).toBe(fat);
+  });
+});
+
+describe("shared search packing", () => {
+  it("collapses identical queries from two desks into one search", () => {
+    const fed = "FOMC lang:en -is:retweet";
+    const groups = indexRulesByQuery([
+      rule({ query: fed }),
+      rule({ query: fed }),
+      rule({ query: "OPEC lang:en -is:retweet" }),
+    ]);
+    expect(groups.get(fed)).toHaveLength(2);
+    const batches = packQueryGroups(groups);
+    expect(batches).toHaveLength(1);
+    expect(batches[0]?.query).toBe("(FOMC lang:en -is:retweet) OR (OPEC lang:en -is:retweet)");
+    expect(batches[0]?.rules).toHaveLength(3);
   });
 });
 
@@ -75,6 +111,31 @@ describe("batchCursor", () => {
     ]);
     expect(cursor.sinceId).toBeNull();
     expect(cursor.startTime).toBe("2026-09-01T17:00:00.000Z");
+  });
+});
+
+describe("searchWindow", () => {
+  it("keeps since_id when any rule has a cursor", () => {
+    expect(
+      searchWindow(
+        [
+          rule({ query: "a", lastSinceId: "200" }),
+          rule({ query: "b", lastSinceId: "50" }),
+        ],
+        30 * 60_000,
+      ),
+    ).toEqual({ sinceId: "50", startTime: null });
+  });
+
+  it("looks back two cadence windows instead of the rule created-at", () => {
+    const now = Date.parse("2026-09-03T12:00:00.000Z");
+    const window = searchWindow(
+      [rule({ query: "a", createdAt: "2026-08-01T00:00:00.000Z" })],
+      30 * 60_000,
+      now,
+    );
+    expect(window.sinceId).toBeNull();
+    expect(window.startTime).toBe(new Date(now - 30 * 60_000).toISOString());
   });
 });
 
