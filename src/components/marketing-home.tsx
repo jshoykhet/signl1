@@ -47,20 +47,6 @@ export function MarketingHome({
             <p className="mt-5 max-w-xl text-[17px] leading-relaxed text-muted-foreground">
               Build your own custom X timeline that sends regular WhatsApp updates direct to you.
             </p>
-            <ul className="mt-8 grid gap-3 text-[15px] text-muted-foreground sm:grid-cols-2">
-              <li className="rounded-2xl bg-card px-4 py-3 ring-1 ring-border">
-                Official X recent-search, not scraping.
-              </li>
-              <li className="rounded-2xl bg-card px-4 py-3 ring-1 ring-border">
-                Seeded Markets or Venture rules you can edit.
-              </li>
-              <li className="rounded-2xl bg-card px-4 py-3 ring-1 ring-border">
-                Engagement floors, Key Network Nodes, blocked handles.
-              </li>
-              <li className="rounded-2xl bg-card px-4 py-3 ring-1 ring-border">
-                WhatsApp alerts to the number you save.
-              </li>
-            </ul>
           </div>
 
           <div id="start" className="rounded-3xl bg-card p-6 shadow-sm ring-1 ring-border">
