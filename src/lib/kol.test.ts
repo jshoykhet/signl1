@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_KOL_HANDLES, isKolHandle, kolProfileUrl, listKolRows, loadKolHandleSet, normalizeHandle, seedKolHandles } from "./kol";
+import { DEFAULT_KOL_HANDLES, isKolHandle, kolProfileUrl, listKolRows, loadKolHandleSet, normalizeHandle, packsForDeskMode, parseKolPack, seedKolHandles, unionHandleSets } from "./kol";
 
 describe("KOL list", () => {
   it("seeds wires, squawk, All-In, and official desks", () => {
@@ -84,5 +84,15 @@ describe("KOL list", () => {
     expect(set.size).toBe(new Set(seedKolHandles("both").map(normalizeHandle)).size);
     expect(set.size).toBeGreaterThan(seedKolHandles("markets").length);
     expect(set.size).toBeGreaterThan(seedKolHandles("venture").length);
+  });
+
+  it("maps desk mode to Key Accounts packs", () => {
+    expect(parseKolPack("vc")).toBe("venture");
+    expect(parseKolPack("markets")).toBe("markets");
+    expect(parseKolPack("nope")).toBe("markets");
+    expect(packsForDeskMode("markets")).toEqual(["markets"]);
+    expect(packsForDeskMode("venture")).toEqual(["venture"]);
+    expect(packsForDeskMode("both")).toEqual(["markets", "venture"]);
+    expect(unionHandleSets([["deitaone"], ["techcrunch"]]).has("techcrunch")).toBe(true);
   });
 });

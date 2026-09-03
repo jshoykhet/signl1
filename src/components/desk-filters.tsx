@@ -60,9 +60,9 @@ export function DeskFilters() {
       if (patch.deskMode) {
         window.dispatchEvent(new CustomEvent("signl1:desk-mode", { detail: data.deskMode }));
         const toasts: Record<DeskMode, string> = {
-          markets: "Markets desk on — Key Network Nodes now use the markets list. Monitors stay as you left them.",
-          both: "Both desks on — Key Network Nodes now use the markets and venture lists. Monitors stay as you left them.",
-          venture: "Venture desk on — Key Network Nodes now use the startup list. Monitors stay as you left them.",
+          markets: "Markets desk on — Key Accounts now use the markets list. Monitors stay as you left them.",
+          both: "Both desks on — Key Accounts now use the markets and venture lists. Monitors stay as you left them.",
+          venture: "Venture desk on — Key Accounts now use the startup list. Monitors stay as you left them.",
         };
         toast.success(toasts[data.deskMode]);
       }
@@ -99,23 +99,31 @@ export function DeskFilters() {
           <Row label="Desk">
             <div className="grid gap-2">
               <div className="flex rounded-full bg-muted p-0.5">
-                {(Object.keys(DESK_MODES) as DeskMode[]).map((id) => (
-                  <button
-                    key={id}
-                    type="button"
-                    disabled={busy}
-                    onClick={() => {
-                      if (filters.deskMode !== id) void save({ deskMode: id });
-                    }}
-                    className={
-                      filters.deskMode === id
-                        ? "min-w-0 flex-1 rounded-full bg-background px-2 py-1.5 text-[13px] font-medium text-foreground shadow-sm"
-                        : "min-w-0 flex-1 rounded-full px-2 py-1.5 text-[13px] text-muted-foreground"
-                    }
-                  >
-                    {DESK_MODES[id].label}
-                  </button>
-                ))}
+                {(Object.keys(DESK_MODES) as DeskMode[]).map((id) => {
+                  const selected = filters.deskMode === id;
+                  const both = id === "both";
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      disabled={busy}
+                      onClick={() => {
+                        if (filters.deskMode !== id) void save({ deskMode: id });
+                      }}
+                      className={
+                        selected
+                          ? both
+                            ? "min-w-0 flex-1 rounded-full bg-amber-400 px-2 py-1.5 text-[13px] font-medium text-amber-950 shadow-sm"
+                            : "min-w-0 flex-1 rounded-full bg-background px-2 py-1.5 text-[13px] font-medium text-foreground shadow-sm"
+                          : both
+                            ? "min-w-0 flex-1 rounded-full px-2 py-1.5 text-[13px] font-medium text-amber-800 dark:text-amber-300"
+                            : "min-w-0 flex-1 rounded-full px-2 py-1.5 text-[13px] text-muted-foreground"
+                      }
+                    >
+                      {DESK_MODES[id].label}
+                    </button>
+                  );
+                })}
               </div>
               <p className="text-[13px] leading-relaxed text-muted-foreground">{DESK_MODES[mode].hint}</p>
             </div>

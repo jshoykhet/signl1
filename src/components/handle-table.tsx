@@ -47,6 +47,7 @@ export function HandleTable({
   onReset,
   busy = false,
   compact = false,
+  showComposer = true,
 }: {
   title: string;
   accessory?: ReactNode;
@@ -63,6 +64,7 @@ export function HandleTable({
   onReset?: () => void;
   busy?: boolean;
   compact?: boolean;
+  showComposer?: boolean;
 }) {
   const [draft, setDraft] = useState("");
   const [query, setQuery] = useState("");
@@ -132,32 +134,38 @@ export function HandleTable({
           {description ? (
             <div className="text-[13px] leading-relaxed text-muted-foreground">{description}</div>
           ) : null}
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-              <Input
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                placeholder="@handle"
-                className="max-w-[14rem] font-mono"
-                aria-label={addAriaLabel}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    submitDraft();
-                  }
-                }}
-              />
-              <Button type="button" size="sm" disabled={busy || !draft.trim()} onClick={submitDraft}>
-                <Plus className="size-3.5" />
-                Add row
-              </Button>
+          {showComposer || onReset ? (
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              {showComposer ? (
+                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                  <Input
+                    value={draft}
+                    onChange={(event) => setDraft(event.target.value)}
+                    placeholder="@handle"
+                    className="max-w-[14rem] rounded-full font-mono"
+                    aria-label={addAriaLabel}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        submitDraft();
+                      }
+                    }}
+                  />
+                  <Button type="button" size="sm" disabled={busy || !draft.trim()} onClick={submitDraft}>
+                    <Plus className="size-3.5" />
+                    Add row
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex-1" />
+              )}
+              {onReset ? (
+                <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={onReset}>
+                  {resetLabel}
+                </Button>
+              ) : null}
             </div>
-            {onReset ? (
-              <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={onReset}>
-                {resetLabel}
-              </Button>
-            ) : null}
-          </div>
+          ) : null}
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="relative min-w-40 flex-1">
               <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -165,11 +173,11 @@ export function HandleTable({
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search handles"
-                className="pl-8 font-mono"
+                className="rounded-full pl-8 font-mono"
                 aria-label={`Search ${title}`}
               />
             </div>
-            <div className="flex flex-wrap gap-1">
+            <div className="flex rounded-full bg-muted p-0.5">
               {(
                 [
                   ["all", "All"],
@@ -178,15 +186,18 @@ export function HandleTable({
                   ["removed", "Removed"],
                 ] as const
               ).map(([id, label]) => (
-                <Button
+                <button
                   key={id}
                   type="button"
-                  size="xs"
-                  variant={sourceFilter === id ? "default" : "outline"}
                   onClick={() => setSourceFilter(id)}
+                  className={
+                    sourceFilter === id
+                      ? "rounded-full bg-background px-2.5 py-1 text-[13px] font-medium text-foreground shadow-sm"
+                      : "rounded-full px-2.5 py-1 text-[13px] text-muted-foreground"
+                  }
                 >
                   {label}
-                </Button>
+                </button>
               ))}
             </div>
           </div>

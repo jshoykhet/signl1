@@ -14,7 +14,7 @@ export const DESK_MODES: Record<
     id: "both",
     label: "Both",
     shortLabel: "Both desks",
-    hint: "Markets prints and venture announcements — Key Network Nodes use both seed lists.",
+    hint: "Markets prints and venture announcements — Key Accounts uses both lists. Edit them on the Accounts tab.",
   },
   venture: {
     id: "venture",

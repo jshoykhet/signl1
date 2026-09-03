@@ -5,19 +5,24 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   addBlockedHandle,
   addKolHandle,
+  addKolHandles,
   createRule,
   evaluateTweetSignal,
   getBlockedSpec,
   getDeskCadenceMinutes,
   getDeskFilterSettings,
+  getEffectiveKolHandleSet,
+  getKolPackSpec,
   getKolSpec,
   getStatus,
+  getUserMeta,
   getWatchlist,
   listAuthorFollowerCounts,
   listEnabledRulesForUser,
   listMatches,
   listRules,
   markRulePolled,
+  migrateKolPacks,
   openDatabase,
   ensureUserDesk,
   removeBlockedHandle,
@@ -27,6 +32,7 @@ import {
   resetKolHandles,
   setDeskCadenceMinutes,
   setDeskFilterSettings,
+  setUserMeta,
   tryInsertMatch,
 } from "./db";
 import { isBlockedHandle } from "./blocked";
@@ -442,5 +448,77 @@ describe("desk filters and KOL list persist in SQLite", () => {
     expect(evaluateTweetSignal(tweet, U, db).pass).toBe(false);
     expect(evaluateTweetSignal(tweet, U, db, { watchedAuthor: true }).pass).toBe(true);
     expect(tryInsertMatch(leaders, tweet, db).inserted).toBe(true);
+  });
+
+  it("copies legacy Key Network Node lists onto both packs once", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-"));
+    tmpDirs.push(dir);
+    const db = openDatabase(path.join(dir, "test.db"));
+    setUserMeta(U, "kol_added", "mydesk", db);
+    setUserMeta(U, "kol_removed", "zerohedge", db);
+    migrateKolPacks(U, db);
+    expect(getKolPackSpec(U, "markets", db).added).toContain("mydesk");
+    expect(getKolPackSpec(U, "venture", db).added).toContain("mydesk");
+    expect(getKolPackSpec(U, "markets", db).removed).toContain("zerohedge");
+    expect(getKolPackSpec(U, "venture", db).removed).toContain("zerohedge");
+    setUserMeta(U, "kol_added", "laterdesk", db);
+    migrateKolPacks(U, db);
+    expect(getKolPackSpec(U, "markets", db).added).toContain("mydesk");
+    expect(getKolPackSpec(U, "markets", db).added).not.toContain("laterdesk");
+    expect(getUserMeta(U, "kol_packs_v1", db)).toBeTruthy();
+  });
+
+  it("keeps independent Markets and Venture Key Accounts lists", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-"));
+    tmpDirs.push(dir);
+    const db = openDatabase(path.join(dir, "test.db"));
+    ensureUserDesk(U, db);
+
+    addKolHandle(U, "MyDesk", db, "markets");
+    expect(isKolHandle("MyDesk", getKolPackSpec(U, "markets", db))).toBe(true);
+    expect(isKolHandle("MyDesk", getKolPackSpec(U, "venture", db))).toBe(false);
+    expect(isKolHandle("TechCrunch", getKolPackSpec(U, "markets", db))).toBe(false);
+    expect(getEffectiveKolHandleSet(U, db).has("mydesk")).toBe(true);
+    expect(getEffectiveKolHandleSet(U, db).has("techcrunch")).toBe(false);
+
+    removeKolHandle(U, "DeItaone", db, "markets");
+    expect(getEffectiveKolHandleSet(U, db).has("deitaone")).toBe(false);
+    expect(isKolHandle("TechCrunch", getKolPackSpec(U, "venture", db))).toBe(true);
+
+    addKolHandle(U, "DeItaone", db, "venture");
+    setDeskFilterSettings(U, { deskMode: "venture" }, db);
+    expect(getEffectiveKolHandleSet(U, db).has("deitaone")).toBe(true);
+    expect(getEffectiveKolHandleSet(U, db).has("techcrunch")).toBe(true);
+    expect(getEffectiveKolHandleSet(U, db).has("mydesk")).toBe(false);
+
+    setDeskFilterSettings(U, { deskMode: "both" }, db);
+    const both = getEffectiveKolHandleSet(U, db);
+    expect(both.has("deitaone")).toBe(true);
+    expect(both.has("techcrunch")).toBe(true);
+    expect(both.has("mydesk")).toBe(true);
+
+    expect(evaluateTweetSignal(catalyst("DeItaone"), U, db).pass).toBe(true);
+    expect(
+      evaluateTweetSignal(
+        catalyst("techcrunch", {
+          id: "tw-tc-1",
+          followersCount: 80_000,
+          likeCount: 40,
+          text: "Anthropic raises $3.5bn Series E at a $60bn valuation, sources say.",
+        }),
+        U,
+        db,
+      ).pass,
+    ).toBe(true);
+
+    const bulk = addKolHandles(U, "OnlyMkts, bad!!handle", "markets", db);
+    expect(bulk.skipped).toEqual(["bad!!handle"]);
+    expect(isKolHandle("OnlyMkts", getKolPackSpec(U, "markets", db))).toBe(true);
+    expect(isKolHandle("OnlyMkts", getKolPackSpec(U, "venture", db))).toBe(false);
+
+    resetKolHandles(U, db, "markets");
+    expect(isKolHandle("MyDesk", getKolPackSpec(U, "markets", db))).toBe(false);
+    expect(isKolHandle("DeItaone", getKolPackSpec(U, "markets", db))).toBe(true);
+    expect(isKolHandle("DeItaone", getKolPackSpec(U, "venture", db))).toBe(true);
   });
 });

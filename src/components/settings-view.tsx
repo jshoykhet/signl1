@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import { AppearanceSettings } from "@/components/appearance-settings";
 import { BlockedEditor } from "@/components/blocked-editor";
 import { DeskFilters } from "@/components/desk-filters";
 import { GroupedRow, SettingsGroup } from "@/components/grouped-list";
-import { KolEditor } from "@/components/kol-editor";
 import { PageHeader } from "@/components/page-header";
 import { TeamSettings } from "@/components/team-settings";
 import { CadenceSettings } from "@/components/cadence-settings";
@@ -106,7 +107,26 @@ export function SettingsView() {
               <CadenceSettings />
               <WhatsAppSettings />
               <DeskFilters />
-              <KolEditor />
+              <SettingsGroup
+                title="Key Accounts"
+                footer="Desk tape still picks which list is live. Edit the handles themselves on Accounts, the same way Watchlist holds tickers."
+              >
+                <GroupedRow>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[17px] font-medium tracking-[-0.01em]">Markets and Venture lists</div>
+                    <div className="mt-0.5 text-[13px] leading-snug text-muted-foreground">
+                      {status.kol.count} Key Network Nodes currently skip the like floor on this desk.
+                    </div>
+                  </div>
+                  <Link
+                    href="/accounts"
+                    className="inline-flex shrink-0 items-center gap-0.5 text-[15px] text-amber-700 dark:text-amber-300"
+                  >
+                    Open
+                    <ChevronRight className="size-4 opacity-70" />
+                  </Link>
+                </GroupedRow>
+              </SettingsGroup>
               <BlockedEditor />
               <SettingsGroup title="Poller">
                 <Row label="Health">
@@ -175,6 +195,7 @@ export function SettingsView() {
                   {status.counts.rules} ({status.counts.enabledRules} enabled)
                 </Row>
                 <Row label="Watchlist">{status.counts.tickers} tickers</Row>
+                <Row label="Key Accounts">{status.kol.count} handles</Row>
                 <Row label="Matches">{status.counts.matches}</Row>
                 <Row label="Unread">{status.counts.unread}</Row>
               </SettingsGroup>

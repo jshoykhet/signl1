@@ -113,6 +113,12 @@ The **accounts helper** compiles `nvidia, apple` into `(from:nvidia OR from:appl
 
 Long lists are split into multiple Watchlist rules so each query stays under the X 512-character limit. Matches land in the inbox like any other rule, named **Watchlist**. Pause screening on that page without deleting the names.
 
+## Key Accounts
+
+**Accounts** is the Watchlist-shaped page for Key Network Nodes — people whose posts skip the like floor and get a desk bump. Markets and Venture are **separate lists**. Desk tape picks which list is live: Markets, Venture, or Both (the union of the two **active** sets). Removing DeItaone from Markets does not take TechCrunch off Venture. Adding a handle to Venture does not put it on Markets.
+
+Paste handles the same way you paste tickers. The table is the list chrome (search, seed/added/removed, restore). Reset restores that pack’s seed. `KOL_HANDLES` still unions with both seeds; `KOL_HANDLES_MODE=replace` still replaces the seed.
+
 Poll interval is the **Inbox & WhatsApp** setting (5 / 10 / 15 / 30 / 45 minutes, or 1 / 2 / 3 / 4 / 5 / 10 hours). Live mode **packs every enabled rule across due desks** into as few `recent search` requests as possible, and identical queries (shared default monitors) are searched once. Each search asks for up to **100** tweets (`max_results`) **since the last cursor**, or a two-window lookback on first poll — not days of history.
 
 X pay-per-use bills **per resource returned**, not per HTTP call: about **$0.005 per post** and **$0.010 per author** (`expansions=author_id`). Repeats of the same post or user id are not rebilled the same UTC day. Settings → Poller shows last-search and session upper-bound cost. Shorter intervals cost more because each window is new posts.
@@ -121,9 +127,9 @@ X pay-per-use bills **per resource returned**, not per HTTP call: about **$0.005
 
 These apply at ingest and again whenever you change them, so the inbox and Slack/WhatsApp stay in sync with the live floors.
 
-- **Desk mode:** Markets (FOMC, earnings, flow), Venture (funding, launches, tech announcements), or **Both**. Switching changes the Key Network Node seed list (Both unions the two lists). Monitor on/off state lives on Rules and is not toggled by desk mode.
+- **Desk mode:** Markets (FOMC, earnings, flow), Venture (funding, launches, tech announcements), or **Both**. Switching picks which Key Accounts list is live (Both unions the two active lists). Monitor on/off state lives on Rules and is not toggled by desk mode.
 - **Nodes only:** keep posts from Key Network Nodes (plus anything you labeled high).
-- **Key Network Nodes:** seeded per desk mode. Markets is wires and squawk; Venture is the 100-handle VC/startup list; Both is the union. Add, remove, or reset to defaults on Settings.
+- **Key Network Nodes:** edit Markets and Venture separately on **Accounts**. Markets is wires and squawk; Venture is the 100-handle VC/startup list; Both is the union of whatever is active on each list.
 - **Blocked:** mute handles so they never land in the inbox or fire Slack/WhatsApp, even if they are a node.
 - **Signal level:** Lower (more tape, still needs news or analysis), Standard, or Higher (stricter follower/desk/score floors).
 - **Min likes:** set the engagement floor (0–10000, or inherit the level default). A number you pick applies to every account, including Key Network Nodes. Changing it re-filters the inbox.
@@ -207,9 +213,9 @@ Floors still apply to unknown accounts:
 - A **signal score** (0–100) from follower scale, likes, retweets/quotes, replies, and verified status
 - A **desk-relevance score** from the tweet text, plus a **substance** gate (news hook or analytical take)
 
-**Key Network Nodes** skip the like floor and get a score bump unless **Require likes** is on in Settings. They still need news or analysis for the active desk — a node saying “watching” does not print. Markets seeds wires, squawk, All-In, CNBC/FT talent, and official desks. Venture seeds the VC/startup list on Settings. Both unions those lists. Edit either list there, or with `KOL_HANDLES` (append) / `KOL_HANDLES_MODE=replace`. Promo spam (giveaways, signal groups) is dropped even from a node. **Blocked** accounts are dropped entirely.
+**Key Network Nodes** skip the like floor and get a score bump unless **Require likes** is on in Settings. They still need news or analysis for the active desk — a node saying “watching” does not print. Markets seeds wires, squawk, All-In, CNBC/FT talent, and official desks. Venture seeds the VC/startup list. Both unions the two **active** lists. Edit them on **Accounts**, or with `KOL_HANDLES` (append) / `KOL_HANDLES_MODE=replace`. Promo spam (giveaways, signal groups) is dropped even from a node. **Blocked** accounts are dropped entirely.
 
-A post from an account with **10k+ followers** that is less than the current fresh window (10 minutes on Standard) can still alert before likes accrue, if the text is desk-relevant and **Recent tweets** is on. Settings lists the live floors, the editable node list, and the blocked list.
+A post from an account with **10k+ followers** that is less than the current fresh window (10 minutes on Standard) can still alert before likes accrue, if the text is desk-relevant and **Recent tweets** is on. Settings lists the live floors and the blocked list. Key Accounts lists the node handles.
 
 **Train the filter** with **+** (high signal) and **−** (low signal) on each match. Labels persist per tweet. After **two net-high** votes, that author is boosted (floors relax). After **two net-low** votes, new posts from that author are dropped. Click the same button again to clear. Keyboard: `+` / `-` on the selected match.
 

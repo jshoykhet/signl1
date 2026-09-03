@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Activity, BadgeDollarSign, Inbox, Settings2, SlidersHorizontal } from "lucide-react";
+import { Activity, BadgeDollarSign, Inbox, Settings2, SlidersHorizontal, Users } from "lucide-react";
 import { UserMenu } from "@/components/user-menu";
 import { cn } from "@/lib/utils";
 import { DESK_MODES } from "@/lib/desk-mode";
@@ -12,6 +12,7 @@ import type { StatusSnapshot } from "@/lib/types";
 const NAV = [
   { href: "/", label: "Inbox", icon: Inbox },
   { href: "/watchlist", label: "Watchlist", icon: BadgeDollarSign },
+  { href: "/accounts", label: "Accounts", icon: Users },
   { href: "/rules", label: "Rules", icon: SlidersHorizontal },
   { href: "/settings", label: "Settings", icon: Settings2 },
 ];
@@ -96,6 +97,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 {item.href === "/watchlist" && status && status.counts.tickers > 0 ? (
                   <span className="text-[13px] tabular-nums text-muted-foreground">{status.counts.tickers}</span>
                 ) : null}
+                {item.href === "/accounts" && status && status.kol.count > 0 ? (
+                  <span className="text-[13px] tabular-nums text-muted-foreground">{status.kol.count}</span>
+                ) : null}
               </Link>
             );
           })}
@@ -143,7 +147,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-sidebar/90 backdrop-blur-xl md:hidden"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        <div className="grid h-[4.25rem] grid-cols-4">
+        <div className="grid h-[4.25rem] grid-cols-5">
           {NAV.map((item) => {
             const active = isActive(pathname, item.href);
             const Icon = item.icon;

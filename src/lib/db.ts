@@ -5,12 +5,16 @@ import { clampPollIntervalMs, databasePath, DEFAULT_POLL_INTERVAL_MS, isDemoMode
 import { compileQuery, isWatchedAuthor, normalizeAccounts } from "./query";
 import { likePattern, tokenizeSearch } from "./search";
 import {
-  isKolHandle,
   isSeedOrEnvHandle,
   kolMode,
   listKolHandles,
+  loadKolHandleSet,
+  normalizeHandle,
   parseHandleList,
+  packsForDeskMode,
   serializeHandleList,
+  unionHandleSets,
+  type KolPackId,
   type KolSpec,
 } from "./kol";
 import {
@@ -150,7 +154,7 @@ function mapMatch(row: MatchRow, db: Database.Database): Match {
     signalScore: row.signal_score,
     userLabel: parseUserLabel(row.user_label),
     authorPrior: { high: 0, low: 0 },
-    kol: isKolHandle(row.author_handle, getKolSpec(userId, db)),
+    kol: getEffectiveKolHandleSet(userId, db).has(normalizeHandle(row.author_handle)),
   };
 }
 
@@ -274,6 +278,10 @@ const DESK_META_KEYS = [
   "desk_hide_messaging",
   "kol_added",
   "kol_removed",
+  "kol_markets_added",
+  "kol_markets_removed",
+  "kol_venture_added",
+  "kol_venture_removed",
   "blocked_added",
   "blocked_removed",
   "whatsapp_to",
@@ -467,14 +475,60 @@ export function getTweetLabel(tweetId: string, userId: string, db = getDb()): Us
   return parseUserLabel(row?.user_label);
 }
 
-export function getKolSpec(userId: string, db = getDb()): KolSpec {
+const KOL_PACK_META: Record<KolPackId, { added: string; removed: string }> = {
+  markets: { added: "kol_markets_added", removed: "kol_markets_removed" },
+  venture: { added: "kol_venture_added", removed: "kol_venture_removed" },
+};
+
+const KOL_PACKS_MIGRATED_META = "kol_packs_v1";
+
+export function migrateKolPacks(userId: string, db = getDb()) {
+  if (!userId) return;
+  if (getUserMeta(userId, KOL_PACKS_MIGRATED_META, db)) return;
+  const added = getUserMeta(userId, "kol_added", db) ?? "";
+  const removed = getUserMeta(userId, "kol_removed", db) ?? "";
+  for (const pack of ["markets", "venture"] as const) {
+    const keys = KOL_PACK_META[pack];
+    if (!getUserMeta(userId, keys.added, db) && added) setUserMeta(userId, keys.added, added, db);
+    if (!getUserMeta(userId, keys.removed, db) && removed) setUserMeta(userId, keys.removed, removed, db);
+  }
+  setUserMeta(userId, KOL_PACKS_MIGRATED_META, nowIso(), db);
+}
+
+export function getKolPackSpec(userId: string, pack: KolPackId, db = getDb()): KolSpec {
+  migrateKolPacks(userId, db);
+  const keys = KOL_PACK_META[pack];
   return {
     KOL_HANDLES: process.env.KOL_HANDLES,
     KOL_HANDLES_MODE: process.env.KOL_HANDLES_MODE,
-    deskMode: parseDeskMode(getUserMeta(userId, "desk_mode", db)),
-    added: parseHandleList(getUserMeta(userId, "kol_added", db)),
-    removed: parseHandleList(getUserMeta(userId, "kol_removed", db)),
+    deskMode: pack,
+    added: parseHandleList(getUserMeta(userId, keys.added, db)),
+    removed: parseHandleList(getUserMeta(userId, keys.removed, db)),
   };
+}
+
+export function getKolSpec(userId: string, db = getDb()): KolSpec {
+  migrateKolPacks(userId, db);
+  const deskMode = parseDeskMode(getUserMeta(userId, "desk_mode", db));
+  if (deskMode !== "both") {
+    return getKolPackSpec(userId, deskMode === "venture" ? "venture" : "markets", db);
+  }
+  const markets = getKolPackSpec(userId, "markets", db);
+  const venture = getKolPackSpec(userId, "venture", db);
+  return {
+    KOL_HANDLES: process.env.KOL_HANDLES,
+    KOL_HANDLES_MODE: process.env.KOL_HANDLES_MODE,
+    deskMode: "both",
+    added: [...new Set([...(markets.added ?? []), ...(venture.added ?? [])])],
+    removed: [...new Set([...(markets.removed ?? []), ...(venture.removed ?? [])])],
+  };
+}
+
+export function getEffectiveKolHandleSet(userId: string, db = getDb()): Set<string> {
+  const deskMode = parseDeskMode(getUserMeta(userId, "desk_mode", db));
+  return unionHandleSets(
+    packsForDeskMode(deskMode).map((pack) => loadKolHandleSet(getKolPackSpec(userId, pack, db))),
+  );
 }
 
 export function getBlockedSpec(userId: string, db = getDb()): BlockedSpec {
@@ -487,7 +541,7 @@ export function getBlockedSpec(userId: string, db = getDb()): BlockedSpec {
 
 function authorSignalFlags(handle: string, userId: string, db: Database.Database) {
   return {
-    kol: isKolHandle(handle, getKolSpec(userId, db)),
+    kol: getEffectiveKolHandleSet(userId, db).has(normalizeHandle(handle)),
     blocked: isBlockedHandle(handle, getBlockedSpec(userId, db)),
   };
 }
@@ -862,6 +916,7 @@ export function ensureUserDesk(userId: string, db = getDb()) {
   }
   if (getUserMeta(userId, "desk_seeded", db)) {
     ensureMonitorPack(userId, db);
+    migrateKolPacks(userId, db);
     return;
   }
   const count = db.prepare("SELECT COUNT(*) AS n FROM rules WHERE user_id = ?").get(userId) as { n: number };
@@ -1279,36 +1334,76 @@ export function setDeskFilterSettings(userId: string, input: DeskFilterPatch, db
   return getDeskFilterSettings(userId, db);
 }
 
-export function addKolHandle(userId: string, handle: string, db = getDb()): string[] {
+export function addKolHandle(userId: string, handle: string, db = getDb(), pack?: KolPackId): string[] {
   const normalized = handle.replace(/^@/, "").trim();
   if (!/^[A-Za-z0-9_]{1,15}$/.test(normalized)) {
     throw new Error("Handle must be 1–15 letters, numbers, or underscores");
   }
-  const spec = getKolSpec(userId, db);
+  migrateKolPacks(userId, db);
+  const deskMode = parseDeskMode(getUserMeta(userId, "desk_mode", db));
+  const packs = pack ? [pack] : packsForDeskMode(deskMode);
   const key = normalized.toLowerCase();
-  const added = isSeedOrEnvHandle(key, spec)
-    ? (spec.added ?? []).filter((h) => h !== key)
-    : [...new Set([...(spec.added ?? []), key])];
-  const removed = (spec.removed ?? []).filter((h) => h !== key);
-  setUserMeta(userId, "kol_added", serializeHandleList(added), db);
-  setUserMeta(userId, "kol_removed", serializeHandleList(removed), db);
-  return listKolHandles(getKolSpec(userId, db));
+  for (const nextPack of packs) {
+    const spec = getKolPackSpec(userId, nextPack, db);
+    const added = isSeedOrEnvHandle(key, spec)
+      ? (spec.added ?? []).filter((h) => h !== key)
+      : [...new Set([...(spec.added ?? []), key])];
+    const removed = (spec.removed ?? []).filter((h) => h !== key);
+    const keys = KOL_PACK_META[nextPack];
+    setUserMeta(userId, keys.added, serializeHandleList(added), db);
+    setUserMeta(userId, keys.removed, serializeHandleList(removed), db);
+  }
+  return listKolHandles(pack ? getKolPackSpec(userId, pack, db) : getKolSpec(userId, db));
 }
 
-export function removeKolHandle(userId: string, handle: string, db = getDb()): string[] {
+export function addKolHandles(
+  userId: string,
+  input: string,
+  pack: KolPackId,
+  db = getDb(),
+): { handles: string[]; skipped: string[] } {
+  const tokens = input.split(/[\s,;]+/).map((item) => item.trim()).filter(Boolean);
+  const skipped: string[] = [];
+  for (const token of tokens) {
+    try {
+      addKolHandle(userId, token, db, pack);
+    } catch {
+      skipped.push(token.replace(/^@/, ""));
+    }
+  }
+  return { handles: listKolHandles(getKolPackSpec(userId, pack, db)), skipped };
+}
+
+export function removeKolHandle(userId: string, handle: string, db = getDb(), pack?: KolPackId): string[] {
   const normalized = handle.replace(/^@/, "").trim().toLowerCase();
-  const spec = getKolSpec(userId, db);
-  const added = (spec.added ?? []).filter((h) => h !== normalized);
-  const removed = [...new Set([...(spec.removed ?? []), normalized])];
-  setUserMeta(userId, "kol_added", serializeHandleList(added), db);
-  setUserMeta(userId, "kol_removed", serializeHandleList(removed), db);
-  return listKolHandles(getKolSpec(userId, db));
+  migrateKolPacks(userId, db);
+  const deskMode = parseDeskMode(getUserMeta(userId, "desk_mode", db));
+  const packs = pack ? [pack] : packsForDeskMode(deskMode);
+  for (const nextPack of packs) {
+    const spec = getKolPackSpec(userId, nextPack, db);
+    const added = (spec.added ?? []).filter((h) => h !== normalized);
+    const removed = [...new Set([...(spec.removed ?? []), normalized])];
+    const keys = KOL_PACK_META[nextPack];
+    setUserMeta(userId, keys.added, serializeHandleList(added), db);
+    setUserMeta(userId, keys.removed, serializeHandleList(removed), db);
+  }
+  return listKolHandles(pack ? getKolPackSpec(userId, pack, db) : getKolSpec(userId, db));
 }
 
-export function resetKolHandles(userId: string, db = getDb()): string[] {
-  setUserMeta(userId, "kol_added", "", db);
-  setUserMeta(userId, "kol_removed", "", db);
-  return listKolHandles(getKolSpec(userId, db));
+export function resetKolHandles(userId: string, db = getDb(), pack?: KolPackId): string[] {
+  migrateKolPacks(userId, db);
+  const deskMode = parseDeskMode(getUserMeta(userId, "desk_mode", db));
+  const packs = pack ? [pack] : packsForDeskMode(deskMode);
+  for (const nextPack of packs) {
+    const keys = KOL_PACK_META[nextPack];
+    setUserMeta(userId, keys.added, "", db);
+    setUserMeta(userId, keys.removed, "", db);
+  }
+  if (!pack) {
+    setUserMeta(userId, "kol_added", "", db);
+    setUserMeta(userId, "kol_removed", "", db);
+  }
+  return listKolHandles(pack ? getKolPackSpec(userId, pack, db) : getKolSpec(userId, db));
 }
 
 export function addBlockedHandle(userId: string, handle: string, db = getDb()): string[] {
@@ -1396,7 +1491,7 @@ export function getStatus(userId: string, opts: { demoMode: boolean; bearerPrese
   const lastPollPosts = Number(getMeta("x_last_poll_posts", db) ?? "0") || 0;
   const lastPollUsers = Number(getMeta("x_last_poll_users", db) ?? "0") || 0;
   const spec = getKolSpec(userId, db);
-  const kolHandles = listKolHandles(spec);
+  const kolHandles = [...getEffectiveKolHandleSet(userId, db)].sort((a, b) => a.localeCompare(b));
   const blockedSpec = getBlockedSpec(userId, db);
   const filters = getDeskFilterSettings(userId, db);
   const floors = SIGNAL_LEVELS[filters.signalLevel];

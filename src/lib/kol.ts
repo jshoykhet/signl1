@@ -162,11 +162,32 @@ export type KolEnv = {
   KOL_HANDLES_MODE?: string;
 };
 
+export type KolPackId = "markets" | "venture";
+
 export type KolSpec = KolEnv & {
   added?: string[];
   removed?: string[];
   deskMode?: DeskMode | string | null;
 };
+
+export function parseKolPack(raw: string | null | undefined): KolPackId {
+  if (raw === "venture" || raw === "vc") return "venture";
+  return "markets";
+}
+
+export function packsForDeskMode(mode: DeskMode): KolPackId[] {
+  if (mode === "venture") return ["venture"];
+  if (mode === "markets") return ["markets"];
+  return ["markets", "venture"];
+}
+
+export function unionHandleSets(sets: Array<Iterable<string>>): Set<string> {
+  const out = new Set<string>();
+  for (const set of sets) {
+    for (const handle of set) out.add(handle);
+  }
+  return out;
+}
 
 export function loadKolHandleSet(spec: KolSpec = {}): Set<string> {
   const extra = parseHandleList(spec.KOL_HANDLES);
