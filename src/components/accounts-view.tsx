@@ -33,11 +33,11 @@ type AccountsPage = {
 const PACKS: Record<KolPackId, { label: string; hint: string }> = {
   markets: {
     label: "Markets",
-    hint: "Wires, squawk, policy desks, and public-markets talent. Used when Desk tape is Markets, and as half of Both.",
+    hint: "People who move public markets. Used when Focus is Markets, and as half of Both.",
   },
   venture: {
     label: "Venture",
-    hint: "Funds, startup reporters, and tech wires. Used when Desk tape is Venture, and as half of Both.",
+    hint: "Funds, founders, and the people who cover them. Used when Focus is Venture, and as half of Both.",
   },
 };
 
@@ -132,7 +132,7 @@ export function AccountsView() {
       <div className="mx-auto w-full max-w-5xl flex-1 px-5 py-8">
         <PageHeader
           title="Key Accounts"
-          description="People whose posts skip the like floor and get a desk bump. Markets and Venture are separate lists — Both desks uses both."
+          description="People whose posts come through more readily. Markets and Venture are separate lists. Both uses both."
         />
         {error ? (
           <div className="mt-6 rounded-2xl bg-destructive/10 px-4 py-3 text-[15px] text-destructive">{error}</div>
@@ -210,7 +210,7 @@ export function AccountsView() {
               title={PACKS[pack].label}
               loading={loading && !current}
               loadingLabel="Loading Key Accounts…"
-              description="Seeded handles can be removed and restored. Follower counts come from posts already on this desk."
+              description="Seeded handles can be removed and restored. Follower counts come from posts Signl1 has already seen."
               items={items}
               busy={saving}
               showComposer={false}
@@ -238,15 +238,15 @@ export function AccountsView() {
               <GroupedRow>
                 <div className="min-w-0 flex-1">
                   <div className="text-[17px] font-medium tracking-[-0.01em]">
-                    {usingThisPack ? "On the tape" : "Not on this desk"}
+                    {usingThisPack ? "In use" : "Not in use"}
                   </div>
                   <div className="mt-0.5 text-[13px] leading-snug text-muted-foreground">
-                    Desk tape is {DESK_MODES[deskMode].label}.{" "}
+                    Focus is {DESK_MODES[deskMode].label}.{" "}
                     {deskMode === "both"
                       ? "Both lists are live."
                       : usingThisPack
                         ? "This list is the one in use."
-                        : `Switch Desk tape to ${PACKS[pack].label} or Both to use these handles.`}
+                        : `Switch Focus to ${PACKS[pack].label} or Both to use these people.`}
                   </div>
                 </div>
               </GroupedRow>
@@ -254,10 +254,10 @@ export function AccountsView() {
             <SettingsGroup>
               <GroupedRow>
                 <div className="min-w-0 flex-1">
-                  <div className="text-[17px] font-medium tracking-[-0.01em]">Desk tape</div>
+                  <div className="text-[17px] font-medium tracking-[-0.01em]">Focus</div>
                   <div className="mt-0.5 text-[13px] leading-snug text-muted-foreground">
-                    Change Markets, Both, or Venture on Settings. That picks which Key Accounts lists bump the inbox —
-                    it does not rewrite these lists.
+                    Change Markets, Both, or Venture in Settings. That picks which lists are live. It does not rewrite
+                    these lists.
                   </div>
                 </div>
                 <Link href="/settings" className={buttonVariants({ variant: "ghost", size: "sm" })}>
@@ -266,8 +266,8 @@ export function AccountsView() {
               </GroupedRow>
             </SettingsGroup>
             <p className="px-1 text-[13px] leading-5 text-muted-foreground">
-              {page ? `${page.effectiveCount} handles currently skip the like floor on this desk.` : null} Nodes-only
-              still lives on Settings. Blocked accounts always drop, even if they are on a Key Accounts list.
+              {page ? `${page.effectiveCount} people currently skip the like threshold.` : null} Key accounts only
+              lives on Settings. Blocked accounts always stay out.
             </p>
           </section>
         </div>

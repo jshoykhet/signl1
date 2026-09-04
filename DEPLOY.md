@@ -1,6 +1,6 @@
 # Deploy Signl1 on a domain you purchased
 
-Signl1 is a long-running desk: Next.js UI, a background X poller, SQLite, and a WhatsApp (Baileys) session on disk. **Do not put this on Vercel.** Vercel cannot keep the poller alive or persist SQLite / WhatsApp auth files. Use a VPS (Hetzner, DigitalOcean, Fly machines, a home box with a public IP) and Docker Compose plus Caddy for TLS.
+Signl1 is a long-running app: Next.js UI, a background X poller, SQLite, and a WhatsApp (Baileys) session on disk. **Do not put this on Vercel.** Vercel cannot keep the poller alive or persist SQLite / WhatsApp auth files. Use a VPS (Hetzner, DigitalOcean, Fly machines, a home box with a public IP) and Docker Compose plus Caddy for TLS.
 
 This file assumes you already bought a hostname. The stack never hard-codes it — set `DOMAIN` in `.env`.
 
@@ -12,7 +12,7 @@ This file assumes you already bought a hostname. The stack never hard-codes it �
 | Caddy | HTTP→HTTPS, reverse-proxy to the web container |
 | `web` | Next.js on port 3847, internal only |
 | `poller` | X search + WhatsApp, shares the data volume |
-| Phone + authenticator | Solo sign-in. First number to scan the QR owns the desk. |
+| Phone + authenticator | Solo sign-in. First number to scan the QR owns this Signl1. |
 
 This instance is **solo**. Sign in with your phone and a 6-digit code from [Ente Auth](https://ente.io/auth/) or [Aegis](https://github.com/beemdevelopment/Aegis). One X bearer token and one linked WhatsApp sending number.
 
@@ -36,7 +36,7 @@ At your registrar, create:
 - **A** record → the VPS IPv4
 - **AAAA** record → the VPS IPv6, if the box has one
 
-Use the hostname you want operators to type, for example `signals.yourfund.com`. Wait until `dig +short your.hostname` returns the VPS IP before starting Compose. Caddy will fail TLS issuance if DNS still points elsewhere.
+Use the hostname you want to type, for example `signals.yourfund.com`. Wait until `dig +short your.hostname` returns the VPS IP before starting Compose. Caddy will fail TLS issuance if DNS still points elsewhere.
 
 ## 3. Authenticator app
 
@@ -99,7 +99,7 @@ Copy `whatsapp-auth` the same way if you need a cold spare.
 
 ## 7. After go-live
 
-Open `https://YOUR_DOMAIN`, enroll your phone with Ente Auth or Aegis, and you land in the desk with the seeded Fed / Mag 7 / crude rules. Nobody else can sign in.
+Open `https://YOUR_DOMAIN`, enroll your phone with Ente Auth or Aegis, and you land in the inbox with the seeded Fed / Mag 7 / crude rules. Nobody else can sign in.
 
 Link WhatsApp once on Settings. Alerts send from that linked WhatsApp to the destination number you save there.
 

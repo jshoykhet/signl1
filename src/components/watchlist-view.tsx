@@ -90,7 +90,7 @@ export function WatchlistView() {
       <div className="mx-auto w-full max-w-5xl flex-1 px-5 py-8">
         <PageHeader
           title="Watchlist"
-          description="Names you want FinTwit alerts on. Paste tickers as-is — the backend adds the $ cashtag."
+          description="Names you want to hear about. Paste tickers as they are. Signl1 adds the $."
         />
         {error ? (
           <div className="mt-6 rounded-2xl bg-destructive/10 px-4 py-3 text-[15px] text-destructive">{error}</div>
@@ -106,8 +106,8 @@ export function WatchlistView() {
                     </div>
                     <div className="mt-0.5 text-[13px] leading-snug text-muted-foreground">
                       {watchlist.enabled
-                        ? "Cashtag alerts are polling. Flip this off to stop X searches without deleting names."
-                        : "The ticker list is kept, but Watchlist is not included in live polls."}
+                        ? "Signl1 is watching these names. Turn this off to pause without deleting them."
+                        : "The list is kept. Signl1 is not searching these names right now."}
                     </div>
                   </div>
                   <Switch
@@ -247,10 +247,10 @@ export function WatchlistView() {
             <SettingsGroup>
               <GroupedRow>
                 <div className="min-w-0 flex-1">
-                  <div className="text-[17px] font-medium tracking-[-0.01em]">Poll interval</div>
+                  <div className="text-[17px] font-medium tracking-[-0.01em]">Interval</div>
                   <div className="mt-0.5 text-[13px] leading-snug text-muted-foreground">
-                    Watchlist polls on the same Inbox & WhatsApp interval as the rest of the desk
-                    {watchlist ? ` (${formatInterval(watchlist.pollIntervalMs)})` : ""}. Change it on Settings.
+                    Watchlist uses the same Updates interval as everything else
+                    {watchlist ? ` (${formatInterval(watchlist.pollIntervalMs)})` : ""}. Change it in Settings.
                   </div>
                 </div>
               </GroupedRow>

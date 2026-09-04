@@ -195,7 +195,7 @@ export function RulesView() {
       <div className="border-b border-border px-5 py-6">
         <PageHeader
           title="Rules"
-          description="Each enabled monitor is polled on the Inbox & WhatsApp interval from Settings."
+          description="Enabled monitors check X on the Updates interval from Settings."
           actions={
             <Button
               onClick={() => {
@@ -245,11 +245,11 @@ export function RulesView() {
       ) : null}
       <div className="flex-1 overflow-auto">
         {loading ? (
-          <EmptyState title="Loading" description="Fetching your monitors." />
+          <EmptyState title="Loading" description="Just a moment." />
         ) : rules.length === 0 ? (
           <EmptyState
             title={mode === "vc" ? "No VC monitors" : "No Markets monitors"}
-            description="Create one to start scanning recent search."
+            description="Add one to start watching."
           />
         ) : visibleRules.length === 0 ? (
           <EmptyState title="No matches" description={`Nothing found for “${query.trim()}”.`} />
@@ -361,7 +361,7 @@ export function RulesView() {
             <DialogDescription>
               {editing
                 ? editing.accounts.length
-                  ? "Watch these accounts. Add and remove handles the same way as Key Network Nodes."
+                  ? "Watch these accounts. Add and remove people the same way as Key Accounts."
                   : "Keyword search for this monitor. Add accounts if you want to watch people instead."
                 : `Saved in ${MONITOR_MODES[mode].label}. Add accounts to watch people, or a search query for keywords.`}
             </DialogDescription>

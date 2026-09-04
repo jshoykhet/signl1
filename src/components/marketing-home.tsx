@@ -38,15 +38,15 @@ export function MarketingHome({
         <div className="grid items-start gap-12 lg:grid-cols-[1.15fr_0.85fr]">
           <div>
             <h1 className="max-w-xl text-[40px] leading-[1.08] font-semibold tracking-[-0.035em] md:text-[52px]">
-              Signl1: Filter Signal from the Timeline
+              What matters on X.
             </h1>
             <p className="mt-5 max-w-xl text-[17px] leading-relaxed text-muted-foreground">
-              Build your own custom X timeline that sends regular WhatsApp updates direct to you.
+              Signl1 reads the timeline, keeps the useful posts, and can text you. There is nothing new to learn.
             </p>
           </div>
 
           <div id="start" className="rounded-3xl bg-card p-6 shadow-sm ring-1 ring-border">
-            <h2 className="text-[20px] font-semibold tracking-[-0.02em]">Sign in to Signl1</h2>
+            <h2 className="text-[20px] font-semibold tracking-[-0.02em]">Sign in</h2>
             <div className="mt-5">
               <LoginForm devLogin={devLogin} callbackUrl="/" errorCode={errorCode} />
             </div>

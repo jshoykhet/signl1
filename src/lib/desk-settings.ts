@@ -20,7 +20,7 @@ export const SIGNAL_LEVELS: Record<SignalLevel, SignalLevelConfig> = {
   low: {
     id: "low",
     label: "Lower",
-    hint: "More tape, still needs a news hook or an analytical take",
+    hint: "More posts. Still needs news or a real point of view.",
     minFollowers: 20,
     minLikes: 1,
     minScore: 10,
@@ -32,7 +32,7 @@ export const SIGNAL_LEVELS: Record<SignalLevel, SignalLevelConfig> = {
   standard: {
     id: "standard",
     label: "Standard",
-    hint: "Wires, prints vs expected, and sourced takes — not cashtag chatter",
+    hint: "News, numbers, and sourced takes. Not ticker chatter.",
     minFollowers: 50,
     minLikes: 5,
     minScore: 22,
@@ -44,7 +44,7 @@ export const SIGNAL_LEVELS: Record<SignalLevel, SignalLevelConfig> = {
   high: {
     id: "high",
     label: "Higher",
-    hint: "Less tape — sourced news, sized prints, and real analysis",
+    hint: "Fewer posts. Sourced news and real analysis.",
     minFollowers: 500,
     minLikes: 25,
     minScore: 42,

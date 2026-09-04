@@ -35,7 +35,7 @@ function SignalVote({
     >
       <button
         type="button"
-        title="High signal — keep tweets like this"
+        title="Keep posts like this"
         aria-label="Mark high signal"
         aria-pressed={match.userLabel === "high"}
         className={cn(
@@ -50,7 +50,7 @@ function SignalVote({
       </button>
       <button
         type="button"
-        title="Low signal — hide tweets like this"
+        title="Hide posts like this"
         aria-label="Mark low signal"
         aria-pressed={match.userLabel === "low"}
         className={cn(
@@ -288,9 +288,9 @@ export function InboxView() {
           <div className="min-w-0">
             <h1 className="text-[28px] font-semibold leading-tight tracking-[-0.022em]">Inbox</h1>
             <p className="mt-0.5 text-[13px] text-muted-foreground">
-              Newest first. Use + / − to train the tape.
+              Newest first. Mark what matters with + or −.
               {cadenceMinutes
-                ? ` Polling ${cadenceLabel(cadenceMinutes).replace(/^Every /, "every ")} — same window as WhatsApp.`
+                ? ` Checks ${cadenceLabel(cadenceMinutes).replace(/^Every /, "every ")}. WhatsApp uses the same interval.`
                 : ""}
             </p>
           </div>
@@ -346,20 +346,20 @@ export function InboxView() {
       ) : null}
       {pollerError ? (
         <div className="mx-5 mt-4 rounded-2xl bg-destructive/10 px-4 py-3 text-[15px] text-destructive">
-          Tape is not updating: {pollerError}
+          Signl1 can&apos;t reach X right now. {pollerError}
         </div>
       ) : null}
       <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
         <div className="min-h-0 overflow-y-auto lg:border-r lg:border-border">
           {loading && matches.length === 0 ? (
-            <EmptyState title="Loading" description="Fetching the latest matches." />
+            <EmptyState title="Loading" description="Just a moment." />
           ) : matches.length === 0 ? (
             <EmptyState
-              title={query.trim() ? "No matches" : "Inbox Zero"}
+              title={query.trim() ? "No matches" : "Nothing yet"}
               description={
                 query.trim()
                   ? `Nothing found for “${query.trim()}”.`
-                  : "Wires and analysis will appear here. Cashtag chatter and dunks are dropped."
+                  : "Useful posts will show up here. Chatter and dunks stay out."
               }
             />
           ) : (
@@ -408,7 +408,7 @@ export function InboxView() {
                             </Badge>
                             {match.kol ? (
                               <Badge className="h-5 rounded-full bg-amber-400/20 px-2 text-[11px] font-semibold text-amber-800 dark:bg-amber-400/15 dark:text-amber-200">
-                                Node
+                                Key
                               </Badge>
                             ) : null}
                             {match.followersCount != null ? (
@@ -477,14 +477,14 @@ export function InboxView() {
                 <dd>{formatCompact(selected.likeCount)}</dd>
                 <dt>Score</dt>
                 <dd>{selected.signalScore != null ? selected.signalScore : "—"}</dd>
-                <dt>Node</dt>
-                <dd className="text-foreground">{selected.kol ? "Key Network Node" : "No"}</dd>
+                <dt>Key account</dt>
+                <dd className="text-foreground">{selected.kol ? "Yes" : "No"}</dd>
                 <dt>Label</dt>
                 <dd className="text-foreground">
                   {selected.userLabel === "high"
-                    ? "High signal"
+                    ? "Keep"
                     : selected.userLabel === "low"
-                      ? "Low signal"
+                      ? "Hide"
                       : "Unlabeled"}
                 </dd>
                 <dt>Author prior</dt>
@@ -496,7 +496,7 @@ export function InboxView() {
               </dl>
             </article>
           ) : (
-            <EmptyState title="No selection" description="Choose a match from the list." />
+            <EmptyState title="No selection" description="Choose a post from the list." />
           )}
         </div>
       </div>

@@ -147,7 +147,7 @@ export function RuleForm({
           title="Accounts"
           description={
             accountWatch
-              ? "Seeded handles can be removed and restored. Follower counts come from posts already on this desk."
+              ? "Seeded handles can be removed and restored. Follower counts come from posts Signl1 has already seen."
               : "Optional. Add X handles to watch people instead of keywords. Leave empty for a search-only monitor like Fed or Macro."
           }
           items={items}
@@ -175,7 +175,7 @@ export function RuleForm({
           footer={
             accountWatch
               ? "Applied on top of from: those accounts. lang:en -is:retweet is typical."
-              : "Official X recent-search operators. The poller sends the compiled string as-is."
+              : "Official X recent-search syntax. Signl1 sends the compiled string as-is."
           }
         >
           <GroupedRow className="flex-col items-stretch gap-2 py-3">

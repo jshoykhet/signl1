@@ -7,7 +7,7 @@ export const MONITOR_MODES: Record<
   markets: {
     id: "markets",
     label: "Markets",
-    hint: "Public-market movers: watchlist cashtags, the Fed, oil, and macro prints.",
+    hint: "Watchlist names, the Fed, oil, and the numbers that move markets.",
   },
   vc: {
     id: "vc",

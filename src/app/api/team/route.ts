@@ -19,5 +19,5 @@ export async function GET() {
 }
 
 export async function PUT() {
-  return jsonError("This desk is solo. There is no team to manage.", 410);
+  return jsonError("This Signl1 is for one person.", 410);
 }

@@ -7,20 +7,20 @@ export const DESK_MODES: Record<
   markets: {
     id: "markets",
     label: "Markets",
-    shortLabel: "Markets desk",
-    hint: "FOMC, earnings, flow, and policy — for traders and public-markets research.",
+    shortLabel: "Markets",
+    hint: "Rates, earnings, policy, and what moves public markets.",
   },
   both: {
     id: "both",
     label: "Both",
-    shortLabel: "Both desks",
-    hint: "Markets prints and venture announcements — Key Accounts uses both lists. Edit them on the Accounts tab.",
+    shortLabel: "Markets & Venture",
+    hint: "Markets and venture together. Key Accounts uses both lists.",
   },
   venture: {
     id: "venture",
     label: "Venture",
-    shortLabel: "Venture desk",
-    hint: "Funding, launches, and tech announcements — for VCs and startup sourcing.",
+    shortLabel: "Venture",
+    hint: "Funding, launches, and the people building companies.",
   },
 };
 
@@ -43,16 +43,16 @@ export function signalLevelHint(
   mode: DeskMode,
 ): string {
   if (mode === "both") {
-    if (level === "low") return "More tape, still needs a news, funding, launch, or analytical hook";
-    if (level === "high") return "Less tape — sourced news, priced rounds, and real analysis";
-    return "Wires, prints, funding, and launches — not cashtag chatter or founder lifestyle";
+    if (level === "low") return "More posts. Still needs news, funding, a launch, or a real point of view.";
+    if (level === "high") return "Fewer posts. Sourced news, priced rounds, and real analysis.";
+    return "News, funding, and launches. Not ticker chatter or lifestyle.";
   }
   if (mode === "venture") {
-    if (level === "low") return "More tape, still needs a funding, launch, or deal hook";
-    if (level === "high") return "Less tape — priced rounds, M&A, and sourced announcements";
-    return "Funding rounds, launches, and scoops — not founder lifestyle";
+    if (level === "low") return "More posts. Still needs funding, a launch, or a deal.";
+    if (level === "high") return "Fewer posts. Priced rounds, acquisitions, and sourced announcements.";
+    return "Funding, launches, and scoops. Not lifestyle.";
   }
-  if (level === "low") return "More tape, still needs a news hook or an analytical take";
-  if (level === "high") return "Less tape — sourced news, sized prints, and real analysis";
-  return "Wires, prints vs expected, and sourced takes — not cashtag chatter";
+  if (level === "low") return "More posts. Still needs news or a real point of view.";
+  if (level === "high") return "Fewer posts. Sourced news and real analysis.";
+  return "News, numbers, and sourced takes. Not ticker chatter.";
 }

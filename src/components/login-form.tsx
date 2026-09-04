@@ -89,7 +89,7 @@ export function LoginForm({
       setStep(data.mode);
       setCode("");
     } catch {
-      setLocalError("Could not reach the desk. Try again.");
+      setLocalError("Could not connect. Try again.");
     } finally {
       setPending(false);
     }
@@ -124,14 +124,14 @@ export function LoginForm({
       {step === "phone" ? (
         <form onSubmit={onContinue} className="space-y-4">
           <p className="text-[15px] leading-snug text-muted-foreground">
-            We&apos;ll ask for a code from your authenticator app to sign in.
+            Enter your number. We&apos;ll ask for a code from your authenticator.
           </p>
           <div className="flex gap-2">
-            <label className="sr-only" htmlFor="desk-country">
+            <label className="sr-only" htmlFor="phone-country">
               Country
             </label>
             <select
-              id="desk-country"
+              id="phone-country"
               value={iso}
               onChange={(event) => setIso(event.target.value)}
               className="h-12 max-w-[42%] shrink-0 rounded-xl border-0 bg-muted px-3 text-[15px] outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
@@ -143,7 +143,7 @@ export function LoginForm({
               ))}
             </select>
             <Input
-              id="desk-phone"
+              id="phone-number"
               type="tel"
               inputMode="numeric"
               autoComplete="tel-national"
@@ -215,7 +215,7 @@ export function LoginForm({
           )}
 
           <Input
-            id="desk-otp"
+            id="phone-otp"
             type="text"
             inputMode="numeric"
             autoComplete="one-time-code"
@@ -244,7 +244,7 @@ export function LoginForm({
             Skip sign-in
           </a>
           <p className="text-[13px] leading-relaxed text-muted-foreground">
-            Local preview only. Production Compose sets <code className="font-mono">AUTH_DEV_LOGIN=0</code>.
+            This skip is for local preview only.
           </p>
         </div>
       ) : null}

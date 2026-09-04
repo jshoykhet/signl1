@@ -30,7 +30,7 @@ export default async function LoginPage({
             height={56}
             className="size-14 rounded-[18px] shadow-lg ring-1 ring-amber-400/25"
           />
-          <h1 className="mt-6 text-[28px] font-semibold tracking-[-0.03em]">Sign in to Signl1</h1>
+          <h1 className="mt-6 text-[28px] font-semibold tracking-[-0.03em]">Sign in</h1>
         </div>
         <LoginForm devLogin={isDevLoginEnabled()} callbackUrl={callbackUrl} errorCode={params.error ?? null} />
       </div>

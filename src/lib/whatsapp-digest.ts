@@ -48,7 +48,7 @@ export function buildWhatsAppDigest(items: DigestItem[], digestMinutes: number, 
     uniqueCount > ranked.length
       ? `top ${ranked.length} of ${uniqueCount}`
       : `${ranked.length} match${ranked.length === 1 ? "" : "es"}`;
-  const head = `*Signl1 · digest* (${scope}, last ${window})`;
+  const head = `*Signl1* (${scope}, last ${window})`;
   const blocks = ranked.map((item) => buildWhatsAppText(item.rule, item.tweet));
   const more = uniqueCount > ranked.length ? `\n\n+${uniqueCount - ranked.length} more in the inbox` : "";
   return [head, "", blocks.join("\n\n—\n\n"), more].join("\n").trim();

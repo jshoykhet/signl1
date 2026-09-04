@@ -31,12 +31,12 @@ export function KolEditor() {
 
   const load = async () => {
     const res = await fetch("/api/kol", { cache: "no-store" });
-    if (!res.ok) throw new Error("Failed to load Key Network Nodes");
+    if (!res.ok) throw new Error("Couldn't load Key Accounts.");
     setKol((await res.json()) as KolSnapshot);
   };
 
   useEffect(() => {
-    void load().catch((err) => toast.error(err instanceof Error ? err.message : "Failed to load Key Network Nodes"));
+    void load().catch((err) => toast.error(err instanceof Error ? err.message : "Couldn't load Key Accounts."));
     const onMode = () => {
       void load().catch(() => undefined);
     };
@@ -53,12 +53,12 @@ export function KolEditor() {
         body: JSON.stringify(body),
       });
       const data = (await res.json()) as KolSnapshot & { error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Could not update Key Network Nodes");
+      if (!res.ok) throw new Error(data.error ?? "Couldn't update Key Accounts.");
       setKol(data);
       if (success) toast.success(success);
       return true;
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not update Key Network Nodes");
+      toast.error(err instanceof Error ? err.message : "Couldn't update Key Accounts.");
       return false;
     } finally {
       setBusy(false);
@@ -75,31 +75,30 @@ export function KolEditor() {
 
   return (
     <HandleTable
-      title="Key Network Nodes"
+      title="Key Accounts"
       loading={!kol}
-      loadingLabel="Loading Key Network Nodes…"
+      loadingLabel="Loading Key Accounts…"
       description={
         kol ? (
           <>
             Seeded with {kol.seedCount}{" "}
             {kol.deskMode === "venture"
-              ? "venture, startup, and tech-news"
+              ? "venture"
               : kol.deskMode === "both"
                 ? "markets and venture"
-                : "markets-desk"}{" "}
-            handles. These accounts skip the like floor and get a desk bump unless Require likes is on. Click a handle
-            to open the X profile. Follower counts come from posts Signl1 has already ingested — accounts with no match
-            yet show —. Switching desk mode on Desk tape swaps this seed.
+                : "markets"}{" "}
+            people. Their posts come through more readily unless Require likes is on. Click a handle to open the
+            profile. Follower counts come from posts Signl1 has already seen. Changing Focus swaps this seed.
           </>
         ) : null
       }
       items={items}
       busy={busy}
-      addAriaLabel="Add Key Network Node handle"
+      addAriaLabel="Add Key Account handle"
       onAdd={(raw) => save({ add: raw }, `@${raw.replace(/^@/, "").trim()} added`)}
       onRemove={(handle) => void save({ remove: handle }, `@${handle} removed`)}
       onRestore={(handle) => void save({ add: handle }, `@${handle} restored`)}
-      onReset={() => void save({ reset: true }, "Key Network Nodes reset")}
+      onReset={() => void save({ reset: true }, "Key Accounts reset")}
     />
   );
 }

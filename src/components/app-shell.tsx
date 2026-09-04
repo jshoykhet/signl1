@@ -68,7 +68,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="min-w-0 leading-tight">
             <div className="text-[17px] font-semibold tracking-[-0.02em]">Signl1</div>
             <div className="text-[12px] text-muted-foreground">
-              {status ? DESK_MODES[status.deskFilters.deskMode].shortLabel : "Desk"}
+              {status ? DESK_MODES[status.deskFilters.deskMode].shortLabel : "Signl1"}
             </div>
           </div>
         </div>
@@ -109,7 +109,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="rounded-2xl bg-amber-400/15 px-3 py-2.5">
               <div className="text-[13px] font-medium text-amber-800 dark:text-amber-200">Demo mode</div>
               <div className="mt-0.5 text-[12px] leading-snug text-amber-800/70 dark:text-amber-100/60">
-                No X bearer token. Fixture tape is playing.
+                Sample posts while you look around.
               </div>
             </div>
           ) : (
@@ -117,7 +117,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Activity
                 className={cn("size-3.5", status?.poller.healthy ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")}
               />
-              <span>{status?.poller.healthy ? "Poller healthy" : "Poller waiting"}</span>
+              <span>{status?.poller.healthy ? "Up to date" : "Waiting"}</span>
             </div>
           )}
           <UserMenu />

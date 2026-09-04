@@ -133,9 +133,8 @@ export function BlockedEditor() {
       ) : (
         <div className="grid gap-3 px-4 py-3.5">
           <p className="text-[13px] leading-relaxed text-muted-foreground">
-            Drop these accounts from the inbox and Slack/WhatsApp, even if they are Key Network Nodes or you labeled a
-            post high. Remove keeps the row so you can restore. Follower counts come from posts Signl1 has already
-            ingested.
+            These accounts stay out of the inbox and alerts, even if they are on Key Accounts or you marked a post to
+            keep. Remove keeps the row so you can restore it. Follower counts come from posts Signl1 has already seen.
           </p>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">

@@ -20,7 +20,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Signl1",
-  description: "Private X (Twitter) alert desks for research operators.",
+  description: "Signl1 watches X for what matters to you.",
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

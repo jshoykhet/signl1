@@ -31,7 +31,7 @@ export function CadenceSettings() {
       });
       if (!res.ok) throw new Error("Could not save interval");
       setMinutes(next);
-      toast.success(`${cadenceLabel(next)} — inbox and WhatsApp`);
+      toast.success(`${cadenceLabel(next)}.`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not save interval");
     } finally {
@@ -41,8 +41,8 @@ export function CadenceSettings() {
 
   return (
     <SettingsGroup
-      title="Inbox & WhatsApp"
-      footer="Signl1 polls X on this schedule and WhatsApp sends the top 20 matches from that window. Live X bills about $0.005 per post returned and $0.010 per author — shorter intervals cost more. Identical queries are shared across desks. Re-poll still runs now."
+      title="Updates"
+      footer="Signl1 checks X on this schedule. WhatsApp sends the best 20 posts from that window. Shorter intervals cost more on X. Re-poll still runs now."
     >
       <GroupedRow className="items-start sm:items-center">
         <div className="w-full shrink-0 text-[15px] text-muted-foreground sm:w-[9.5rem]">Interval</div>

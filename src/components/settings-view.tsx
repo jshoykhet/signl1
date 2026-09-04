@@ -56,7 +56,7 @@ export function SettingsView() {
       <div className="mx-auto w-full max-w-[680px] flex-1 px-5 py-8">
         <PageHeader
           title="Settings"
-          description="Secrets stay in the process environment. This page never prints the bearer token."
+          description="Your X token stays on the server. This page never shows it."
         />
         <div className="mt-8 space-y-8">
           {error ? (
@@ -70,9 +70,7 @@ export function SettingsView() {
                 <div className="rounded-2xl bg-amber-400/15 px-4 py-3.5">
                   <div className="text-[15px] font-medium text-amber-800 dark:text-amber-200">Demo mode</div>
                   <p className="mt-1 text-[15px] leading-snug text-amber-800/70 dark:text-amber-50/75">
-                    <code className="font-mono text-[13px]">X_BEARER_TOKEN</code> is not set. Signl1 is injecting fixture
-                    posts for the active desk (markets, venture, or both) so you can exercise rules and the inbox without paid
-                    X API access.
+                    There&apos;s no X token yet. Signl1 is showing sample posts so you can look around.
                   </p>
                 </div>
               ) : null}
@@ -100,20 +98,20 @@ export function SettingsView() {
                     {status.bearerToken === "present" ? "Present" : "Missing"}
                   </span>
                 </Row>
-                <Row label="Mode">{status.demoMode ? "Demo (fixtures)" : "Live (X API v2 recent search)"}</Row>
+                <Row label="Mode">{status.demoMode ? "Sample posts" : "Live"}</Row>
               </SettingsGroup>
               <CadenceSettings />
               <WhatsAppSettings />
               <DeskFilters />
               <SettingsGroup
                 title="Key Accounts"
-                footer="Desk tape still picks which list is live. Edit the handles themselves on Accounts, the same way Watchlist holds tickers."
+                footer="Focus chooses which list is live. Edit people on Accounts."
               >
                 <GroupedRow>
                   <div className="min-w-0 flex-1">
                     <div className="text-[17px] font-medium tracking-[-0.01em]">Markets and Venture lists</div>
                     <div className="mt-0.5 text-[13px] leading-snug text-muted-foreground">
-                      {status.kol.count} Key Network Nodes currently skip the like floor on this desk.
+                      {status.kol.count} {status.kol.count === 1 ? "person" : "people"} skip the like threshold.
                     </div>
                   </div>
                   <Link
@@ -126,14 +124,14 @@ export function SettingsView() {
                 </GroupedRow>
               </SettingsGroup>
               <BlockedEditor />
-              <SettingsGroup title="Poller">
+              <SettingsGroup title="Updates">
                 <Row label="Health">
                   <span
                     className={
                       status.poller.healthy ? "text-emerald-600 dark:text-emerald-400" : "text-amber-700 dark:text-amber-300"
                     }
                   >
-                    {status.poller.healthy ? "Healthy" : "No recent heartbeat"}
+                    {status.poller.healthy ? "Up to date" : "Not responding"}
                   </span>
                 </Row>
                 <Row label="Reported mode">{status.poller.mode}</Row>
@@ -142,12 +140,12 @@ export function SettingsView() {
                 <Row label="Last poll">{formatClock(status.poller.lastPollAt)}</Row>
                 <Row label="Manual re-poll">
                   {status.poller.manualPollPending
-                    ? "Queued — waiting for the poller tick"
+                    ? "Queued — waiting for the next check"
                     : status.poller.lastManualPollAt
                       ? `Last run ${formatClock(status.poller.lastManualPollAt)}`
                       : "None yet"}
                 </Row>
-                <Row label="Search calls">{status.poller.searchRequests} since poller start</Row>
+                <Row label="Search calls">{status.poller.searchRequests} since start</Row>
                 <Row label="Queries / cycle">
                   {status.poller.lastPackedQueries
                     ? `${status.poller.lastPackedQueries} packed recent-search request${status.poller.lastPackedQueries === 1 ? "" : "s"}`
@@ -168,7 +166,7 @@ export function SettingsView() {
                     : "—"}
                 </Row>
                 <Row label="Window reset">{formatClock(status.poller.rateLimitResetAt)}</Row>
-                <Row label="Inbox interval">
+                <Row label="Interval">
                   {cadenceLabel(status.cadenceMinutes)}
                 </Row>
                 <Row label="Last error">
@@ -184,11 +182,11 @@ export function SettingsView() {
               </SettingsGroup>
               <SettingsGroup title="Training">
                 <Row label="Inbox labels">
-                  {status.training.high} high / {status.training.low} low. Two net-low votes suppress that account; two
-                  net-high votes relax the floors.
+                  {status.training.high} keep / {status.training.low} hide. Two hide votes quiet that account. Two keep
+                  votes let more of their posts through.
                 </Row>
               </SettingsGroup>
-              <SettingsGroup title="Store">
+              <SettingsGroup title="Library">
                 <Row label="Rules">
                   {status.counts.rules} ({status.counts.enabledRules} enabled)
                 </Row>

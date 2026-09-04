@@ -42,7 +42,7 @@ export function startSoloOtp(rawPhone: string, db?: Database.Database): OtpStart
   const conn = use(db);
   const current = getSoloAuth(conn);
   if (current.confirmed && current.phone && current.phone !== phone) {
-    return { ok: false, error: "This desk is already linked to another number." };
+    return { ok: false, error: "Signl1 is already linked to another number." };
   }
 
   if (current.confirmed && current.phone === phone) {

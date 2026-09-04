@@ -28,7 +28,7 @@ function buildProviders(): NextAuthConfig["providers"] {
     providers.push(
       Credentials({
         id: "dev",
-        name: "Desk email",
+        name: "Email",
         credentials: {
           email: { label: "Email", type: "email" },
         },

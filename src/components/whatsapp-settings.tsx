@@ -170,9 +170,8 @@ export function WhatsAppSettings() {
       <GroupedRow className="items-start">
         <div className="w-full shrink-0 text-[15px] text-muted-foreground sm:w-[9.5rem]">Alerts</div>
         <p className="min-w-0 flex-1 text-[13px] leading-relaxed text-muted-foreground">
-          WhatsApp uses the <span className="text-foreground">Inbox & WhatsApp</span> interval above. Each window sends
-          the top 20 matches (score, likes, Key Network Nodes first). Extra matches stay in the inbox. Send test is
-          always immediate.
+          WhatsApp uses the Updates interval above. Each window sends the best 20 posts. The rest stay in the inbox. A
+          test message goes out immediately.
         </p>
       </GroupedRow>
       <GroupedRow className="items-start">
@@ -191,12 +190,9 @@ export function WhatsAppSettings() {
             </Button>
           </div>
           <p className="text-[13px] leading-relaxed text-muted-foreground">
-            Number that should receive <span className="text-foreground">your</span> alerts, with country
-            code. Or paste a group JID ending in{" "}
-            <code className="font-mono text-[12px]">@g.us</code>. You link one sending
-            WhatsApp; alerts to you come from that number. Sending to the linked account is a note to
-            yourself — look for <span className="text-foreground">Message yourself</span>; it often will
-            not push-notify.
+            The number that should receive your alerts, with country code. Or paste a group JID ending in{" "}
+            <code className="font-mono text-[12px]">@g.us</code>. You link one WhatsApp to send from. Sending to
+            yourself often will not notify — look for <span className="text-foreground">Message yourself</span>.
           </p>
         </div>
       </GroupedRow>

@@ -34,7 +34,7 @@ export function DeskFilters() {
 
   const load = async () => {
     const res = await fetch("/api/desk", { cache: "no-store" });
-    if (!res.ok) throw new Error("Failed to load desk filters");
+    if (!res.ok) throw new Error("Couldn't load filters.");
     const data = (await res.json()) as DeskFilterSettings;
     setFilters(data);
     setLikesDraft(String(data.minLikes));
@@ -53,7 +53,7 @@ export function DeskFilters() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(patch),
       });
-      if (!res.ok) throw new Error("Could not save desk filters");
+      if (!res.ok) throw new Error("Couldn't save filters.");
       const data = (await res.json()) as DeskFilterSettings;
       setFilters(data);
       setLikesDraft(String(data.minLikes));
@@ -61,14 +61,14 @@ export function DeskFilters() {
       if (patch.deskMode) {
         window.dispatchEvent(new CustomEvent("signl1:desk-mode", { detail: data.deskMode }));
         const toasts: Record<DeskMode, string> = {
-          markets: "Markets desk on — Key Accounts now use the markets list. Monitors stay as you left them.",
-          both: "Both desks on — Key Accounts now use the markets and venture lists. Monitors stay as you left them.",
-          venture: "Venture desk on — Key Accounts now use the startup list. Monitors stay as you left them.",
+          markets: "Now watching markets.",
+          both: "Now watching markets and venture.",
+          venture: "Now watching venture.",
         };
         toast.success(toasts[data.deskMode]);
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not save desk filters");
+      toast.error(err instanceof Error ? err.message : "Couldn't save filters.");
     } finally {
       setBusy(false);
     }
@@ -86,18 +86,18 @@ export function DeskFilters() {
   const sliderValue = Math.min(MIN_LIKES_SLIDER_MAX, likesLive);
   const footer =
     mode === "venture"
-      ? "Venture keeps funding rounds, launches, M&A, and sourced tech announcements. Founder lifestyle and dunks are dropped. Hide crypto only drops memecoins and airdrops — sector news still prints. Hide chat apps drops Telegram and WhatsApp. High labels still come through."
+      ? "Funding, launches, acquisitions, and sourced announcements stay in. Lifestyle and dunks stay out. Hide crypto drops memecoins, not sector news. Hide chat apps drops Telegram and WhatsApp. Posts you marked to keep still come through."
       : mode === "both"
-        ? "Both keeps markets prints and venture announcements. Cashtag chatter, founder lifestyle, and dunks are dropped. Hide crypto drops memecoins and token-only chatter, but listed names and sourced crypto-sector news still print. Hide chat apps drops Telegram and WhatsApp. High labels still come through."
-        : "The tape keeps news and analysis: prints vs expected, filings, policy, sourced takes. Cashtag-only posts and dunks are dropped. Hide crypto keeps listed names like $COIN and $MSTR. Hide chat apps drops Telegram and WhatsApp. High labels still come through.";
+        ? "Markets news and venture announcements stay in. Ticker chatter, lifestyle, and dunks stay out. Hide crypto drops memecoins, not listed names. Hide chat apps drops Telegram and WhatsApp. Posts you marked to keep still come through."
+        : "News and analysis stay in. Ticker-only posts and dunks stay out. Hide crypto keeps listed names like $COIN. Hide chat apps drops Telegram and WhatsApp. Posts you marked to keep still come through.";
 
   return (
-    <SettingsGroup title="Desk tape" footer={footer}>
+    <SettingsGroup title="Focus" footer={footer}>
       {!filters ? (
         <div className="px-4 py-3.5 text-[15px] text-muted-foreground">Loading filters…</div>
       ) : (
         <>
-          <Row label="Desk">
+          <Row label="Focus">
             <div className="grid gap-2">
               <div className="flex rounded-full bg-muted p-0.5">
                 {(Object.keys(DESK_MODES) as DeskMode[]).map((id) => {
@@ -130,7 +130,7 @@ export function DeskFilters() {
               <p className="text-[13px] leading-relaxed text-muted-foreground">{DESK_MODES[mode].hint}</p>
             </div>
           </Row>
-          <Row label="Nodes only">
+          <Row label="Key accounts only">
             <div className="flex items-center justify-end gap-3 sm:justify-start">
               <Switch
                 checked={filters.kolOnly}
@@ -217,8 +217,8 @@ export function DeskFilters() {
               className="py-1"
             />
             <p className="text-[13px] leading-relaxed text-muted-foreground">
-              Default is 5. Drag or type. Posts below this stay off the tape unless Recent tweets lets a new 10k+ desk
-              print through, or it is a Key Network Node.
+              Default is 5. Posts below this stay out, unless they&apos;re new from a large account or from someone on
+              Key Accounts.
             </p>
           </GroupedRow>
           <Row label="Require likes">
