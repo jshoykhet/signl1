@@ -72,6 +72,7 @@ Seeded monitors live on **Rules**, split into two modes. Each monitor is indepen
 
 | Name | Query |
 | --- | --- |
+| Key Leaders | `from:` searches of Markets Key Accounts (wires, squawk, desks). Edited on Accounts. |
 | Watchlist | User cashtags from the Watchlist page |
 | Fed | `(FOMC OR "interest rate" OR "fed funds" OR Powell) lang:en -is:retweet` |
 | Oil | `(OPEC OR "crude oil" OR WTI OR Brent) lang:en -is:retweet` |
@@ -85,7 +86,7 @@ Seeded monitors live on **Rules**, split into two modes. Each monitor is indepen
 | Funding Announcements | `raised` / `raising`, Seed / Series A–D, term sheet, valuation, led the round |
 | Product Launches | product launch, out of stealth, open sourced, generally available, demo day, new model/API/platform |
 
-Disable or edit these like any other rule. Switching Markets / VC does not turn the other mode’s monitors on or off.
+Disable or edit these like any other rule. **Focus** (Markets / Both / Venture) decides which monitors the poller actually searches. Markets searches Key Leaders, Watchlist, Fed, Oil, and Macro. Venture searches Tech Leaders, Funding, and Product Launches. Both searches all of them. Switching Focus does not turn the other mode’s monitors off in Rules — it only changes what is polled and shown in the inbox.
 
 ## Example rules
 

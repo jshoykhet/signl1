@@ -44,7 +44,21 @@ describe("monitor packs", () => {
     ensureUserDesk(U, db);
     const markets = listRulesForMode(U, "markets", db);
     const vc = listRulesForMode(U, "vc", db);
-    expect(markets.map((rule) => rule.name)).toEqual(["Watchlist", "Fed", "Oil", "Macro"]);
+    const keyLeaders = markets.filter((rule) => rule.kind === "key_leaders");
+    expect(keyLeaders.length).toBeGreaterThan(0);
+    expect(keyLeaders.every((rule) => rule.mode === "markets" && rule.enabled && rule.query.includes("from:"))).toBe(
+      true,
+    );
+    expect(keyLeaders.some((rule) => rule.accounts.includes("deitaone"))).toBe(true);
+    for (const rule of keyLeaders) {
+      expect(rule.query.length).toBeLessThanOrEqual(X_MAX_QUERY_CHARS);
+    }
+    expect(markets.filter((rule) => rule.kind !== "key_leaders").map((rule) => rule.name)).toEqual([
+      "Watchlist",
+      "Fed",
+      "Oil",
+      "Macro",
+    ]);
     expect(vc.map((rule) => rule.name)).toEqual([
       "Tech Leaders",
       "Funding Announcements",
@@ -52,7 +66,7 @@ describe("monitor packs", () => {
     ]);
     expect(markets.every((rule) => rule.mode === "markets")).toBe(true);
     expect(vc.every((rule) => rule.mode === "vc")).toBe(true);
-    expect(markets.filter((rule) => rule.kind !== "watchlist").every((rule) => rule.enabled)).toBe(true);
+    expect(markets.filter((rule) => rule.kind !== "watchlist" && rule.kind !== "key_leaders").every((rule) => rule.enabled)).toBe(true);
     expect(vc.every((rule) => rule.enabled)).toBe(true);
     expect(listRules(U, db).some((rule) => RETIRED_DEFAULT_MONITOR_NAMES.includes(rule.name as never))).toBe(
       false,

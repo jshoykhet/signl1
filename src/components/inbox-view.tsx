@@ -17,6 +17,8 @@ import {
 import { EmptyState } from "@/components/empty-state";
 import { formatClock, formatCompact, formatRelative } from "@/lib/format";
 import { cadenceLabel } from "@/lib/desk-settings";
+import { FocusControl } from "@/components/focus-control";
+import { parseDeskMode, type DeskMode } from "@/lib/desk-mode";
 import { cn } from "@/lib/utils";
 import type { Match, Rule, StatusSnapshot, UserLabel } from "@/lib/types";
 
@@ -79,6 +81,14 @@ export function InboxView() {
   const [polling, setPolling] = useState(false);
   const [cadenceMinutes, setCadenceMinutes] = useState<number | null>(null);
   const [pollerError, setPollerError] = useState<string | null>(null);
+  const [deskMode, setDeskMode] = useState<DeskMode>("markets");
+  const [modeBusy, setModeBusy] = useState(false);
+
+  const applyStatus = (statusJson: Partial<StatusSnapshot>) => {
+    if (typeof statusJson.cadenceMinutes === "number") setCadenceMinutes(statusJson.cadenceMinutes);
+    setPollerError(statusJson.poller?.lastError?.trim() || null);
+    if (statusJson.deskFilters?.deskMode) setDeskMode(parseDeskMode(statusJson.deskFilters.deskMode));
+  };
 
   const load = async () => {
     try {
@@ -100,16 +110,44 @@ export function InboxView() {
       const ruleJson = ruleRes.ok ? ((await ruleRes.json()) as { rules: Rule[] }) : { rules: [] };
       const statusJson = (
         statusRes.ok ? await statusRes.json() : {}
-      ) as Partial<Pick<StatusSnapshot, "cadenceMinutes" | "poller">>;
+      ) as Partial<StatusSnapshot>;
       setMatches(matchJson.matches);
       setRules(ruleJson.rules);
-      if (typeof statusJson.cadenceMinutes === "number") setCadenceMinutes(statusJson.cadenceMinutes);
-      setPollerError(statusJson.poller?.lastError?.trim() || null);
+      applyStatus(statusJson);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load inbox");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const saveMode = async (id: DeskMode) => {
+    setModeBusy(true);
+    try {
+      const res = await fetch("/api/desk", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ deskMode: id }),
+      });
+      if (!res.ok) throw new Error("Couldn't switch Focus.");
+      const data = (await res.json()) as { deskMode?: DeskMode };
+      const next = parseDeskMode(data.deskMode ?? id);
+      setDeskMode(next);
+      setRuleId("all");
+      window.dispatchEvent(new CustomEvent("signl1:desk-mode", { detail: next }));
+      const toasts: Record<DeskMode, string> = {
+        markets: "Now watching markets. Next search follows Key Leaders and Watchlist.",
+        both: "Now watching markets and venture.",
+        venture: "Now watching venture. Next search follows Tech Leaders, funding, and launches.",
+      };
+      toast.success(toasts[next]);
+      void fetch("/api/poll", { method: "POST" });
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't switch Focus.");
+    } finally {
+      setModeBusy(false);
     }
   };
 
@@ -150,12 +188,11 @@ export function InboxView() {
         const ruleJson = ruleRes.ok ? ((await ruleRes.json()) as { rules: Rule[] }) : { rules: [] };
         const statusJson = (
           statusRes.ok ? await statusRes.json() : {}
-        ) as Partial<Pick<StatusSnapshot, "cadenceMinutes" | "poller">>;
+        ) as Partial<StatusSnapshot>;
         if (cancelled) return;
         setMatches(matchJson.matches);
         setRules(ruleJson.rules);
-        if (typeof statusJson.cadenceMinutes === "number") setCadenceMinutes(statusJson.cadenceMinutes);
-        setPollerError(statusJson.poller?.lastError?.trim() || null);
+        applyStatus(statusJson);
         setError(null);
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load inbox");
@@ -181,6 +218,28 @@ export function InboxView() {
     () => matches.find((m) => m.id === selectedId) ?? matches[0] ?? null,
     [matches, selectedId],
   );
+
+  const focusRules = useMemo(() => {
+    if (deskMode === "both") return rules;
+    if (deskMode === "venture") return rules.filter((rule) => rule.mode === "vc");
+    return rules.filter((rule) => rule.mode === "markets");
+  }, [rules, deskMode]);
+
+  useEffect(() => {
+    if (ruleId !== "all" && !focusRules.some((rule) => rule.id === ruleId)) {
+      setRuleId("all");
+    }
+  }, [focusRules, ruleId]);
+
+  useEffect(() => {
+    const onMode = () => {
+      void load();
+    };
+    window.addEventListener("signl1:desk-mode", onMode);
+    return () => window.removeEventListener("signl1:desk-mode", onMode);
+    // Reload when Settings changes Focus.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ruleId, unreadOnly, query]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -304,6 +363,7 @@ export function InboxView() {
             </Button>
           </div>
         </div>
+        <FocusControl value={deskMode} disabled={modeBusy} compact onChange={(id) => void saveMode(id)} />
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <div className="relative min-w-0 flex-1 basis-48">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -330,7 +390,7 @@ export function InboxView() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All rules</SelectItem>
-              {rules.map((rule) => (
+              {focusRules.map((rule) => (
                 <SelectItem key={rule.id} value={rule.id}>
                   {rule.name}
                 </SelectItem>

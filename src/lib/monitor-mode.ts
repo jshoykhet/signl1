@@ -7,7 +7,7 @@ export const MONITOR_MODES: Record<
   markets: {
     id: "markets",
     label: "Markets",
-    hint: "Watchlist names, the Fed, oil, and the numbers that move markets.",
+    hint: "Key Leaders, Watchlist names, the Fed, oil, and the numbers that move markets.",
   },
   vc: {
     id: "vc",

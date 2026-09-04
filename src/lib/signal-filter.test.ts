@@ -202,6 +202,19 @@ describe("passesSignalFilter", () => {
     );
     expect(cybercab.pass).toBe(true);
 
+    const tape = passesSignalFilter(
+      quality({
+        authorHandle: "DeItaone",
+        followersCount: 1_400_000,
+        likeCount: 0,
+        verified: true,
+        text: "JUST IN: CPI 3.2% vs 3.1% expected",
+      }),
+      now,
+      { deskMode: "both", signalLevel: "high", watchedAuthor: true },
+    );
+    expect(tape.pass).toBe(true);
+
     const seahawks = passesSignalFilter(
       quality({
         authorHandle: "vkhosla",

@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { compileFromAccounts, compileQuery, isWatchedAuthor, matchesQuery, normalizeAccounts } from "./query";
+import { X_MAX_QUERY_CHARS, WATCHLIST_QUERY_BUDGET } from "./config";
+import {
+  chunkHandlesForFromQuery,
+  compileFromAccounts,
+  compileKeyLeadersQuery,
+  compileQuery,
+  isWatchedAuthor,
+  matchesQuery,
+  normalizeAccounts,
+} from "./query";
 
 describe("normalizeAccounts", () => {
   it("strips @, lowercases, de-dupes, and drops invalid handles", () => {
@@ -72,5 +81,31 @@ describe("matchesQuery", () => {
         "(from:nvidia OR from:apple) GPU",
       ),
     ).toBe(false);
+  });
+});
+
+describe("chunkHandlesForFromQuery", () => {
+  it("packs from: handles so each compiled Key Leaders query stays under the X budget", () => {
+    const handles = Array.from({ length: 80 }, (_, i) => `desk${String(i).padStart(2, "0")}`);
+    const chunks = chunkHandlesForFromQuery(handles, WATCHLIST_QUERY_BUDGET);
+    expect(chunks.length).toBeGreaterThan(1);
+    expect(chunks.flat()).toEqual(handles);
+    for (const chunk of chunks) {
+      const compiled = compileKeyLeadersQuery(chunk);
+      expect(compiled.length).toBeLessThanOrEqual(WATCHLIST_QUERY_BUDGET);
+      expect(compiled.length).toBeLessThanOrEqual(X_MAX_QUERY_CHARS);
+      expect(compiled).toContain("from:");
+      expect(compiled).toContain("lang:en");
+      expect(compiled).toContain("-is:retweet");
+    }
+  });
+
+  it("keeps a small list as a single from: query", () => {
+    expect(chunkHandlesForFromQuery(["DeItaone", "FirstSquawk"], WATCHLIST_QUERY_BUDGET)).toEqual([
+      ["deitaone", "firstsquawk"],
+    ]);
+    expect(compileKeyLeadersQuery(["deitaone", "firstsquawk"])).toBe(
+      "(from:deitaone OR from:firstsquawk) lang:en -is:retweet",
+    );
   });
 });

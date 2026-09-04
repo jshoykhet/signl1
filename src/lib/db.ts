@@ -1,8 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
-import { clampPollIntervalMs, databasePath, DEFAULT_POLL_INTERVAL_MS, isDemoMode, MAX_WATCHLIST_TICKERS } from "./config";
-import { compileQuery, isWatchedAuthor, normalizeAccounts } from "./query";
+import { clampPollIntervalMs, databasePath, DEFAULT_POLL_INTERVAL_MS, isDemoMode, MAX_WATCHLIST_TICKERS, WATCHLIST_QUERY_BUDGET } from "./config";
+import { chunkHandlesForFromQuery, compileKeyLeadersQuery, compileQuery, isWatchedAuthor, normalizeAccounts } from "./query";
+import { ruleFitsFocus, sqlFocusMode } from "./feed-scope";
 import { likePattern, tokenizeSearch } from "./search";
 import {
   isSeedOrEnvHandle,
@@ -128,7 +129,12 @@ function mapRule(row: RuleRow): Rule {
     lastError: row.last_error,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-    kind: row.kind === "watchlist" ? "watchlist" : "custom",
+    kind:
+      row.kind === "watchlist"
+        ? "watchlist"
+        : row.kind === "key_leaders"
+          ? "key_leaders"
+          : "custom",
     watchlistChunk: typeof row.watchlist_chunk === "number" ? row.watchlist_chunk : null,
     mode: parseMonitorMode(row.mode),
   };
@@ -292,6 +298,7 @@ const DESK_META_KEYS = [
   "inbox_last_polled_at",
   "watchlist_enabled",
   "watchlist_poll_interval_ms",
+  "key_leaders_enabled",
   "monitor_mode",
 ] as const;
 
@@ -754,6 +761,7 @@ function insertSeedRules(userId: string, db: Database.Database) {
 }
 
 function monitorRank(rule: Rule): number {
+  if (rule.kind === "key_leaders") return -20 + (rule.watchlistChunk ?? 0);
   if (rule.kind === "watchlist") return rule.watchlistChunk ?? 0;
   const names: readonly string[] = rule.mode === "vc" ? VC_DEFAULT_NAMES : MARKETS_DEFAULT_NAMES;
   const idx = names.indexOf(rule.name);
@@ -773,11 +781,13 @@ function sortMonitors(rules: Rule[]): Rule[] {
 }
 
 function overlayWatchlistEnabled(userId: string, rules: Rule[], db: Database.Database): Rule[] {
-  const enabled = watchlistEnabled(userId, db);
+  const watchlistOn = watchlistEnabled(userId, db);
+  const leadersOn = keyLeadersEnabled(userId, db);
   const cadence = getDeskCadenceMinutes(userId, db) * 60_000;
   return rules.map((rule) => ({
     ...rule,
-    enabled: rule.kind === "watchlist" ? enabled : rule.enabled,
+    enabled:
+      rule.kind === "watchlist" ? watchlistOn : rule.kind === "key_leaders" ? leadersOn : rule.enabled,
     pollIntervalMs: cadence,
   }));
 }
@@ -791,7 +801,7 @@ function applyMonitorRenames(userId: string, db: Database.Database) {
   const ts = nowIso();
   for (const [from, to] of Object.entries(MONITOR_RENAMES)) {
     if (!existing.has(from) || existing.has(to)) continue;
-    db.prepare("UPDATE rules SET name = ?, updated_at = ? WHERE user_id = ? AND name = ? AND kind != 'watchlist'").run(
+    db.prepare("UPDATE rules SET name = ?, updated_at = ? WHERE user_id = ? AND name = ? AND kind NOT IN ('watchlist', 'key_leaders')").run(
       to,
       ts,
       userId,
@@ -805,7 +815,7 @@ function applyMonitorRenames(userId: string, db: Database.Database) {
 function stampKnownMonitorModes(userId: string, db: Database.Database) {
   const ts = nowIso();
   for (const seed of DEFAULT_MONITORS) {
-    db.prepare("UPDATE rules SET mode = ?, updated_at = ? WHERE user_id = ? AND name = ? AND kind != 'watchlist'").run(
+    db.prepare("UPDATE rules SET mode = ?, updated_at = ? WHERE user_id = ? AND name = ? AND kind NOT IN ('watchlist', 'key_leaders')").run(
       seed.mode,
       ts,
       userId,
@@ -813,6 +823,7 @@ function stampKnownMonitorModes(userId: string, db: Database.Database) {
     );
   }
   db.prepare("UPDATE rules SET mode = 'markets', updated_at = ? WHERE user_id = ? AND kind = 'watchlist'").run(ts, userId);
+  db.prepare("UPDATE rules SET mode = 'markets', updated_at = ? WHERE user_id = ? AND kind = 'key_leaders'").run(ts, userId);
 }
 
 function insertMissingDefaultMonitors(userId: string, db: Database.Database) {
@@ -858,7 +869,7 @@ function reenablePackDisabledByDeskSwitch(userId: string, db: Database.Database)
   for (const name of names) {
     if (name === "Watchlist") continue;
     db.prepare(
-      "UPDATE rules SET enabled = 1, updated_at = ? WHERE user_id = ? AND name = ? AND kind != 'watchlist'",
+      "UPDATE rules SET enabled = 1, updated_at = ? WHERE user_id = ? AND name = ? AND kind NOT IN ('watchlist', 'key_leaders')",
     ).run(ts, userId, name);
   }
 }
@@ -866,7 +877,7 @@ function reenablePackDisabledByDeskSwitch(userId: string, db: Database.Database)
 function deleteRetiredDefaultMonitors(userId: string, db: Database.Database) {
   const placeholders = RETIRED_DEFAULT_MONITOR_NAMES.map(() => "?").join(", ");
   db.prepare(
-    `DELETE FROM rules WHERE user_id = ? AND kind != 'watchlist' AND name IN (${placeholders})`,
+    `DELETE FROM rules WHERE user_id = ? AND kind NOT IN ('watchlist', 'key_leaders') AND name IN (${placeholders})`,
   ).run(userId, ...RETIRED_DEFAULT_MONITOR_NAMES);
 }
 
@@ -887,7 +898,7 @@ function ensureWatchlistPlaceholder(userId: string, db: Database.Database) {
 
 function upgradeUneditedSeedQueries(userId: string, db: Database.Database) {
   for (const [name, upgrade] of Object.entries(UNEDITED_SEED_QUERY_UPGRADES)) {
-    const row = db.prepare("SELECT id, query_input FROM rules WHERE user_id = ? AND name = ? AND kind != 'watchlist'").get(
+    const row = db.prepare("SELECT id, query_input FROM rules WHERE user_id = ? AND name = ? AND kind NOT IN ('watchlist', 'key_leaders')").get(
       userId,
       name,
     ) as { id: string; query_input: string } | undefined;
@@ -909,6 +920,7 @@ export function ensureMonitorPack(userId: string, db = getDb()) {
   }
   upgradeUneditedSeedQueries(userId, db);
   ensureWatchlistPlaceholder(userId, db);
+  syncKeyLeaderRules(userId, db);
 }
 
 export function getMonitorMode(userId: string, db = getDb()): MonitorMode {
@@ -992,7 +1004,7 @@ export function listRulesForMode(userId: string, mode: MonitorMode, db = getDb()
   return listRules(userId, db).filter((rule) => rule.mode === wanted);
 }
 
-/** Every enabled rule across desks. The poller packs these into X searches. */
+/** Enabled rules that the live Focus will actually search. */
 export function listEnabledRules(db = getDb()): Rule[] {
   for (const userId of listDeskUserIds(db)) {
     ensureMonitorPack(userId, db);
@@ -1004,12 +1016,16 @@ export function listEnabledRules(db = getDb()): Rule[] {
       AND (r.user_id = '' OR r.user_id NOT IN (SELECT id FROM users WHERE COALESCE(disabled, 0) = 1))
     ORDER BY r.created_at ASC
   `).all() as RuleRow[];
-  return rows.map(mapRule);
+  return rows.map(mapRule).filter((rule) => {
+    const focus = parseDeskMode(getUserMeta(rule.userId, "desk_mode", db));
+    return ruleFitsFocus(rule, focus);
+  });
 }
 
 export function listEnabledRulesForUser(userId: string, db = getDb()): Rule[] {
   if (!userId) return [];
-  return listRules(userId, db).filter((rule) => rule.enabled && rule.query.trim() !== "");
+  const focus = parseDeskMode(getUserMeta(userId, "desk_mode", db));
+  return listRules(userId, db).filter((rule) => ruleFitsFocus(rule, focus));
 }
 
 export function getRule(id: string, userId?: string, db = getDb()): Rule | null {
@@ -1059,6 +1075,15 @@ export function updateRule(id: string, input: Partial<RuleInput>, userId: string
   if (existing.kind === "watchlist") {
     throw new Error("Watchlist cashtag rules are edited on the Watchlist page.");
   }
+  if (existing.kind === "key_leaders") {
+    const keys = Object.keys(input).filter((key) => input[key as keyof RuleInput] !== undefined);
+    if (keys.length === 1 && keys[0] === "enabled" && typeof input.enabled === "boolean") {
+      setUserMeta(userId, "key_leaders_enabled", input.enabled ? "1" : "0", db);
+      syncKeyLeaderRules(userId, db);
+      return getRule(id, userId, db)!;
+    }
+    throw new Error("Key Leaders monitors are edited on Accounts.");
+  }
   const merged: RuleInput = {
     name: input.name ?? existing.name,
     enabled: input.enabled ?? existing.enabled,
@@ -1100,6 +1125,9 @@ export function deleteRule(id: string, userId: string, db = getDb()): boolean {
   if (!existing) return false;
   if (existing.kind === "watchlist") {
     throw new Error("Watchlist cashtag rules are edited on the Watchlist page.");
+  }
+  if (existing.kind === "key_leaders") {
+    throw new Error("Key Leaders monitors are removed from Accounts.");
   }
   const result = db.prepare("DELETE FROM rules WHERE id = ? AND user_id = ?").run(id, userId);
   return result.changes > 0;
@@ -1195,7 +1223,8 @@ export function listMatches(
     const pattern = likePattern(token);
     params.push(pattern, pattern, pattern, pattern, pattern);
   }
-  const where = `WHERE ${clauses.join(" AND ")}`;
+  const extra = sqlFocusMode(parseDeskMode(getUserMeta(userId, "desk_mode", db)));
+  const where = `WHERE ${clauses.join(" AND ")}${extra.sql}`;
   const rows = db.prepare(`
     SELECT m.*, r.name AS rule_name
     FROM matches m
@@ -1203,7 +1232,7 @@ export function listMatches(
     ${where}
     ORDER BY m.matched_at DESC, m.tweet_created_at DESC
     LIMIT ?
-  `).all(...params, limit) as MatchRow[];
+  `).all(...params, ...extra.params, limit) as MatchRow[];
   return attachPriors(rows.map((row) => mapMatch(row, db)), userId, db);
 }
 
@@ -1211,16 +1240,17 @@ export function listMatchesSince(userId: string, iso: string, limit = 400, db = 
   const blocked = listBlockedHandles(getBlockedSpec(userId, db));
   const blockedSql =
     blocked.length > 0 ? `AND lower(m.author_handle) NOT IN (${blocked.map(() => "?").join(", ")})` : "";
+  const extra = sqlFocusMode(parseDeskMode(getUserMeta(userId, "desk_mode", db)));
   const rows = db.prepare(`
     SELECT m.*, r.name AS rule_name
     FROM matches m
     JOIN rules r ON r.id = m.rule_id
     WHERE m.user_id = ? AND m.matched_at > ?
       AND (m.signal_pass IS NULL OR m.signal_pass = 1)
-      ${blockedSql}
+      ${blockedSql}${extra.sql}
     ORDER BY m.matched_at ASC
     LIMIT ?
-  `).all(userId, iso, ...blocked, Math.min(Math.max(limit, 1), 400)) as MatchRow[];
+  `).all(userId, iso, ...blocked, ...extra.params, Math.min(Math.max(limit, 1), 400)) as MatchRow[];
   return attachPriors(rows.map((row) => mapMatch(row, db)), userId, db);
 }
 
@@ -1386,6 +1416,7 @@ export function addKolHandle(userId: string, handle: string, db = getDb(), pack?
     setUserMeta(userId, keys.added, serializeHandleList(added), db);
     setUserMeta(userId, keys.removed, serializeHandleList(removed), db);
   }
+  syncKeyLeaderRules(userId, db);
   return listKolHandles(pack ? getKolPackSpec(userId, pack, db) : getKolSpec(userId, db));
 }
 
@@ -1420,6 +1451,7 @@ export function removeKolHandle(userId: string, handle: string, db = getDb(), pa
     setUserMeta(userId, keys.added, serializeHandleList(added), db);
     setUserMeta(userId, keys.removed, serializeHandleList(removed), db);
   }
+  syncKeyLeaderRules(userId, db);
   return listKolHandles(pack ? getKolPackSpec(userId, pack, db) : getKolSpec(userId, db));
 }
 
@@ -1436,6 +1468,7 @@ export function resetKolHandles(userId: string, db = getDb(), pack?: KolPackId):
     setUserMeta(userId, "kol_added", "", db);
     setUserMeta(userId, "kol_removed", "", db);
   }
+  syncKeyLeaderRules(userId, db);
   return listKolHandles(pack ? getKolPackSpec(userId, pack, db) : getKolSpec(userId, db));
 }
 
@@ -1488,14 +1521,16 @@ export function getStatus(userId: string, opts: { demoMode: boolean; bearerPrese
   const healthy = lastHeartbeatAt
     ? Date.now() - new Date(lastHeartbeatAt).getTime() < 30_000
     : false;
+  const extra = sqlFocusMode(parseDeskMode(getUserMeta(userId, "desk_mode", db)));
+  const liveClause = opts.demoMode ? "" : "AND m.tweet_id NOT LIKE 'demo-%'";
   const counts = db.prepare(`
     SELECT
       (SELECT COUNT(*) FROM rules WHERE user_id = ?) AS rules,
-      (SELECT COUNT(*) FROM rules WHERE user_id = ? AND enabled = 1) AS enabled_rules,
-      (SELECT COUNT(*) FROM matches WHERE user_id = ? AND (signal_pass IS NULL OR signal_pass = 1) ${opts.demoMode ? "" : "AND tweet_id NOT LIKE 'demo-%'"}) AS matches,
-      (SELECT COUNT(*) FROM matches WHERE user_id = ? AND read = 0 AND (signal_pass IS NULL OR signal_pass = 1) ${opts.demoMode ? "" : "AND tweet_id NOT LIKE 'demo-%'"}) AS unread,
+      (SELECT COUNT(*) FROM rules r WHERE r.user_id = ? AND r.enabled = 1 AND TRIM(r.query) != ''${extra.sql}) AS enabled_rules,
+      (SELECT COUNT(*) FROM matches m JOIN rules r ON r.id = m.rule_id WHERE m.user_id = ? AND (m.signal_pass IS NULL OR m.signal_pass = 1) ${liveClause}${extra.sql}) AS matches,
+      (SELECT COUNT(*) FROM matches m JOIN rules r ON r.id = m.rule_id WHERE m.user_id = ? AND m.read = 0 AND (m.signal_pass IS NULL OR m.signal_pass = 1) ${liveClause}${extra.sql}) AS unread,
       (SELECT COUNT(*) FROM tickers WHERE user_id = ?) AS tickers
-  `).get(userId, userId, userId, userId, userId) as {
+  `).get(userId, userId, ...extra.params, userId, ...extra.params, userId, ...extra.params, userId) as {
     rules: number;
     enabled_rules: number;
     matches: number;
@@ -1602,8 +1637,19 @@ function listWatchlistRules(userId: string, db: Database.Database): Rule[] {
   return rows.map(mapRule);
 }
 
+function listKeyLeaderRules(userId: string, db: Database.Database): Rule[] {
+  const rows = db.prepare(
+    "SELECT * FROM rules WHERE kind = 'key_leaders' AND user_id = ? ORDER BY COALESCE(watchlist_chunk, 0) ASC, created_at ASC",
+  ).all(userId) as RuleRow[];
+  return rows.map(mapRule);
+}
+
 function watchlistEnabled(userId: string, db: Database.Database): boolean {
   return (getUserMeta(userId, "watchlist_enabled", db) ?? "1") !== "0";
+}
+
+function keyLeadersEnabled(userId: string, db: Database.Database): boolean {
+  return (getUserMeta(userId, "key_leaders_enabled", db) ?? "1") !== "0";
 }
 
 function watchlistPollIntervalMs(userId: string, db: Database.Database): number {
@@ -1730,3 +1776,86 @@ export function setWatchlistSettings(
   syncWatchlistRules(userId, db);
   return getWatchlist(userId, db);
 }
+
+export function syncKeyLeaderRules(userId: string, db = getDb()) {
+  const handles = listKolHandles(getKolPackSpec(userId, "markets", db));
+  const enabled = keyLeadersEnabled(userId, db) && handles.length > 0;
+  const interval = watchlistPollIntervalMs(userId, db);
+  const chunks = chunkHandlesForFromQuery(handles, WATCHLIST_QUERY_BUDGET);
+  const existing = listKeyLeaderRules(userId, db);
+  const ts = nowIso();
+
+  const apply = db.transaction(() => {
+    if (chunks.length === 0) {
+      const keep = existing[0];
+      if (keep) {
+        db.prepare(`
+          UPDATE rules SET
+            name = 'Key Leaders', enabled = 0, query = '', query_input = '',
+            accounts_json = '[]', poll_interval_ms = ?, watchlist_chunk = 0,
+            kind = 'key_leaders', mode = 'markets', updated_at = ?
+          WHERE id = ? AND user_id = ?
+        `).run(interval, ts, keep.id, userId);
+        for (const extra of existing.slice(1)) {
+          db.prepare("DELETE FROM rules WHERE id = ? AND user_id = ?").run(extra.id, userId);
+        }
+      } else {
+        db.prepare(`
+          INSERT INTO rules (
+            id, user_id, name, enabled, query, query_input, accounts_json, poll_interval_ms,
+            slack_webhook_url, generic_webhook_url, created_at, updated_at, kind, watchlist_chunk, mode
+          ) VALUES (?, ?, 'Key Leaders', 0, '', '', '[]', ?, NULL, NULL, ?, ?, 'key_leaders', 0, 'markets')
+        `).run(crypto.randomUUID(), userId, interval, ts, ts);
+      }
+      return;
+    }
+    for (let i = 0; i < chunks.length; i += 1) {
+      const query = compileKeyLeadersQuery(chunks[i]);
+      const name = chunks.length === 1 ? "Key Leaders" : `Key Leaders ${i + 1}`;
+      const current = existing[i];
+      if (current) {
+        db.prepare(`
+          UPDATE rules SET
+            name = ?, enabled = ?, query = ?, query_input = ?, accounts_json = ?,
+            poll_interval_ms = ?, watchlist_chunk = ?, kind = 'key_leaders', mode = 'markets', updated_at = ?
+          WHERE id = ? AND user_id = ?
+        `).run(
+          name,
+          enabled ? 1 : 0,
+          query,
+          "lang:en -is:retweet",
+          JSON.stringify(chunks[i]),
+          interval,
+          i,
+          ts,
+          current.id,
+          userId,
+        );
+      } else {
+        db.prepare(`
+          INSERT INTO rules (
+            id, user_id, name, enabled, query, query_input, accounts_json, poll_interval_ms,
+            slack_webhook_url, generic_webhook_url, created_at, updated_at, kind, watchlist_chunk, mode
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, 'key_leaders', ?, 'markets')
+        `).run(
+          crypto.randomUUID(),
+          userId,
+          name,
+          enabled ? 1 : 0,
+          query,
+          "lang:en -is:retweet",
+          JSON.stringify(chunks[i]),
+          interval,
+          ts,
+          ts,
+          i,
+        );
+      }
+    }
+    for (const extra of existing.slice(chunks.length)) {
+      db.prepare("DELETE FROM rules WHERE id = ? AND user_id = ?").run(extra.id, userId);
+    }
+  });
+  apply();
+}
+

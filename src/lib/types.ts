@@ -4,7 +4,7 @@ import type { AuthorPrior, UserLabel } from "./signal-filter";
 
 export type { AuthorPrior, UserLabel, MonitorMode };
 
-export type RuleKind = "custom" | "watchlist";
+export type RuleKind = "custom" | "watchlist" | "key_leaders";
 
 export type Rule = {
   id: string;

@@ -68,7 +68,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="min-w-0 leading-tight">
             <div className="text-[17px] font-semibold tracking-[-0.02em]">Signl1</div>
             <div className="text-[12px] text-muted-foreground">
-              {status ? DESK_MODES[status.deskFilters.deskMode].shortLabel : "Signl1"}
+              {status ? (
+                <span className="rounded-full bg-foreground px-2 py-0.5 text-[11px] font-semibold text-background">
+                  {DESK_MODES[status.deskFilters.deskMode].shortLabel}
+                </span>
+              ) : (
+                "Signl1"
+              )}
             </div>
           </div>
         </div>

@@ -153,9 +153,30 @@ export function RulesView() {
     toast.success(enabled ? "Watchlist on" : "Watchlist off");
   };
 
+  const toggleKeyLeaders = async (enabled: boolean) => {
+    setRules((prev) => prev.map((r) => (r.kind === "key_leaders" ? { ...r, enabled } : r)));
+    const first = rules.find((r) => r.kind === "key_leaders");
+    if (!first) return;
+    const res = await fetch(`/api/rules/${first.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ enabled }),
+    });
+    if (!res.ok) {
+      toast.error("Could not update Key Leaders");
+      void load(mode);
+      return;
+    }
+    toast.success(enabled ? "Key Leaders on" : "Key Leaders off");
+  };
+
   const toggle = async (rule: Rule, enabled: boolean) => {
     if (rule.kind === "watchlist") {
       await toggleWatchlist(enabled);
+      return;
+    }
+    if (rule.kind === "key_leaders") {
+      await toggleKeyLeaders(enabled);
       return;
     }
     setRules((prev) => prev.map((r) => (r.id === rule.id ? { ...r, enabled } : r)));
@@ -256,14 +277,22 @@ export function RulesView() {
         ) : (
           <div className="mx-auto w-full max-w-5xl space-y-6 px-5 py-6">
             {visibleRules.map((rule) => {
+              const managed =
+                rule.kind === "watchlist" || rule.kind === "key_leaders";
               const accountItems =
-                rule.accounts.length > 0
+                !managed && rule.accounts.length > 0
                   ? buildHandleListItems(seedAccountsForMonitor(rule.name), rule.accounts, followers)
                   : [];
               return (
                 <SettingsGroup
                   key={rule.id}
-                  title={rule.kind === "watchlist" ? "Watchlist" : undefined}
+                  title={
+                    rule.kind === "watchlist"
+                      ? "Watchlist"
+                      : rule.kind === "key_leaders"
+                        ? "Key Leaders"
+                        : undefined
+                  }
                   footer={
                     rule.lastError ? (
                       <span className="text-destructive">{rule.lastError}</span>
@@ -276,7 +305,9 @@ export function RulesView() {
                       <div className="mt-0.5 text-[13px] leading-snug text-muted-foreground">
                         {rule.kind === "watchlist"
                           ? "Managed from Watchlist · cashtags"
-                          : rule.accounts.length
+                          : rule.kind === "key_leaders"
+                            ? "Managed from Accounts · Markets Key Accounts"
+                            : rule.accounts.length
                             ? `${rule.accounts.length} accounts${rule.queryInput.trim() ? ` · ${rule.queryInput.trim()}` : ""}`
                             : "Keyword search"}
                         {" · "}
@@ -306,6 +337,12 @@ export function RulesView() {
                         <p className="min-w-0 flex-1 text-[15px] text-muted-foreground">
                           Add cashtags on Watchlist to start polling.
                         </p>
+                      ) : rule.kind === "key_leaders" ? (
+                        <p className="min-w-0 flex-1 text-[15px] text-muted-foreground">
+                          {rule.accounts.length
+                            ? `${rule.accounts.length} Markets Key Accounts in this search.`
+                            : "Add Markets Key Accounts to start polling."}
+                        </p>
                       ) : (
                         <code className="min-w-0 flex-1 font-mono text-[13px] leading-relaxed break-all text-foreground line-clamp-3">
                           {rule.query}
@@ -320,6 +357,10 @@ export function RulesView() {
                     {rule.kind === "watchlist" ? (
                       <Link href="/watchlist" className={buttonVariants({ variant: "ghost", size: "sm" })}>
                         Edit list
+                      </Link>
+                    ) : rule.kind === "key_leaders" ? (
+                      <Link href="/accounts" className={buttonVariants({ variant: "ghost", size: "sm" })}>
+                        Edit accounts
                       </Link>
                     ) : (
                       <div className="flex gap-1">

@@ -41,6 +41,34 @@ export function compileQuery(input: {
   return fromClause || query;
 }
 
+const FROM_QUERY_SUFFIX = "lang:en -is:retweet";
+
+/** Pack `from:` handles so each compiled query stays under the X character budget. */
+export function chunkHandlesForFromQuery(
+  accounts: string[] | string | null | undefined,
+  maxChars: number,
+): string[][] {
+  const handles = normalizeAccounts(accounts);
+  const chunks: string[][] = [];
+  let current: string[] = [];
+  for (const handle of handles) {
+    const candidate = [...current, handle];
+    const compiled = compileQuery({ query: FROM_QUERY_SUFFIX, accounts: candidate });
+    if (compiled.length > maxChars && current.length > 0) {
+      chunks.push(current);
+      current = [handle];
+    } else {
+      current = candidate;
+    }
+  }
+  if (current.length) chunks.push(current);
+  return chunks;
+}
+
+export function compileKeyLeadersQuery(accounts: string[] | string | null | undefined): string {
+  return compileQuery({ query: FROM_QUERY_SUFFIX, accounts });
+}
+
 type Token =
   | { type: "OR" }
   | { type: "LPAREN" }

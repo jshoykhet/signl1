@@ -14,8 +14,8 @@ import {
   type DeskFilterSettings,
   type SignalLevel,
 } from "@/lib/desk-settings";
-import { DESK_MODES, signalLevelHint, type DeskMode } from "@/lib/desk-mode";
-import { cn } from "@/lib/utils";
+import { signalLevelHint, type DeskMode } from "@/lib/desk-mode";
+import { FocusControl } from "@/components/focus-control";
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -98,37 +98,11 @@ export function DeskFilters() {
       ) : (
         <>
           <Row label="Focus">
-            <div className="grid gap-2">
-              <div className="flex rounded-full bg-muted p-0.5">
-                {(Object.keys(DESK_MODES) as DeskMode[]).map((id) => {
-                  const selected = filters.deskMode === id;
-                  const both = id === "both";
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      disabled={busy}
-                      onClick={() => {
-                        if (filters.deskMode !== id) void save({ deskMode: id });
-                      }}
-                      className={cn(
-                        "min-w-0 flex-1 rounded-full px-2 py-1.5 text-[13px] transition-colors",
-                        both
-                          ? selected
-                            ? "bg-amber-400 font-semibold text-amber-950 shadow-sm"
-                            : "bg-amber-400/30 font-medium text-amber-900 dark:bg-amber-400/20 dark:text-amber-200"
-                          : selected
-                            ? "bg-background font-medium text-foreground shadow-sm"
-                            : "text-muted-foreground",
-                      )}
-                    >
-                      {DESK_MODES[id].label}
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="text-[13px] leading-relaxed text-muted-foreground">{DESK_MODES[mode].hint}</p>
-            </div>
+            <FocusControl
+              value={filters.deskMode}
+              disabled={busy}
+              onChange={(id) => void save({ deskMode: id })}
+            />
           </Row>
           <Row label="Key accounts only">
             <div className="flex items-center justify-end gap-3 sm:justify-start">

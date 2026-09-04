@@ -2,25 +2,28 @@ export type DeskMode = "markets" | "both" | "venture";
 
 export const DESK_MODES: Record<
   DeskMode,
-  { id: DeskMode; label: string; shortLabel: string; hint: string }
+  { id: DeskMode; label: string; shortLabel: string; hint: string; sources: string }
 > = {
   markets: {
     id: "markets",
     label: "Markets",
     shortLabel: "Markets",
     hint: "Rates, earnings, policy, and what moves public markets.",
+    sources: "Follows Markets Key Accounts and Watchlist, plus Fed, Oil, and Macro.",
   },
   both: {
     id: "both",
     label: "Both",
     shortLabel: "Markets & Venture",
-    hint: "Markets and venture together. Key Accounts uses both lists.",
+    hint: "Markets and venture together.",
+    sources: "Follows both Key Accounts lists, Watchlist, and every monitor.",
   },
   venture: {
     id: "venture",
     label: "Venture",
     shortLabel: "Venture",
     hint: "Funding, launches, and the people building companies.",
+    sources: "Follows Venture Key Accounts, Tech Leaders, funding, and launches.",
   },
 };
 

@@ -6,6 +6,7 @@ import {
   addBlockedHandle,
   addKolHandle,
   addKolHandles,
+  addTickers,
   createRule,
   evaluateTweetSignal,
   getBlockedSpec,
@@ -351,6 +352,7 @@ describe("desk filters and KOL list persist in SQLite", () => {
     tmpDirs.push(dir);
     const db = openDatabase(path.join(dir, "test.db"));
     ensureUserDesk(U, db);
+    addTickers(U, ["NVDA"], db);
     expect(isKolHandle("DeItaone", getKolSpec(U, db))).toBe(true);
     expect(isKolHandle("TechCrunch", getKolSpec(U, db))).toBe(false);
     const before = listRules(U, db);
@@ -358,6 +360,14 @@ describe("desk filters and KOL list persist in SQLite", () => {
     expect(before.some((rule) => rule.name === "Funding Announcements" && rule.enabled && rule.mode === "vc")).toBe(
       true,
     );
+    expect(before.some((rule) => rule.kind === "key_leaders" && rule.enabled)).toBe(true);
+
+    const marketsLive = listEnabledRulesForUser(U, db);
+    expect(marketsLive.some((rule) => rule.kind === "key_leaders")).toBe(true);
+    expect(marketsLive.some((rule) => rule.name === "Fed")).toBe(true);
+    expect(marketsLive.some((rule) => rule.kind === "watchlist")).toBe(true);
+    expect(marketsLive.some((rule) => rule.name === "Tech Leaders")).toBe(false);
+    expect(marketsLive.some((rule) => rule.name === "Funding Announcements")).toBe(false);
 
     setDeskFilterSettings(U, { deskMode: "venture" }, db);
     expect(getDeskFilterSettings(U, db).deskMode).toBe("venture");
@@ -366,6 +376,14 @@ describe("desk filters and KOL list persist in SQLite", () => {
     const afterVenture = listRules(U, db);
     expect(afterVenture.some((rule) => rule.name === "Funding Announcements" && rule.enabled)).toBe(true);
     expect(afterVenture.some((rule) => rule.name === "Fed" && rule.enabled)).toBe(true);
+    expect(afterVenture.some((rule) => rule.kind === "key_leaders" && rule.enabled)).toBe(true);
+
+    const ventureLive = listEnabledRulesForUser(U, db);
+    expect(ventureLive.some((rule) => rule.name === "Tech Leaders")).toBe(true);
+    expect(ventureLive.some((rule) => rule.name === "Funding Announcements")).toBe(true);
+    expect(ventureLive.some((rule) => rule.name === "Fed")).toBe(false);
+    expect(ventureLive.some((rule) => rule.kind === "watchlist")).toBe(false);
+    expect(ventureLive.some((rule) => rule.kind === "key_leaders")).toBe(false);
 
     const round = catalyst("techcrunch", {
       followersCount: 80_000,
@@ -388,6 +406,11 @@ describe("desk filters and KOL list persist in SQLite", () => {
     expect(evaluateTweetSignal(catalyst("DeItaone"), U, db).pass).toBe(true);
     expect(listRules(U, db).some((rule) => rule.name === "Fed" && rule.enabled)).toBe(true);
     expect(listRules(U, db).some((rule) => rule.name === "Funding Announcements" && rule.enabled)).toBe(true);
+    const bothLive = listEnabledRulesForUser(U, db);
+    expect(bothLive.some((rule) => rule.kind === "key_leaders")).toBe(true);
+    expect(bothLive.some((rule) => rule.name === "Fed")).toBe(true);
+    expect(bothLive.some((rule) => rule.name === "Tech Leaders")).toBe(true);
+    expect(bothLive.some((rule) => rule.kind === "watchlist")).toBe(true);
   });
 
   it("uses one Settings cadence for inbox polling and WhatsApp", () => {
@@ -426,6 +449,36 @@ describe("desk filters and KOL list persist in SQLite", () => {
     expect(listRules(U, db).find((rule) => rule.name === "Tech Leaders")!.lastSinceId).toBeNull();
     expect(listRules(U, db).find((rule) => rule.name === "Fed")!.lastSinceId).toBe("111");
     expect(resetAccountWatchCursors(db)).toBe(0);
+  });
+
+  it("ingests a Markets Key Leader post through the from: search and hides it in Venture", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-"));
+    tmpDirs.push(dir);
+    const db = openDatabase(path.join(dir, "test.db"));
+    ensureUserDesk(U, db);
+    setDeskFilterSettings(U, { deskMode: "markets", signalLevel: "high" }, db);
+    const leaders = listRules(U, db).find(
+      (rule) => rule.kind === "key_leaders" && rule.accounts.includes("deitaone"),
+    );
+    expect(leaders).toBeTruthy();
+    const tweet = catalyst("DeItaone", {
+      id: "tw-deltaone-1",
+      followersCount: 1_400_000,
+      likeCount: 0,
+      retweetCount: 0,
+      quoteCount: 0,
+      replyCount: 0,
+      verified: true,
+      createdAt: "2026-09-01T10:00:00.000Z",
+      text: "JUST IN: CPI 3.2% vs 3.1% expected",
+    });
+    expect(evaluateTweetSignal(tweet, U, db, { watchedAuthor: true }).pass).toBe(true);
+    expect(tryInsertMatch(leaders!, tweet, db).inserted).toBe(true);
+    expect(listMatches(U, {}, db).some((match) => match.tweetId === "tw-deltaone-1")).toBe(true);
+    setDeskFilterSettings(U, { deskMode: "venture" }, db);
+    expect(listMatches(U, {}, db).some((match) => match.tweetId === "tw-deltaone-1")).toBe(false);
+    setDeskFilterSettings(U, { deskMode: "both" }, db);
+    expect(listMatches(U, {}, db).some((match) => match.tweetId === "tw-deltaone-1")).toBe(true);
   });
 
   it("ingests a watched Tech Leader post that would fail the keyword substance floor", () => {

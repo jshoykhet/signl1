@@ -28,6 +28,8 @@ const WATCHED_EMPTY =
   /^(congrats|congratulations|amazing|thank you|thanks|love this|this has happened|i['’]d love to have)\b/i;
 const WATCHED_TECH =
   /\b(cybercabs?|tesla|gpt|llm|model|api|chip|gpu|launch|ship(?:ping)?|open.?source|startup|fund|raise|neural|robot|ai\b|product|demo|stealth|valuation|starlink|spacex|xai|grok|neuralink|optimus|cybertruck|openai|anthropic)\b/i;
+const WATCHED_TAPE =
+  /\b(just in|breaking|hearing|sources|vs\.? expected|bps|yields?|fomc|cpi|pce|nfp|auction|payrolls|powell)\b/i;
 
 function looksLikeReply(q: TweetQuality): boolean {
   if (q.isReply === true) return true;
@@ -48,8 +50,8 @@ function watchedAuthorOffDesk(q: TweetQuality, deskMode: DeskMode): string | nul
   const words = text.split(/\s+/).filter(Boolean).length;
   const reply = looksLikeReply(q);
   const ventureDesk = deskMode === "venture" || deskMode === "both";
-  if (reply && words < 10 && !WATCHED_TECH.test(text)) return "empty reply";
-  if (ventureDesk && !reply && words < 8 && !WATCHED_TECH.test(text)) return "empty";
+  if (reply && words < 10 && !WATCHED_TECH.test(text) && !WATCHED_TAPE.test(text)) return "empty reply";
+  if (ventureDesk && !reply && words < 8 && !WATCHED_TECH.test(text) && !WATCHED_TAPE.test(text)) return "empty";
   return null;
 }
 
