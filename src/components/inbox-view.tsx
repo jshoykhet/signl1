@@ -98,9 +98,9 @@ export function InboxView() {
       if (!matchRes.ok) throw new Error("Failed to load inbox");
       const matchJson = (await matchRes.json()) as { matches: Match[] };
       const ruleJson = ruleRes.ok ? ((await ruleRes.json()) as { rules: Rule[] }) : { rules: [] };
-      const statusJson = statusRes.ok
-        ? ((await statusRes.json()) as Pick<StatusSnapshot, "cadenceMinutes" | "poller">)
-        : {};
+      const statusJson = (
+        statusRes.ok ? await statusRes.json() : {}
+      ) as Partial<Pick<StatusSnapshot, "cadenceMinutes" | "poller">>;
       setMatches(matchJson.matches);
       setRules(ruleJson.rules);
       if (typeof statusJson.cadenceMinutes === "number") setCadenceMinutes(statusJson.cadenceMinutes);
@@ -148,9 +148,9 @@ export function InboxView() {
         if (!matchRes.ok) throw new Error("Failed to load inbox");
         const matchJson = (await matchRes.json()) as { matches: Match[] };
         const ruleJson = ruleRes.ok ? ((await ruleRes.json()) as { rules: Rule[] }) : { rules: [] };
-        const statusJson = statusRes.ok
-          ? ((await statusRes.json()) as Pick<StatusSnapshot, "cadenceMinutes" | "poller">)
-          : {};
+        const statusJson = (
+          statusRes.ok ? await statusRes.json() : {}
+        ) as Partial<Pick<StatusSnapshot, "cadenceMinutes" | "poller">>;
         if (cancelled) return;
         setMatches(matchJson.matches);
         setRules(ruleJson.rules);
