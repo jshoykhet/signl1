@@ -48,6 +48,8 @@ services:
   poller:
     build: .
     command: npm run poller
+    # Host network so X + WhatsApp use the VPS public path. Poller publishes no ports.
+    network_mode: host
     environment:
       DATABASE_PATH: /data/signal.db
       X_BEARER_TOKEN: ${X_BEARER_TOKEN:-}

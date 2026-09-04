@@ -26,6 +26,9 @@ services:
   poller:
     build: .
     command: npm run poller
+    # Host network: this VM's Compose bridge has no MASQUERADE for 172.18/16,
+    # so api.x.com and WhatsApp time out from the container. Poller has no published ports.
+    network_mode: host
     environment:
       DATABASE_PATH: /data/signal.db
       X_BEARER_TOKEN: ${X_BEARER_TOKEN:-}

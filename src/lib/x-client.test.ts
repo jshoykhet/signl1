@@ -1,5 +1,20 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { XRateLimiter } from "./x-client";
+import { describeFetchError, XRateLimiter } from "./x-client";
+
+describe("describeFetchError", () => {
+  it("includes the connect-timeout cause that Node hides behind fetch failed", () => {
+    const err = new TypeError("fetch failed");
+    (err as Error & { cause: Error }).cause = new Error(
+      "Connect Timeout Error (attempted addresses: 172.66.0.227:443, timeout: 10000ms)",
+    );
+    expect(describeFetchError(err)).toContain("Connect Timeout Error");
+    expect(describeFetchError(err)).toContain("fetch failed");
+  });
+
+  it("returns a plain error message when there is no cause", () => {
+    expect(describeFetchError(new Error("X API 401"))).toBe("X API 401");
+  });
+});
 
 afterEach(() => {
   vi.useRealTimers();

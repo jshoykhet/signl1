@@ -167,10 +167,10 @@ The inbox and rules pages are searchable. In the inbox, `/` or Ctrl/Cmd+K focuse
 `docker compose up --build` starts:
 
 - `web` — Next.js UI + REST on port **3847**
-- `poller` — continuous worker
+- `poller` — continuous worker on **host networking** so X and WhatsApp use the machine’s public path (some Docker bridges never NAT compose networks)
 - `signal-data` volume — SQLite at `/data/signal.db`
 
-Both containers share the volume. WAL mode and a busy timeout are enabled so the UI and poller can write without extra services. Production adds Caddy in front (`docker-compose.prod.yml`) and does not publish 3847.
+Both containers share the volume. WAL mode and a busy timeout are enabled so the UI and poller can write without extra services. Production adds Caddy in front (`docker-compose.prod.yml`) and does not publish 3847. After changing `network_mode`, recreate the poller (`docker compose up -d --force-recreate poller`) — Compose sometimes keeps the old bridge attachment.
 
 ```bash
 docker compose up --build
@@ -226,8 +226,9 @@ The poller honors `x-rate-limit-remaining`, `x-rate-limit-reset`, and `Retry-Aft
 | `401` / `403` | Token is wrong, revoked, or the project does not include recent search. |
 | `402` / product errors | Upgrade the X API plan. Stay on demo mode until then. |
 | Poller "No recent heartbeat" | The `poller` container is not running. Check `docker compose logs poller`. |
+| `fetch failed` / connect timeout on `api.x.com` | The poller cannot open outbound HTTPS. Recreate it on host networking (`docker compose up -d --force-recreate poller`). Host curl to `api.x.com` working while the container times out is this bug. |
 | Duplicate alerts | Should not happen. Dedup is `UNIQUE(rule_id, tweet_id)`. The same tweet can still match two different rules. |
-| Empty live inbox | Rule `start_time` is the created-at of the rule. Wait for a new matching post, or tighten the query. |
+| Empty live inbox | If Settings shows a poller error, fix that first — the tape is not being read. Otherwise wait for a new matching post, or loosen Higher / Require likes. |
 
 Do not lower every interval to 15s on a live token. Signl1 floors live polls at 60s and packs rules together; the 15s UI value is for demo mode.
 

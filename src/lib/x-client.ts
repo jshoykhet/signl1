@@ -161,6 +161,24 @@ function parseSearchPayload(payload: unknown): {
 
 const X_FETCH_TIMEOUT_MS = 15_000;
 
+/** Node's fetch throws TypeError("fetch failed") and hides the connect/TLS cause. */
+export function describeFetchError(error: unknown): string {
+  if (!(error instanceof Error)) return String(error);
+  const cause = (error as Error & { cause?: unknown }).cause;
+  let causeText = "";
+  if (cause instanceof Error) {
+    causeText = cause.message;
+  } else if (cause && typeof cause === "object") {
+    const rec = cause as { message?: unknown; code?: unknown };
+    if (typeof rec.message === "string" && rec.message) causeText = rec.message;
+    else if (rec.code != null) causeText = String(rec.code);
+  }
+  if (causeText && !error.message.includes(causeText)) {
+    return `${error.message} (${causeText})`;
+  }
+  return error.message;
+}
+
 async function readBody(res: Response): Promise<string> {
   return res.text();
 }
@@ -205,9 +223,9 @@ export async function recentSearch(opts: {
     }
     try {
       res = await fetch(fallback, { headers, signal: AbortSignal.timeout(X_FETCH_TIMEOUT_MS) });
-    } catch {
+    } catch (fallbackError) {
       opts.limiter.noteError();
-      throw error instanceof Error ? error : new Error(String(error));
+      throw new Error(describeFetchError(fallbackError instanceof Error ? fallbackError : error));
     }
   }
 

@@ -18,7 +18,7 @@ import { EmptyState } from "@/components/empty-state";
 import { formatClock, formatCompact, formatRelative } from "@/lib/format";
 import { cadenceLabel } from "@/lib/desk-settings";
 import { cn } from "@/lib/utils";
-import type { Match, Rule, UserLabel } from "@/lib/types";
+import type { Match, Rule, StatusSnapshot, UserLabel } from "@/lib/types";
 
 function SignalVote({
   match,
@@ -78,6 +78,7 @@ export function InboxView() {
   const [error, setError] = useState<string | null>(null);
   const [polling, setPolling] = useState(false);
   const [cadenceMinutes, setCadenceMinutes] = useState<number | null>(null);
+  const [pollerError, setPollerError] = useState<string | null>(null);
 
   const load = async () => {
     try {
@@ -97,10 +98,13 @@ export function InboxView() {
       if (!matchRes.ok) throw new Error("Failed to load inbox");
       const matchJson = (await matchRes.json()) as { matches: Match[] };
       const ruleJson = ruleRes.ok ? ((await ruleRes.json()) as { rules: Rule[] }) : { rules: [] };
-      const statusJson = statusRes.ok ? ((await statusRes.json()) as { cadenceMinutes?: number }) : {};
+      const statusJson = statusRes.ok
+        ? ((await statusRes.json()) as Pick<StatusSnapshot, "cadenceMinutes" | "poller">)
+        : {};
       setMatches(matchJson.matches);
       setRules(ruleJson.rules);
       if (typeof statusJson.cadenceMinutes === "number") setCadenceMinutes(statusJson.cadenceMinutes);
+      setPollerError(statusJson.poller?.lastError?.trim() || null);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load inbox");
@@ -144,11 +148,14 @@ export function InboxView() {
         if (!matchRes.ok) throw new Error("Failed to load inbox");
         const matchJson = (await matchRes.json()) as { matches: Match[] };
         const ruleJson = ruleRes.ok ? ((await ruleRes.json()) as { rules: Rule[] }) : { rules: [] };
-        const statusJson = statusRes.ok ? ((await statusRes.json()) as { cadenceMinutes?: number }) : {};
+        const statusJson = statusRes.ok
+          ? ((await statusRes.json()) as Pick<StatusSnapshot, "cadenceMinutes" | "poller">)
+          : {};
         if (cancelled) return;
         setMatches(matchJson.matches);
         setRules(ruleJson.rules);
         if (typeof statusJson.cadenceMinutes === "number") setCadenceMinutes(statusJson.cadenceMinutes);
+        setPollerError(statusJson.poller?.lastError?.trim() || null);
         setError(null);
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load inbox");
@@ -335,6 +342,11 @@ export function InboxView() {
       {error ? (
         <div className="m-5 rounded-2xl bg-destructive/10 px-4 py-3 text-[15px] text-destructive">
           {error}
+        </div>
+      ) : null}
+      {pollerError ? (
+        <div className="mx-5 mt-4 rounded-2xl bg-destructive/10 px-4 py-3 text-[15px] text-destructive">
+          Tape is not updating: {pollerError}
         </div>
       ) : null}
       <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
