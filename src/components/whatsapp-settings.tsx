@@ -40,6 +40,11 @@ export function WhatsAppSettings() {
     const data = (await res.json()) as WhatsAppPublicStatus;
     setWa(data);
     setTo((current) => (current ? current : data.to ?? ""));
+    setPairPhone((current) => {
+      if (current) return current;
+      const digits = (data.to ?? "").replace(/\D/g, "");
+      return digits;
+    });
   };
 
   useEffect(() => {

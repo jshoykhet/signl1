@@ -384,11 +384,13 @@ export function InboxView() {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-[28px] font-semibold leading-tight tracking-[-0.022em]">Inbox</h1>
-            <p className="mt-0.5 text-[15px] leading-snug text-muted-foreground sm:text-[13px]">
-              Newest first. Tap a post to read it, or open it on X.
-              {cadenceMinutes
-                ? ` Checks ${cadenceLabel(cadenceMinutes).replace(/^Every /, "every ")}. WhatsApp uses the same interval.`
-                : ""}
+            <p className="mt-0.5 text-[14px] leading-snug text-muted-foreground sm:text-[13px]">
+              Tap a post to read it, or open it on X.
+              {cadenceMinutes ? (
+                <span className="hidden sm:inline">
+                  {` Checks ${cadenceLabel(cadenceMinutes).replace(/^Every /, "every ")}. WhatsApp uses the same interval.`}
+                </span>
+              ) : null}
             </p>
           </div>
           <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
@@ -505,14 +507,14 @@ export function InboxView() {
                             )}
                           />
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-baseline gap-2">
+                            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                               <span className="text-[17px] font-semibold tracking-[-0.01em] text-foreground sm:text-[15px]">
                                 @{match.authorHandle}
                               </span>
-                              <span className="truncate text-[14px] text-muted-foreground sm:text-[13px]">
+                              <span className="min-w-0 text-[14px] text-muted-foreground sm:truncate sm:text-[13px]">
                                 {match.authorName}
                               </span>
-                              <span className="ml-auto shrink-0 text-[13px] tabular-nums text-muted-foreground sm:text-[12px]">
+                              <span className="w-full text-[13px] tabular-nums text-muted-foreground sm:ml-auto sm:w-auto sm:text-[12px]">
                                 {formatRelative(match.matchedAt)}
                               </span>
                             </div>

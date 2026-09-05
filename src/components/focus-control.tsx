@@ -46,7 +46,12 @@ export function FocusControl({
           );
         })}
       </div>
-      <p className={cn("leading-relaxed text-muted-foreground", compact ? "text-[14px] sm:text-[12px]" : "text-[15px] sm:text-[13px]")}>
+      <p
+        className={cn(
+          "leading-relaxed text-muted-foreground",
+          compact ? "hidden text-[14px] sm:block sm:text-[12px]" : "text-[15px] sm:text-[13px]",
+        )}
+      >
         <span className="font-medium text-foreground">Watching {selected.label}.</span>{" "}
         {selected.hint} {selected.sources}
       </p>
