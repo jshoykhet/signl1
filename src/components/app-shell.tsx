@@ -131,20 +131,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 md:hidden">
+        <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 md:hidden">
           <div className="flex items-center gap-2.5">
             <img
               src="/signl1-logo-256.png"
               alt=""
-              width={32}
-              height={32}
-              className="size-8 rounded-xl ring-1 ring-amber-400/25"
+              width={36}
+              height={36}
+              className="size-9 rounded-xl ring-1 ring-amber-400/25"
             />
-            <span className="text-[17px] font-semibold tracking-[-0.02em]">Signl1</span>
+            <span className="text-[18px] font-semibold tracking-[-0.02em]">Signl1</span>
           </div>
           <UserMenu compact />
         </header>
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:pb-0">
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto pb-[calc(4.75rem+env(safe-area-inset-bottom))] md:pb-0">
           {children}
         </main>
       </div>
@@ -153,7 +153,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-sidebar/90 backdrop-blur-xl md:hidden"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        <div className="grid h-[4.25rem] grid-cols-5">
+        <div className="grid h-[4.75rem] grid-cols-5">
           {NAV.map((item) => {
             const active = isActive(pathname, item.href);
             const Icon = item.icon;
@@ -162,14 +162,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium",
+                  "flex flex-col items-center justify-center gap-1 text-[11px] font-medium",
                   active ? "text-amber-700 dark:text-amber-300" : "text-muted-foreground",
                 )}
               >
                 <span className="relative">
-                  <Icon className="size-5" />
+                  <Icon className="size-6" />
                   {item.href === "/" && status && status.counts.unread > 0 ? (
-                    <span className="absolute -top-1 -right-2 min-w-4 rounded-full bg-amber-400 px-1 text-center text-[9px] font-semibold text-amber-950">
+                    <span className="absolute -top-1.5 -right-2.5 min-w-4 rounded-full bg-amber-400 px-1 text-center text-[10px] font-semibold text-amber-950">
                       {status.counts.unread > 99 ? "99+" : status.counts.unread}
                     </span>
                   ) : null}

@@ -61,6 +61,12 @@ export function WhatsAppSettings() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.hash !== "#whatsapp") return;
+    document.getElementById("whatsapp")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [wa]);
+
   const saveTo = async () => {
     setBusy(true);
     try {
@@ -142,141 +148,218 @@ export function WhatsAppSettings() {
     }
   };
 
+  const copyCode = async () => {
+    if (!wa?.pairingCode) return;
+    try {
+      await navigator.clipboard.writeText(wa.pairingCode.replace(/\s+/g, ""));
+      toast.success("Pairing code copied");
+    } catch {
+      toast.error("Could not copy the code");
+    }
+  };
+
+  const linked = wa?.status === "connected";
+
   return (
-    <SettingsGroup title="WhatsApp">
-      {error ? (
-        <div className="bg-destructive/10 px-4 py-2.5 text-[15px] text-destructive">{error}</div>
-      ) : null}
-      <GroupedRow>
-        <div className="w-[9.5rem] shrink-0 text-[15px] text-muted-foreground">Status</div>
-        <div className="min-w-0 flex-1 text-[15px]">
-          <span className={wa?.status === "connected" ? "text-emerald-600 dark:text-emerald-400" : "text-amber-700 dark:text-amber-300"}>
-            {wa ? statusLabel(wa.status) : "Loading…"}
-          </span>
-          {wa?.linkedAs ? <div className="mt-0.5 text-[13px] text-muted-foreground">{wa.linkedAs}</div> : null}
-        </div>
-      </GroupedRow>
-      <GroupedRow>
-        <div className="w-[9.5rem] shrink-0 text-[15px] text-muted-foreground">Send alerts</div>
-        <div className="flex items-center gap-3 text-[15px]">
-          <Switch
-            checked={wa?.enabled ?? true}
-            disabled={!wa || busy}
-            onCheckedChange={(checked) => void toggleEnabled(checked === true)}
-          />
-          <span className="text-muted-foreground">{wa?.enabled === false ? "Off" : "On"}</span>
-        </div>
-      </GroupedRow>
-      <GroupedRow className="items-start">
-        <div className="w-full shrink-0 text-[15px] text-muted-foreground sm:w-[9.5rem]">Alerts</div>
-        <p className="min-w-0 flex-1 text-[13px] leading-relaxed text-muted-foreground">
-          WhatsApp uses the Updates interval above. Each window sends the best 20 posts. The rest stay in the inbox. A
-          test message goes out immediately.
-        </p>
-      </GroupedRow>
-      <GroupedRow className="items-start">
-        <div className="w-full shrink-0 text-[15px] text-muted-foreground sm:w-[9.5rem]">Destination</div>
-        <div className="grid min-w-0 flex-1 gap-2">
-          <div className="flex flex-wrap gap-2">
-            <Input
-              value={to}
-              onChange={(event) => setTo(event.target.value)}
-              placeholder="15551234567 or group JID"
-              className="max-w-xs font-mono"
-              aria-label="WhatsApp destination"
-            />
-            <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => void saveTo()}>
-              Save
-            </Button>
-          </div>
-          <p className="text-[13px] leading-relaxed text-muted-foreground">
-            The number that should receive your alerts, with country code. Or paste a group JID ending in{" "}
-            <code className="font-mono text-[12px]">@g.us</code>. You link one WhatsApp to send from. Sending to
-            yourself often will not notify — look for <span className="text-foreground">Message yourself</span>.
-          </p>
-        </div>
-      </GroupedRow>
-      <GroupedRow className="items-start">
-        <div className="w-full shrink-0 text-[15px] text-muted-foreground sm:w-[9.5rem]">Link device</div>
-        <div className="grid min-w-0 flex-1 gap-3">
-          {wa?.canLink ? (
-            <>
-          <p className="text-[13px] leading-relaxed text-muted-foreground">
-            Uses the unofficial WhatsApp Web API from{" "}
-            <a className="text-amber-700 underline-offset-4 hover:underline dark:text-amber-300" href="https://baileys.wiki/" target="_blank" rel="noreferrer">
-              baileys.wiki
-            </a>
-            . On your phone: WhatsApp → Settings → Linked devices. Scan the QR, or choose Link with phone number and
-            enter the pairing code. After you enter it, WhatsApp restarts the socket — that is expected, not a failure.
-            Status must read <span className="text-foreground">Linked</span> before alerts or a test message will send.
-          </p>
-          {wa?.qrDataUrl ? (
-            <img
-              src={wa.qrDataUrl}
-              alt="WhatsApp link QR code"
-              width={280}
-              height={280}
-              className="size-56 rounded-2xl bg-white p-2"
-            />
-          ) : null}
-          {wa?.pairingCode ? (
-            <div>
-              <div className="text-[13px] text-muted-foreground">Pairing code</div>
-              <div className="mt-1 font-mono text-2xl tracking-[0.2em] text-amber-800 dark:text-amber-200">{wa.pairingCode}</div>
+    <div id="whatsapp" className="scroll-mt-24">
+      <SettingsGroup title="WhatsApp">
+        {error ? (
+          <div className="bg-destructive/10 px-4 py-3 text-[15px] text-destructive">{error}</div>
+        ) : null}
+
+        <div
+          className={
+            linked
+              ? "border-b border-border px-4 py-4"
+              : "border-b border-border bg-amber-400/16 px-4 py-5"
+          }
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[13px] font-medium tracking-[-0.01em] text-muted-foreground">
+                Phone alerts
+              </div>
+              <div
+                className={
+                  linked
+                    ? "mt-0.5 text-[20px] font-semibold tracking-[-0.02em] text-emerald-700 dark:text-emerald-400"
+                    : "mt-0.5 text-[20px] font-semibold tracking-[-0.02em] text-amber-950 dark:text-amber-50"
+                }
+              >
+                {wa ? statusLabel(wa.status) : "Loading…"}
+              </div>
+              {wa?.linkedAs ? (
+                <div className="mt-1 text-[14px] text-muted-foreground">{wa.linkedAs}</div>
+              ) : (
+                <p className="mt-1.5 text-[15px] leading-snug text-amber-950/80 dark:text-amber-50/80">
+                  On this phone, use a pairing code. Scanning a QR on the same device does not work.
+                </p>
+              )}
             </div>
-          ) : null}
-          <div className="grid gap-1.5">
-            <Label htmlFor="wa-pair-phone">Account to link (country code + number)</Label>
-            <div className="flex flex-wrap gap-2">
+            <Switch
+              checked={wa?.enabled ?? true}
+              disabled={!wa || busy}
+              onCheckedChange={(checked) => void toggleEnabled(checked === true)}
+              aria-label="Send WhatsApp alerts"
+            />
+          </div>
+        </div>
+
+        {wa?.canLink && !linked ? (
+          <div className="space-y-4 border-b border-border px-4 py-5">
+            <div>
+              <h3 className="text-[17px] font-semibold tracking-[-0.02em]">Link this phone</h3>
+              <p className="mt-1 text-[15px] leading-relaxed text-muted-foreground">
+                WhatsApp → Settings → Linked devices → Link with phone number. Enter the code Signl1
+                shows below.
+              </p>
+            </div>
+            {wa.pairingCode ? (
+              <div className="rounded-2xl bg-amber-400/18 px-4 py-5 text-center">
+                <div className="text-[13px] font-medium text-amber-900 dark:text-amber-100">
+                  Enter this code in WhatsApp
+                </div>
+                <div className="mt-2 select-all font-mono text-[34px] leading-none tracking-[0.18em] text-amber-950 dark:text-amber-50">
+                  {wa.pairingCode}
+                </div>
+                <Button
+                  type="button"
+                  className="mt-4 h-12 w-full min-h-12 text-[16px]"
+                  onClick={() => void copyCode()}
+                >
+                  Copy code
+                </Button>
+              </div>
+            ) : null}
+            <div className="grid gap-2">
+              <Label htmlFor="wa-pair-phone" className="text-[15px]">
+                WhatsApp number to link (country code)
+              </Label>
               <Input
                 id="wa-pair-phone"
                 value={pairPhone}
                 onChange={(event) => setPairPhone(event.target.value)}
                 placeholder="15551234567"
-                className="max-w-xs font-mono"
+                inputMode="tel"
+                autoComplete="tel"
+                className="h-12 font-mono text-[17px]"
               />
-              <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => void pair()}>
-                Request pairing code
+              <Button
+                type="button"
+                size="lg"
+                className="h-12 w-full min-h-12 text-[16px]"
+                disabled={busy || !pairPhone.trim()}
+                onClick={() => void pair()}
+              >
+                {wa.pairingCode ? "Request a new code" : "Get pairing code"}
               </Button>
             </div>
+            {wa.qrDataUrl ? (
+              <details className="rounded-2xl bg-muted/70 px-4 py-3">
+                <summary className="cursor-pointer text-[15px] font-medium">
+                  Have another device? Scan a QR
+                </summary>
+                <img
+                  src={wa.qrDataUrl}
+                  alt="WhatsApp link QR code"
+                  width={280}
+                  height={280}
+                  className="mx-auto mt-3 size-64 max-w-full rounded-2xl bg-white p-2"
+                />
+              </details>
+            ) : null}
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" size="sm" disabled={busy || wa?.status !== "connected"} onClick={() => void test()}>
+        ) : null}
+
+        <GroupedRow className="flex-col items-stretch sm:flex-row sm:items-start">
+          <div className="w-full shrink-0 text-[13px] text-muted-foreground sm:w-[9.5rem] sm:text-[15px]">
+            Destination
+          </div>
+          <div className="grid min-w-0 flex-1 gap-2">
+            <Input
+              value={to}
+              onChange={(event) => setTo(event.target.value)}
+              placeholder="15551234567 or group JID"
+              inputMode="tel"
+              className="h-12 font-mono text-[16px] sm:h-9 sm:max-w-xs sm:text-[15px]"
+              aria-label="WhatsApp destination"
+            />
+            <Button
+              type="button"
+              className="h-12 min-h-12 w-full text-[16px] sm:h-8 sm:min-h-8 sm:w-auto sm:text-[13px]"
+              size="sm"
+              variant="outline"
+              disabled={busy}
+              onClick={() => void saveTo()}
+            >
+              Save destination
+            </Button>
+            <p className="text-[14px] leading-relaxed text-muted-foreground sm:text-[13px]">
+              Number that should receive alerts, with country code. Or a group JID ending in{" "}
+              <code className="font-mono text-[12px]">@g.us</code>. Sending to yourself often will
+              not notify — look for <span className="text-foreground">Message yourself</span>.
+            </p>
+          </div>
+        </GroupedRow>
+        <GroupedRow className="flex-col items-stretch sm:flex-row sm:items-start">
+          <div className="w-full shrink-0 text-[13px] text-muted-foreground sm:w-[9.5rem] sm:text-[15px]">
+            Alerts
+          </div>
+          <p className="min-w-0 flex-1 text-[15px] leading-relaxed text-muted-foreground sm:text-[13px]">
+            WhatsApp uses the Updates interval on this page. Each window sends the best 20 posts.
+            The rest stay in the inbox.
+          </p>
+        </GroupedRow>
+        <GroupedRow className="flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+          <div className="w-full shrink-0 text-[13px] text-muted-foreground sm:w-[9.5rem] sm:text-[15px]">
+            Actions
+          </div>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
+            <Button
+              type="button"
+              className="h-12 min-h-12 w-full text-[16px] sm:h-8 sm:min-h-8 sm:w-auto sm:text-[13px]"
+              size="sm"
+              disabled={busy || wa?.status !== "connected"}
+              onClick={() => void test()}
+            >
               Send test
             </Button>
-            <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => void unlink()}>
-              Unlink
-            </Button>
-          </div>
-            </>
-          ) : (
-            <>
-              <p className="text-[13px] leading-relaxed text-muted-foreground">
-                Link one sending WhatsApp. Save your destination above, then send a
-                test once status is <span className="text-foreground">Linked</span>.
+            {wa?.canLink ? (
+              <Button
+                type="button"
+                className="h-12 min-h-12 w-full text-[16px] sm:h-8 sm:min-h-8 sm:w-auto sm:text-[13px]"
+                size="sm"
+                variant="outline"
+                disabled={busy}
+                onClick={() => void unlink()}
+              >
+                Unlink
+              </Button>
+            ) : (
+              <p className="text-[14px] leading-relaxed text-muted-foreground sm:text-[13px]">
+                Only the owner can link or unlink the sending WhatsApp.
               </p>
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" size="sm" disabled={busy || wa?.status !== "connected"} onClick={() => void test()}>
-                  Send test
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
-      </GroupedRow>
-      <GroupedRow>
-        <div className="w-[9.5rem] shrink-0 text-[15px] text-muted-foreground">Last send</div>
-        <div className="text-[15px]">{wa?.lastSentAt ? formatClock(wa.lastSentAt) : "None"}</div>
-      </GroupedRow>
-      {wa?.lastSentTo ? (
-        <GroupedRow>
-          <div className="w-[9.5rem] shrink-0 text-[15px] text-muted-foreground">Sent to</div>
-          <div className="min-w-0 font-mono text-[13px] break-all">{wa.lastSentTo}</div>
+            )}
+          </div>
         </GroupedRow>
-      ) : null}
-      {wa?.lastError ? (
-        <div className="bg-destructive/10 px-4 py-2.5 text-[15px] text-destructive">{wa.lastError}</div>
-      ) : null}
-    </SettingsGroup>
+        <GroupedRow className="flex-col items-start sm:flex-row sm:items-center">
+          <div className="w-full shrink-0 text-[13px] text-muted-foreground sm:w-[9.5rem] sm:text-[15px]">
+            Last send
+          </div>
+          <div className="text-[16px] sm:text-[15px]">{wa?.lastSentAt ? formatClock(wa.lastSentAt) : "None"}</div>
+        </GroupedRow>
+        {wa?.lastSentTo ? (
+          <GroupedRow className="flex-col items-start sm:flex-row sm:items-center">
+            <div className="w-full shrink-0 text-[13px] text-muted-foreground sm:w-[9.5rem] sm:text-[15px]">
+              Sent to
+            </div>
+            <div className="min-w-0 font-mono text-[14px] break-all sm:text-[13px]">{wa.lastSentTo}</div>
+          </GroupedRow>
+        ) : null}
+        {wa?.lastError ? (
+          <div className="bg-destructive/10 px-4 py-3 text-[15px] text-destructive">{wa.lastError}</div>
+        ) : null}
+      </SettingsGroup>
+    </div>
   );
 }

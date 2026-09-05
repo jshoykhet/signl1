@@ -44,8 +44,8 @@ export function CadenceSettings() {
       title="Updates"
       footer="Signl1 checks X on this schedule. WhatsApp sends the best 20 posts from that window. Shorter intervals cost more on X. Re-poll still runs now."
     >
-      <GroupedRow className="items-start sm:items-center">
-        <div className="w-full shrink-0 text-[15px] text-muted-foreground sm:w-[9.5rem]">Interval</div>
+      <GroupedRow className="flex-col items-stretch sm:flex-row sm:items-center">
+        <div className="w-full shrink-0 text-[13px] text-muted-foreground sm:w-[9.5rem] sm:text-[15px]">Interval</div>
         <div className="min-w-0 flex-1">
           {minutes == null ? (
             <div className="text-[15px] text-muted-foreground">Loading…</div>
@@ -55,7 +55,7 @@ export function CadenceSettings() {
               onValueChange={(value) => void save(Number(value))}
               disabled={busy}
             >
-              <SelectTrigger className="min-w-56" size="sm">
+              <SelectTrigger className="h-12 w-full min-h-12 min-w-0 text-[16px] sm:h-8 sm:min-h-8 sm:min-w-56 sm:text-[13px]" size="sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

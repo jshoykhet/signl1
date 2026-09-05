@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ExternalLink, Filter, RefreshCw, Search } from "lucide-react";
+import Link from "next/link";
+import { Filter, RefreshCw, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,12 +16,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { EmptyState } from "@/components/empty-state";
-import { formatClock, formatCompact, formatRelative } from "@/lib/format";
+import { MatchDetail } from "@/components/match-detail";
+import { OpenOnX } from "@/components/open-on-x";
+import { formatCompact, formatRelative } from "@/lib/format";
 import { cadenceLabel } from "@/lib/desk-settings";
 import { FocusControl } from "@/components/focus-control";
 import { parseDeskMode, type DeskMode } from "@/lib/desk-mode";
 import { cn } from "@/lib/utils";
 import type { Match, Rule, StatusSnapshot, UserLabel } from "@/lib/types";
+import type { WhatsAppPublicStatus } from "@/lib/whatsapp-status";
 
 function SignalVote({
   match,
@@ -31,7 +35,7 @@ function SignalVote({
 }) {
   return (
     <div
-      className="flex shrink-0 flex-col gap-1.5"
+      className="flex shrink-0 flex-col gap-2"
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
     >
@@ -41,7 +45,7 @@ function SignalVote({
         aria-label="Mark high signal"
         aria-pressed={match.userLabel === "high"}
         className={cn(
-          "flex size-7 items-center justify-center rounded-full text-[15px] font-medium transition-colors",
+          "flex size-11 items-center justify-center rounded-full text-[18px] font-medium transition-colors sm:size-7 sm:text-[15px]",
           match.userLabel === "high"
             ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300"
             : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground",
@@ -56,7 +60,7 @@ function SignalVote({
         aria-label="Mark low signal"
         aria-pressed={match.userLabel === "low"}
         className={cn(
-          "flex size-7 items-center justify-center rounded-full text-[15px] font-medium transition-colors",
+          "flex size-11 items-center justify-center rounded-full text-[18px] font-medium transition-colors sm:size-7 sm:text-[15px]",
           match.userLabel === "low"
             ? "bg-destructive/20 text-destructive"
             : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground",
@@ -83,6 +87,8 @@ export function InboxView() {
   const [pollerError, setPollerError] = useState<string | null>(null);
   const [deskMode, setDeskMode] = useState<DeskMode>("markets");
   const [modeBusy, setModeBusy] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [waStatus, setWaStatus] = useState<WhatsAppPublicStatus["status"] | null>(null);
 
   const applyStatus = (statusJson: Partial<StatusSnapshot>) => {
     if (typeof statusJson.cadenceMinutes === "number") setCadenceMinutes(statusJson.cadenceMinutes);
@@ -161,10 +167,40 @@ export function InboxView() {
         event.preventDefault();
         document.getElementById("inbox-search")?.focus();
       }
+      if (event.key === "Escape") setDetailOpen(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const res = await fetch("/api/whatsapp", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json()) as WhatsAppPublicStatus;
+        if (!cancelled) setWaStatus(data.status);
+      } catch {
+        /* settings page owns errors */
+      }
+    };
+    void tick();
+    const timer = setInterval(() => void tick(), 8000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!detailOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [detailOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -340,63 +376,80 @@ export function InboxView() {
     }
   };
 
+  const waNeedsLink = waStatus != null && waStatus !== "connected";
+
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <header className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:px-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-[28px] font-semibold leading-tight tracking-[-0.022em]">Inbox</h1>
-            <p className="mt-0.5 text-[13px] text-muted-foreground">
-              Newest first. Mark what matters with + or −.
+            <p className="mt-0.5 text-[15px] leading-snug text-muted-foreground sm:text-[13px]">
+              Newest first. Tap a post to read it, or open it on X.
               {cadenceMinutes
                 ? ` Checks ${cadenceLabel(cadenceMinutes).replace(/^Every /, "every ")}. WhatsApp uses the same interval.`
                 : ""}
             </p>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={repoll} disabled={polling}>
+          <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
+            <Button variant="ghost" className="h-11 min-h-11 flex-1 sm:h-8 sm:min-h-8 sm:flex-none" size="sm" onClick={repoll} disabled={polling}>
               <RefreshCw className={cn("size-3.5", polling && "animate-spin")} />
               {polling ? "Polling…" : "Re-poll"}
             </Button>
-            <Button variant="ghost" size="sm" onClick={markAll}>
+            <Button variant="ghost" className="h-11 min-h-11 flex-1 sm:h-8 sm:min-h-8 sm:flex-none" size="sm" onClick={markAll}>
               Mark all read
             </Button>
           </div>
         </div>
         <FocusControl value={deskMode} disabled={modeBusy} compact onChange={(id) => void saveMode(id)} />
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          <div className="relative min-w-0 flex-1 basis-48">
+        {waNeedsLink ? (
+          <Link
+            href="/settings#whatsapp"
+            className="rounded-2xl bg-amber-400/18 px-4 py-3.5 text-[15px] leading-snug text-amber-950 dark:text-amber-50 lg:hidden"
+          >
+            <span className="font-semibold">Link WhatsApp</span>
+            <span className="mt-0.5 block text-[14px] text-amber-900/80 dark:text-amber-100/75">
+              {waStatus === "pairing" || waStatus === "qr" || waStatus === "connecting"
+                ? "Finish pairing so alerts reach your phone."
+                : "Alerts stay on this desk until you link a phone. Tap to pair."}
+            </span>
+          </Link>
+        ) : null}
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+          <div className="relative min-w-0 flex-1">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               id="inbox-search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search posts, @handles, rules"
-              className="h-9 rounded-full bg-muted pl-9 text-[15px]"
+              className="h-11 rounded-full bg-muted pl-9 text-[16px] sm:h-9 sm:text-[15px]"
               aria-label="Search inbox"
             />
           </div>
-          <label className="flex items-center gap-2 text-[13px] text-muted-foreground">
-            <Checkbox
-              checked={unreadOnly}
-              onCheckedChange={(value) => setUnreadOnly(value === true)}
-            />
-            Unread
-          </label>
-          <Select value={ruleId} onValueChange={(value) => setRuleId(String(value ?? "all"))}>
-            <SelectTrigger className="min-w-36 rounded-full sm:min-w-44" size="sm">
-              <Filter className="size-3.5 text-muted-foreground" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All rules</SelectItem>
-              {focusRules.map((rule) => (
-                <SelectItem key={rule.id} value={rule.id}>
-                  {rule.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-3">
+            <label className="flex min-h-11 items-center gap-2.5 text-[15px] text-muted-foreground sm:min-h-0 sm:text-[13px]">
+              <Checkbox
+                checked={unreadOnly}
+                onCheckedChange={(value) => setUnreadOnly(value === true)}
+              />
+              Unread
+            </label>
+            <Select value={ruleId} onValueChange={(value) => setRuleId(String(value ?? "all"))}>
+              <SelectTrigger className="h-11 min-h-11 min-w-0 flex-1 rounded-full sm:h-8 sm:min-h-8 sm:min-w-44" size="sm">
+                <Filter className="size-3.5 text-muted-foreground" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All rules</SelectItem>
+                {focusRules.map((rule) => (
+                  <SelectItem key={rule.id} value={rule.id}>
+                    {rule.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </header>
       {error ? (
@@ -430,68 +483,76 @@ export function InboxView() {
                   <li key={match.id}>
                     <div
                       className={cn(
-                        "flex w-full items-start gap-1 border-b border-border pr-2 text-left transition-colors",
+                        "border-b border-border text-left transition-colors",
                         active ? "bg-muted" : "hover:bg-muted/60",
                         match.userLabel === "low" && "opacity-50",
                       )}
                     >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedId(match.id);
-                          if (!match.read) mark(match.id, true);
-                        }}
-                        className="flex min-w-0 flex-1 items-start gap-3 px-4 py-3 text-left"
-                      >
-                        <span
-                          className={cn(
-                            "mt-2 size-2 shrink-0 rounded-full",
-                            match.read ? "bg-transparent" : "bg-amber-400",
-                          )}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-[15px] font-semibold tracking-[-0.01em] text-foreground">
-                              @{match.authorHandle}
-                            </span>
-                            <span className="truncate text-[13px] text-muted-foreground">{match.authorName}</span>
-                            <span className="ml-auto shrink-0 text-[12px] tabular-nums text-muted-foreground">
-                              {formatRelative(match.matchedAt)}
-                            </span>
-                          </div>
-                          <p className="mt-0.5 line-clamp-2 text-[15px] leading-snug text-muted-foreground">
-                            {match.text}
-                          </p>
-                          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                            <Badge variant="outline" className="h-5 rounded-full border-border px-2 text-[11px] font-normal">
-                              {match.ruleName}
-                            </Badge>
-                            {match.kol ? (
-                              <Badge className="h-5 rounded-full bg-amber-400/20 px-2 text-[11px] font-semibold text-amber-800 dark:bg-amber-400/15 dark:text-amber-200">
-                                Key
+                      <div className="flex w-full items-start gap-1 pr-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedId(match.id);
+                            setDetailOpen(true);
+                            if (!match.read) mark(match.id, true);
+                          }}
+                          className="flex min-w-0 flex-1 items-start gap-3 px-4 py-4 text-left sm:py-3"
+                        >
+                          <span
+                            className={cn(
+                              "mt-2.5 size-2.5 shrink-0 rounded-full sm:mt-2 sm:size-2",
+                              match.read ? "bg-transparent" : "bg-amber-400",
+                            )}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-[17px] font-semibold tracking-[-0.01em] text-foreground sm:text-[15px]">
+                                @{match.authorHandle}
+                              </span>
+                              <span className="truncate text-[14px] text-muted-foreground sm:text-[13px]">
+                                {match.authorName}
+                              </span>
+                              <span className="ml-auto shrink-0 text-[13px] tabular-nums text-muted-foreground sm:text-[12px]">
+                                {formatRelative(match.matchedAt)}
+                              </span>
+                            </div>
+                            <p className="mt-1 line-clamp-4 text-[16px] leading-[1.45] text-foreground/90 sm:mt-0.5 sm:line-clamp-2 sm:text-[15px] sm:leading-snug sm:text-muted-foreground">
+                              {match.text}
+                            </p>
+                            <div className="mt-2 flex flex-wrap items-center gap-1.5 sm:mt-1.5">
+                              <Badge variant="outline" className="h-6 rounded-full border-border px-2 text-[12px] font-normal sm:h-5 sm:text-[11px]">
+                                {match.ruleName}
                               </Badge>
-                            ) : null}
-                            {match.followersCount != null ? (
-                              <span className="text-[12px] tabular-nums text-muted-foreground">
-                                {formatCompact(match.followersCount)} fol
-                              </span>
-                            ) : null}
-                            {match.likeCount != null ? (
-                              <span className="text-[12px] tabular-nums text-muted-foreground">
-                                {formatCompact(match.likeCount)} likes
-                              </span>
-                            ) : null}
-                            {match.userLabel === "high" ? (
-                              <span className="text-[12px] text-emerald-700 dark:text-emerald-400">High</span>
-                            ) : null}
-                            {match.userLabel === "low" ? (
-                              <span className="text-[12px] text-destructive">Low</span>
-                            ) : null}
+                              {match.kol ? (
+                                <Badge className="h-6 rounded-full bg-amber-400/20 px-2 text-[12px] font-semibold text-amber-800 sm:h-5 sm:text-[11px] dark:bg-amber-400/15 dark:text-amber-200">
+                                  Key
+                                </Badge>
+                              ) : null}
+                              {match.followersCount != null ? (
+                                <span className="text-[13px] tabular-nums text-muted-foreground sm:text-[12px]">
+                                  {formatCompact(match.followersCount)} fol
+                                </span>
+                              ) : null}
+                              {match.likeCount != null ? (
+                                <span className="text-[13px] tabular-nums text-muted-foreground sm:text-[12px]">
+                                  {formatCompact(match.likeCount)} likes
+                                </span>
+                              ) : null}
+                              {match.userLabel === "high" ? (
+                                <span className="text-[13px] text-emerald-700 sm:text-[12px] dark:text-emerald-400">High</span>
+                              ) : null}
+                              {match.userLabel === "low" ? (
+                                <span className="text-[13px] text-destructive sm:text-[12px]">Low</span>
+                              ) : null}
+                            </div>
                           </div>
+                        </button>
+                        <div className="pt-3 sm:pt-2.5">
+                          <SignalVote match={match} onVote={vote} />
                         </div>
-                      </button>
-                      <div className="pt-2.5">
-                        <SignalVote match={match} onVote={vote} />
+                      </div>
+                      <div className="flex gap-2 px-4 pb-3 pl-[2.15rem] lg:hidden">
+                        <OpenOnX href={match.permalink} size="row" />
                       </div>
                     </div>
                   </li>
@@ -502,64 +563,34 @@ export function InboxView() {
         </div>
         <div className="hidden min-h-0 overflow-y-auto px-8 py-8 lg:block">
           {selected ? (
-            <article className="mx-auto max-w-xl space-y-6">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-[17px] font-semibold tracking-[-0.02em]">@{selected.authorHandle}</div>
-                  <div className="text-[15px] text-muted-foreground">{selected.authorName}</div>
-                </div>
-                <div className="flex flex-wrap items-center justify-end gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => mark(selected.id, !selected.read)}>
-                    {selected.read ? "Mark unread" : "Mark read"}
-                  </Button>
-                  <a
-                    href={selected.permalink}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={cn(buttonVariants({ size: "sm", variant: "outline" }), "rounded-full")}
-                  >
-                    Open original
-                    <ExternalLink className="size-3.5" />
-                  </a>
-                </div>
-              </div>
-              <p className="whitespace-pre-wrap text-[17px] leading-[1.47] tracking-[-0.01em]">{selected.text}</p>
-              <dl className="grid grid-cols-[auto_1fr] gap-x-5 gap-y-2 text-[13px] text-muted-foreground">
-                <dt>Rule</dt>
-                <dd className="text-foreground">{selected.ruleName}</dd>
-                <dt>Tweet</dt>
-                <dd>{formatClock(selected.tweetCreatedAt)}</dd>
-                <dt>Matched</dt>
-                <dd>{formatClock(selected.matchedAt)}</dd>
-                <dt>Followers</dt>
-                <dd>{formatCompact(selected.followersCount)}</dd>
-                <dt>Likes</dt>
-                <dd>{formatCompact(selected.likeCount)}</dd>
-                <dt>Score</dt>
-                <dd>{selected.signalScore != null ? selected.signalScore : "—"}</dd>
-                <dt>Key account</dt>
-                <dd className="text-foreground">{selected.kol ? "Yes" : "No"}</dd>
-                <dt>Label</dt>
-                <dd className="text-foreground">
-                  {selected.userLabel === "high"
-                    ? "Keep"
-                    : selected.userLabel === "low"
-                      ? "Hide"
-                      : "Unlabeled"}
-                </dd>
-                <dt>Author prior</dt>
-                <dd>
-                  {selected.authorPrior.high} high / {selected.authorPrior.low} low
-                </dd>
-                <dt>ID</dt>
-                <dd className="tabular-nums">{selected.tweetId}</dd>
-              </dl>
-            </article>
+            <MatchDetail match={selected} onMark={mark} onVote={vote} />
           ) : (
             <EmptyState title="No selection" description="Choose a post from the list." />
           )}
         </div>
       </div>
+      {detailOpen && selected ? (
+        <div className="fixed inset-0 z-50 flex flex-col bg-background lg:hidden">
+          <div
+            className="flex items-center justify-between gap-3 border-b border-border px-3 py-2.5"
+            style={{ paddingTop: "max(0.625rem, env(safe-area-inset-top))" }}
+          >
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-11 min-h-11 px-3 text-[16px]"
+              onClick={() => setDetailOpen(false)}
+            >
+              <X className="size-5" />
+              Back
+            </Button>
+            <OpenOnX href={selected.permalink} />
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+            <MatchDetail match={selected} onMark={mark} onVote={vote} compactActions />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

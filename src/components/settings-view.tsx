@@ -17,9 +17,9 @@ import type { StatusSnapshot } from "@/lib/types";
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <GroupedRow>
-      <div className="w-[9.5rem] shrink-0 text-[15px] text-muted-foreground">{label}</div>
-      <div className="min-w-0 flex-1 text-[15px]">{children}</div>
+    <GroupedRow className="flex-col items-start sm:flex-row sm:items-center">
+      <div className="w-full shrink-0 text-[13px] text-muted-foreground sm:w-[9.5rem] sm:text-[15px]">{label}</div>
+      <div className="min-w-0 w-full flex-1 text-[16px] sm:text-[15px]">{children}</div>
     </GroupedRow>
   );
 }
@@ -53,12 +53,12 @@ export function SettingsView() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <div className="mx-auto w-full max-w-[680px] flex-1 px-5 py-8">
+      <div className="mx-auto w-full max-w-[680px] flex-1 px-4 py-6 sm:px-5 sm:py-8">
         <PageHeader
           title="Settings"
-          description="Your X token stays on the server. This page never shows it."
+          description="Link WhatsApp first if you want phone alerts. Your X token stays on the server."
         />
-        <div className="mt-8 space-y-8">
+        <div className="mt-6 space-y-8 sm:mt-8">
           {error ? (
             <div className="rounded-2xl bg-destructive/10 px-4 py-3 text-[15px] text-destructive">{error}</div>
           ) : null}
@@ -74,6 +74,7 @@ export function SettingsView() {
                   </p>
                 </div>
               ) : null}
+              <WhatsAppSettings />
               <AppearanceSettings />
               <SettingsGroup title="Brand">
                 <Row label="Logo">
@@ -101,7 +102,6 @@ export function SettingsView() {
                 <Row label="Mode">{status.demoMode ? "Sample posts" : "Live"}</Row>
               </SettingsGroup>
               <CadenceSettings />
-              <WhatsAppSettings />
               <DeskFilters />
               <SettingsGroup
                 title="Key Accounts"

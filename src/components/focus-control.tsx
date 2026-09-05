@@ -35,7 +35,7 @@ export function FocusControl({
                 if (value !== id) onChange(id);
               }}
               className={cn(
-                "min-w-0 flex-1 rounded-full px-2 py-1.5 text-[13px] transition-colors",
+                "min-h-11 min-w-0 flex-1 rounded-full px-2 py-2.5 text-[14px] transition-colors sm:min-h-0 sm:py-1.5 sm:text-[13px]",
                 active
                   ? "bg-foreground font-semibold text-background shadow-sm"
                   : "font-medium text-muted-foreground hover:text-foreground",
@@ -46,7 +46,7 @@ export function FocusControl({
           );
         })}
       </div>
-      <p className={cn("leading-relaxed text-muted-foreground", compact ? "text-[12px]" : "text-[13px]")}>
+      <p className={cn("leading-relaxed text-muted-foreground", compact ? "text-[14px] sm:text-[12px]" : "text-[15px] sm:text-[13px]")}>
         <span className="font-medium text-foreground">Watching {selected.label}.</span>{" "}
         {selected.hint} {selected.sources}
       </p>
