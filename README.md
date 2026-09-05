@@ -31,7 +31,7 @@ Leave `X_BEARER_TOKEN` empty for **demo mode**. Signl1 shows sample posts so you
 | `WHATSAPP_AUTH_DIR` | No | Baileys session folder. Defaults next to the SQLite file; Compose uses `/data/whatsapp-auth`. |
 | `AUTH_SECRET` | Prod | Session secret (`openssl rand -base64 32`). Optional locally. |
 | `AUTH_URL` | Prod | Public URL, e.g. `https://signals.example.com`. |
-| `AUTH_DEV_LOGIN` | No | `1` enables a **Skip sign-in** button for local preview. Production Compose forces `0`. |
+| `AUTH_DEV_LOGIN` | No | `1` shows **Skip sign-in** on the login page. Default off in production Compose (`AUTH_DEV_LOGIN=0`). |
 | `DOMAIN` | Prod | Hostname for `docker-compose.prod.yml` + Caddy. |
 
 Copy `.env.example` to `.env` and fill in what you need. Compose interpolates those values; an empty token is demo mode.

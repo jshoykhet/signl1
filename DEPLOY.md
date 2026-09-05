@@ -70,7 +70,7 @@ Generate the session secret on the VPS:
 openssl rand -base64 32
 ```
 
-`AUTH_DEV_LOGIN` is a Skip sign-in button for this repo’s local preview. The production Compose file forces it off.
+`AUTH_DEV_LOGIN=1` shows a Skip sign-in button and enables `/skip`. Leave it `0` on a public hostname unless you want anyone who can open login to get in.
 
 ## 5. Start the stack
 
