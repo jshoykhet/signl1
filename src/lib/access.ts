@@ -70,7 +70,8 @@ export function isGoogleAuthConfigured(): boolean {
 }
 
 export function isDevLoginEnabled(): boolean {
-  return process.env.AUTH_DEV_LOGIN === "1";
+  // Bracket access so Next does not inline this at `next build` (Docker image).
+  return String(process.env["AUTH_DEV_LOGIN"] ?? "").trim() === "1";
 }
 
 /** Anyone with Google (or local desk email) can create a private desk. */

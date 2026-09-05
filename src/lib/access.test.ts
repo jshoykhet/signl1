@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { admitUser, listUsers } from "./access";
+import { admitUser, isDevLoginEnabled, listUsers } from "./access";
 import { openDatabase } from "./db";
 
 const tmpDirs: string[] = [];
@@ -37,6 +37,16 @@ describe("admitUser solo desk", () => {
     admitUser({ email: "lead@desk.com" }, db);
     expect(admitUser({ email: "intern@desk.com" }, db)).toBeNull();
     expect(listUsers(db)).toHaveLength(1);
+  });
+
+  it("reads AUTH_DEV_LOGIN at runtime", () => {
+    const prev = process.env.AUTH_DEV_LOGIN;
+    process.env.AUTH_DEV_LOGIN = "1";
+    expect(isDevLoginEnabled()).toBe(true);
+    process.env.AUTH_DEV_LOGIN = "0";
+    expect(isDevLoginEnabled()).toBe(false);
+    if (prev === undefined) delete process.env.AUTH_DEV_LOGIN;
+    else process.env.AUTH_DEV_LOGIN = prev;
   });
 
   it("updates last login for the returning owner", () => {
