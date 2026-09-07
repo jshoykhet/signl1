@@ -36,7 +36,7 @@ At your registrar, create:
 - **A** record → the VPS IPv4
 - **AAAA** record → the VPS IPv6, if the box has one
 
-Use the hostname you want to type, for example `signals.yourfund.com`. Wait until `dig +short your.hostname` returns the VPS IP before starting Compose. Caddy will fail TLS issuance if DNS still points elsewhere.
+Use the hostname you want to type, for example `signl1.xyz` or `signals.yourfund.com`. Point both the apex (`@`) and `www` A records at the VPS if you want the bare domain. Wait until `dig +short your.hostname` returns the VPS IP before starting Compose. Caddy will fail TLS issuance if DNS still points elsewhere. Set `REDIRECT_FROM=old.hostname` if you are moving off a subdomain.
 
 ## 3. Authenticator app
 
@@ -57,9 +57,10 @@ nano .env
 Set at least:
 
 ```
-DOMAIN=signals.yourfund.com
+DOMAIN=signl1.xyz
 AUTH_SECRET=          # openssl rand -base64 32
-AUTH_URL=https://signals.yourfund.com
+AUTH_URL=https://signl1.xyz
+REDIRECT_FROM=signals.signl1.xyz   # optional; 301 the old host to DOMAIN
 AUTH_DEV_LOGIN=0
 X_BEARER_TOKEN=       # live X, or leave empty for demo fixtures
 ```

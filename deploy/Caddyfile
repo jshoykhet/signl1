@@ -2,3 +2,12 @@
 	encode gzip
 	reverse_proxy web:3847
 }
+
+www.{$DOMAIN} {
+	redir https://{$DOMAIN}{uri} permanent
+}
+
+# Old hostname, e.g. signals.signl1.xyz. Defaults to localhost so this block is unused.
+{$REDIRECT_FROM:localhost} {
+	redir https://{$DOMAIN}{uri} permanent
+}

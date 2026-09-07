@@ -13,6 +13,7 @@ services:
       - "443:443/udp"
     environment:
       DOMAIN: ${DOMAIN:?Set DOMAIN to the hostname you purchased}
+      REDIRECT_FROM: ${REDIRECT_FROM:-localhost}
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
