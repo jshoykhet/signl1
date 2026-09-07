@@ -1,5 +1,5 @@
 import QRCode from "qrcode";
-import { getMeta, getWhatsAppCadenceSettings, getWhatsAppTo, isWhatsAppEnabled } from "./db";
+import { getMeta, getUserMeta, getWhatsAppCadenceSettings, getWhatsAppTo, isWhatsAppAgentEnabled, isWhatsAppEnabled } from "./db";
 import { userFacingWhatsAppError } from "./whatsapp-disconnect";
 import { formatPairingCode, type WhatsAppLinkStatus, type WhatsAppSnapshot } from "./whatsapp";
 import type { WhatsAppCadenceSettings } from "./desk-settings";
@@ -46,6 +46,9 @@ export async function getWhatsAppPublicStatus(
     lastError: userFacingWhatsAppError(getMeta("whatsapp_error")),
     lastSentAt: getMeta("whatsapp_last_sent_at"),
     lastSentTo: getMeta("whatsapp_last_sent_to"),
+    agentEnabled: isWhatsAppAgentEnabled(userId),
+    lastAgentAt: getUserMeta(userId, "whatsapp_agent_last_at"),
+    lastAgentQuery: getUserMeta(userId, "whatsapp_agent_last_query"),
     canLink: Boolean(opts.canLink),
     ...getWhatsAppCadenceSettings(userId),
   };

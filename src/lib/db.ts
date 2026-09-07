@@ -295,6 +295,9 @@ const DESK_META_KEYS = [
   "whatsapp_alert_mode",
   "whatsapp_digest_minutes",
   "whatsapp_digest_last_at",
+  "whatsapp_agent_enabled",
+  "whatsapp_agent_last_at",
+  "whatsapp_agent_last_query",
   "inbox_last_polled_at",
   "watchlist_enabled",
   "watchlist_poll_interval_ms",
@@ -1367,6 +1370,11 @@ export function getWhatsAppTo(userId: string, db = getDb()): string | null {
 
 export function isWhatsAppEnabled(userId: string, db = getDb()): boolean {
   const raw = getUserMeta(userId, "whatsapp_enabled", db);
+  return raw !== "0" && raw !== "false";
+}
+
+export function isWhatsAppAgentEnabled(userId: string, db = getDb()): boolean {
+  const raw = getUserMeta(userId, "whatsapp_agent_enabled", db);
   return raw !== "0" && raw !== "false";
 }
 

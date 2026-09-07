@@ -20,6 +20,9 @@ export type WhatsAppSnapshot = {
   lastError: string | null;
   lastSentAt: string | null;
   lastSentTo: string | null;
+  agentEnabled: boolean;
+  lastAgentAt: string | null;
+  lastAgentQuery: string | null;
 };
 
 export function whatsappAuthDir(): string {

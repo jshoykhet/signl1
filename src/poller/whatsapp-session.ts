@@ -251,6 +251,16 @@ async function connectWhatsApp() {
       if (events["connection.update"]) {
         handleConnectionUpdate(gen, next, events["connection.update"], saveCreds);
       }
+      if (events["messages.upsert"]) {
+        try {
+          const { handleWhatsAppAgentUpsert } = await import("./whatsapp-agent");
+          await handleWhatsAppAgentUpsert(events["messages.upsert"], linkedIdentities());
+        } catch (error) {
+          console.error(
+            `[whatsapp-agent] ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+      }
     });
   } catch (error) {
     connecting = false;

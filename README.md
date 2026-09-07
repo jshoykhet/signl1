@@ -142,6 +142,7 @@ Every match lands in the in-app inbox.
 
 - **Slack:** rule-level incoming webhook, else `SLACK_WEBHOOK_URL`.
 - **WhatsApp:** link a phone on **Settings** with a QR or pairing code ([Baileys](https://baileys.wiki/) WhatsApp Web API). Optional destination (`WHATSAPP_TO` or the Settings field). If that number is the linked account, the text lands in WhatsApp **Message yourself** and often will not push-notify — use another number or a group JID for a normal chat ping. Alerts send only after status is **Linked**. Timing is the same **Updates** interval as X: every 5 / 10 / 15 / 30 / 45 minutes or every 1 / 2 / 3 / 4 / 5 / 10 hours, sending the best 20 posts from that window. After you enter the pairing code, WhatsApp sends a stream restart (code 515); Signl1 reconnects immediately with the new session and does not treat that as an error. Session files live on the data volume so you do not scan again after restart.
+- **WhatsApp agent:** with the same linked number, text a ticker (`$NVDA`), `@handle`, or `search FOMC`. Signl1 runs one recent-search on X (last 24 hours) and replies with posts and links. `inbox` returns what is already on the desk. `help` lists commands. Only the Settings destination can ask. Turn **Agent** off on Settings to ignore chats. Each search is one X request.
 - **Generic webhook:** `POST` JSON:
 
 ```json

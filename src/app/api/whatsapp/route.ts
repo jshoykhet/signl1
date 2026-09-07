@@ -19,6 +19,7 @@ export async function PUT(request: Request) {
   const body = (await request.json().catch(() => ({}))) as {
     to?: string;
     enabled?: boolean;
+    agentEnabled?: boolean;
     alertMode?: string;
     digestMinutes?: number | string;
   };
@@ -40,6 +41,9 @@ export async function PUT(request: Request) {
   }
   if (typeof body.enabled === "boolean") {
     setUserMeta(desk.userId, "whatsapp_enabled", body.enabled ? "1" : "0");
+  }
+  if (typeof body.agentEnabled === "boolean") {
+    setUserMeta(desk.userId, "whatsapp_agent_enabled", body.agentEnabled ? "1" : "0");
   }
   if (body.digestMinutes != null) {
     setDeskCadenceMinutes(desk.userId, Number(body.digestMinutes));

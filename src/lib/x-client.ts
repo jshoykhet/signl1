@@ -188,13 +188,15 @@ export async function recentSearch(opts: {
   query: string;
   sinceId?: string | null;
   startTime?: string | null;
+  maxResults?: number;
   limiter: XRateLimiter;
 }): Promise<RecentSearchResult> {
   await opts.limiter.waitForSlot();
 
+  const maxResults = Math.min(X_MAX_RESULTS, Math.max(10, opts.maxResults ?? X_MAX_RESULTS));
   const params = new URLSearchParams({
     query: opts.query,
-    max_results: String(X_MAX_RESULTS),
+    max_results: String(maxResults),
     "tweet.fields": "created_at,author_id,lang,public_metrics,in_reply_to_user_id",
     expansions: "author_id",
     "user.fields": "username,name,verified,public_metrics",

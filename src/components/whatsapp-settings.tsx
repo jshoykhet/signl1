@@ -108,6 +108,23 @@ export function WhatsAppSettings() {
     }
   };
 
+  const toggleAgent = async (agentEnabled: boolean) => {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/whatsapp", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ agentEnabled }),
+      });
+      if (!res.ok) throw new Error("Could not update the agent");
+      setWa(await res.json());
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not update the agent");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const pair = async () => {
     setBusy(true);
     try {
@@ -304,6 +321,32 @@ export function WhatsAppSettings() {
               <code className="font-mono text-[12px]">@g.us</code>. Sending to yourself often will
               not notify — look for <span className="text-foreground">Message yourself</span>.
             </p>
+          </div>
+        </GroupedRow>
+        <GroupedRow className="flex-col items-stretch sm:flex-row sm:items-center">
+          <div className="w-full shrink-0 text-[13px] text-muted-foreground sm:w-[9.5rem] sm:text-[15px]">
+            Agent
+          </div>
+          <div className="grid min-w-0 flex-1 gap-2">
+            <div className="flex items-center gap-3 text-[15px]">
+              <Switch
+                checked={wa?.agentEnabled ?? true}
+                disabled={!wa || busy}
+                onCheckedChange={(checked) => void toggleAgent(checked === true)}
+              />
+              <span className="text-muted-foreground">{wa?.agentEnabled === false ? "Off" : "On"}</span>
+            </div>
+            <p className="text-[14px] leading-relaxed text-muted-foreground sm:text-[13px]">
+              Text this WhatsApp a ticker, @handle, or search. Signl1 checks the last 24 hours on X and
+              replies. Try <span className="text-foreground">help</span>, <span className="text-foreground">$NVDA</span>, or{" "}
+              <span className="text-foreground">inbox</span>.
+            </p>
+            {wa?.lastAgentQuery ? (
+              <p className="text-[13px] text-muted-foreground">
+                Last ask: {wa.lastAgentQuery}
+                {wa.lastAgentAt ? ` · ${formatClock(wa.lastAgentAt)}` : ""}
+              </p>
+            ) : null}
           </div>
         </GroupedRow>
         <GroupedRow className="flex-col items-stretch sm:flex-row sm:items-start">
