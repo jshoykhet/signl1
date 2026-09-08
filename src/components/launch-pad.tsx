@@ -105,8 +105,8 @@ function showStorySummary(story: LaunchStory): boolean {
 function compactWhy(story: LaunchStory): string | null {
   if (story.tracked) return "On your watchlist";
   const stripped = story.reason
-    .replace(/\s*[—-]\s*moving\s+[^.]+\.?/i, "")
-    .replace(/^moving\s+[^.]+\.?/i, "")
+    .replace(/\s*[—-]\s*(?:moving|running)\s+[^.]+\.?/i, "")
+    .replace(/^(?:moving|running)\s+[^.]+\.?/i, "")
     .replace(/\s+/g, " ")
     .trim()
     .replace(/\.$/, "");

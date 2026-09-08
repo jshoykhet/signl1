@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { storyHeadline, storySummary, tweetVelocity, velocityLabel, rankHeatStories, buildLaunchBoard } from "./launch-stories";
+import {
+  storyHeadline,
+  storyFromCluster,
+  storySummary,
+  tweetVelocity,
+  velocityLabel,
+  rankHeatStories,
+  buildLaunchBoard,
+} from "./launch-stories";
 import type { LaunchStory } from "./launch-stories";
 import type { Match } from "./types";
 
@@ -32,7 +40,7 @@ function story(partial: Partial<LaunchStory> & Pick<LaunchStory, "id" | "themeId
     summary: partial.summary ?? "Summary.",
     reason: partial.reason ?? "On the desk.",
     velocity: partial.velocity ?? 1,
-    velocityLabel: partial.velocityLabel ?? "In line with the tape",
+    velocityLabel: partial.velocityLabel ?? "In line with the feed",
     sourceCount: partial.sourceCount ?? 1,
     sources: partial.sources ?? [],
     tracked: partial.tracked ?? false,
@@ -82,7 +90,22 @@ describe("abnormal velocity", () => {
       now,
     );
     expect(hot).toBeGreaterThan(mega);
-    expect(velocityLabel(3.2)).toBe("3.2× the tape");
+    expect(velocityLabel(3.2)).toBe("3.2× the feed");
+  });
+
+  it("explains a spike against the rest of the feed", () => {
+    const now = Date.now();
+    const hot = match({
+      tweetId: "hot",
+      text: "$NVDA data-center revenue beat; HBM sold out through next year.",
+      followersCount: 6_000,
+      likeCount: 240,
+      tweetCreatedAt: new Date(now - 20 * 60 * 1000).toISOString(),
+    });
+    const story = storyFromCluster([hot], now, {}, 0.02);
+    expect(story.reason).toMatch(/faster than the rest of the feed/i);
+    expect(story.reason).not.toMatch(/\btape\b/i);
+    expect(story.velocityLabel).toBe(`${story.velocity.toFixed(1)}× the feed`);
   });
 });
 

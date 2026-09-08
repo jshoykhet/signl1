@@ -126,9 +126,9 @@ function median(values: number[]): number {
 }
 
 export function velocityLabel(abnormal: number): string {
-  if (abnormal >= 2) return `${abnormal.toFixed(1)}× the tape`;
-  if (abnormal >= 1.25) return "Faster than the tape";
-  return "In line with the tape";
+  if (abnormal >= 2) return `${abnormal.toFixed(1)}× the feed`;
+  if (abnormal >= 1.25) return "Faster than the feed";
+  return "In line with the feed";
 }
 
 export function clusterMatches(matches: Match[]): Match[][] {
@@ -232,7 +232,7 @@ export function storyFromCluster(
   if (tracked) reasons.push("you're tracking this");
   if (members.length >= 3) reasons.push(`${members.length} sources clustering on ${label}`);
   else if (members.length === 2) reasons.push(`two independent sources on ${label}`);
-  if (abnormal >= 2) reasons.push(`moving ${abnormal.toFixed(1)}× faster than the rest of the tape`);
+  if (abnormal >= 2) reasons.push(`running ${abnormal.toFixed(1)}× faster than the rest of the feed`);
   if (uniqueTake(members)) reasons.push("a distinct take, not a wire copy");
   if (ranked.some((match) => match.kol && scoreDeskRelevance(match.text ?? "").print)) {
     reasons.push("Key Account print");
