@@ -1,5 +1,6 @@
 import { LoginForm, SkipSignInButton } from "@/components/login-form";
-import { isDevLoginEnabled, isGoogleAuthConfigured } from "@/lib/access";
+import { isDevLoginEnabled } from "@/lib/access";
+import { getFirebasePublicConfig } from "@/lib/firebase-config";
 
 export function MarketingHome({
   errorCode,
@@ -10,7 +11,6 @@ export function MarketingHome({
   publicSignup?: boolean;
 }) {
   const devLogin = isDevLoginEnabled();
-  const googleConfigured = isGoogleAuthConfigured();
   return (
     <div className="min-h-dvh bg-background text-foreground">
       <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-5 py-5">
@@ -42,8 +42,8 @@ export function MarketingHome({
               What matters on the Timeline
             </h1>
             <p className="mt-5 max-w-xl text-[17px] leading-relaxed text-muted-foreground">
-              WhatsApp agent so you can search the tape from chat. Signl1 ranks the tape, surfaces themes, and lets you ask Grok
-              to research X.
+              WhatsApp agent so you can search the tape from chat. Signl1 ranks the tape, surfaces themes, and lets you
+              ask Grok to research X.
             </p>
           </div>
 
@@ -51,7 +51,7 @@ export function MarketingHome({
             <h2 className="text-[20px] font-semibold tracking-[-0.02em]">Sign in</h2>
             <div className="mt-5">
               <LoginForm
-                googleConfigured={googleConfigured}
+                firebaseConfig={getFirebasePublicConfig()}
                 devLogin={devLogin}
                 callbackUrl="/"
                 errorCode={errorCode}

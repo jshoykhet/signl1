@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { admitUser, isDevLoginEnabled, isGoogleAuthConfigured, listUsers } from "./access";
+import { admitUser, isDevLoginEnabled, listUsers } from "./access";
 import { openDatabase } from "./db";
 
 const tmpDirs: string[] = [];
@@ -47,35 +47,6 @@ describe("admitUser solo desk", () => {
     expect(isDevLoginEnabled()).toBe(false);
     if (prev === undefined) delete process.env.AUTH_DEV_LOGIN;
     else process.env.AUTH_DEV_LOGIN = prev;
-  });
-
-  it("lets AUTH_GOOGLE_EMAIL take over the existing solo desk", () => {
-    const prev = process.env.AUTH_GOOGLE_EMAIL;
-    process.env.AUTH_GOOGLE_EMAIL = "lead@gmail.com";
-    const db = tempDb();
-    const phone = admitUser({ email: "14155552671@phone.signl1", name: "Phone" }, db)!;
-    const google = admitUser({ email: "lead@gmail.com", name: "Lead", image: "https://example.com/a.png" }, db);
-    expect(google?.id).toBe(phone.id);
-    expect(google?.email).toBe("lead@gmail.com");
-    expect(google?.name).toBe("Lead");
-    expect(listUsers(db)).toHaveLength(1);
-    expect(admitUser({ email: "other@gmail.com" }, db)).toBeNull();
-    if (prev === undefined) delete process.env.AUTH_GOOGLE_EMAIL;
-    else process.env.AUTH_GOOGLE_EMAIL = prev;
-  });
-
-  it("requires a Google client secret before enabling Google sign-in", () => {
-    const id = process.env.GOOGLE_CLIENT_ID;
-    const secret = process.env.GOOGLE_CLIENT_SECRET;
-    delete process.env.GOOGLE_CLIENT_ID;
-    delete process.env.GOOGLE_CLIENT_SECRET;
-    expect(isGoogleAuthConfigured()).toBe(false);
-    process.env.GOOGLE_CLIENT_SECRET = "test-secret";
-    expect(isGoogleAuthConfigured()).toBe(true);
-    if (id === undefined) delete process.env.GOOGLE_CLIENT_ID;
-    else process.env.GOOGLE_CLIENT_ID = id;
-    if (secret === undefined) delete process.env.GOOGLE_CLIENT_SECRET;
-    else process.env.GOOGLE_CLIENT_SECRET = secret;
   });
 
   it("updates last login for the returning owner", () => {

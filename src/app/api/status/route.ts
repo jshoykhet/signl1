@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { isDemoMode, xBearerToken } from "@/lib/config";
 import { getStatus } from "@/lib/db";
 import { isGrokConfigured } from "@/lib/grok";
-import { isGoogleAuthConfigured } from "@/lib/access";
+import { isFirebaseAuthConfigured } from "@/lib/firebase-config";
 import { requireDeskUser } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -17,6 +17,6 @@ export async function GET() {
       bearerPresent: xBearerToken() !== null,
       grokPresent: isGrokConfigured(),
     }),
-    googleAuth: isGoogleAuthConfigured() ? "present" : "missing",
+    firebaseAuth: isFirebaseAuthConfigured() ? "present" : "missing",
   });
 }

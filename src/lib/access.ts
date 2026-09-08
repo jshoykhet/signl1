@@ -65,33 +65,12 @@ export function parseAllowedEmailsEnv(raw = process.env.AUTH_ALLOWED_EMAILS): st
   return out;
 }
 
-/** Public OAuth web client ID. Override with GOOGLE_CLIENT_ID if you rotate the client. */
-export const DEFAULT_GOOGLE_CLIENT_ID =
-  "103020933710-9rud6dti1f9brh6khs31p00qi5ua6g7s.apps.googleusercontent.com";
-
-export function googleClientId(): string {
-  return process.env.GOOGLE_CLIENT_ID?.trim() || process.env.AUTH_GOOGLE_ID?.trim() || DEFAULT_GOOGLE_CLIENT_ID;
-}
-
-export function googleClientSecret(): string {
-  return process.env.GOOGLE_CLIENT_SECRET?.trim() || process.env.AUTH_GOOGLE_SECRET?.trim() || "";
-}
-
-export function isGoogleAuthConfigured(): boolean {
-  return Boolean(googleClientId() && googleClientSecret());
-}
-
-/** Gmail that may take over / share the existing solo desk (phone-first enroll). */
-export function googleOwnerEmail(): string | null {
-  return normalizeEmail(process.env.AUTH_GOOGLE_EMAIL ?? process.env.GOOGLE_OWNER_EMAIL);
-}
-
 export function isDevLoginEnabled(): boolean {
   // Bracket access so Next does not inline this at `next build` (Docker image).
   return String(process.env["AUTH_DEV_LOGIN"] ?? "").trim() === "1";
 }
 
-/** Anyone with Google (or local desk email) can create a private desk. */
+/** Kept for older env files. The desk stays solo. */
 export function isPublicSignup(): boolean {
   return process.env.AUTH_PUBLIC_SIGNUP === "1";
 }
@@ -245,27 +224,6 @@ export function admitUser(
   }
 
   const userCount = countUsers(conn);
-  const linkedGoogle = googleOwnerEmail();
-  if (userCount > 0 && linkedGoogle && linkedGoogle === email) {
-    const owner = listUsers(conn).find((user) => !user.disabled) ?? listUsers(conn)[0];
-    if (!owner) return null;
-    if (owner.email !== email) {
-      conn
-        .prepare(
-          `UPDATE users SET
-            email = ?,
-            last_login_at = ?,
-            name = COALESCE(?, name),
-            image = COALESCE(?, image)
-           WHERE id = ?`,
-        )
-        .run(email, nowIso(), input.name?.trim() || null, input.image?.trim() || null, owner.id);
-    } else {
-      touchLogin(owner.id, input, conn);
-    }
-    ensureUserDesk(owner.id, conn);
-    return getUserByEmail(email, conn);
-  }
   if (userCount > 0) return null;
 
   const ts = nowIso();

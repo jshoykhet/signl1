@@ -1,45 +1,29 @@
 import NextAuth from "next-auth";
 import type { NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import Google from "next-auth/providers/google";
 import { authConfig } from "./auth.config";
-import {
-  admitUser,
-  getUserByEmail,
-  googleClientId,
-  googleClientSecret,
-  isDevLoginEnabled,
-  isGoogleAuthConfigured,
-} from "./lib/access";
-import { verifySoloOtp } from "./lib/solo-auth";
+import { admitUser, getUserByEmail, isDevLoginEnabled } from "./lib/access";
+import { verifyFirebaseIdToken } from "./lib/firebase-id-token";
+import { admitFirebasePhone } from "./lib/solo-auth";
 
 function buildProviders(): NextAuthConfig["providers"] {
   const providers: NextAuthConfig["providers"] = [
     Credentials({
-      id: "otp",
-      name: "Authenticator",
+      id: "firebase",
+      name: "Phone",
       credentials: {
-        phone: { label: "Phone", type: "tel" },
-        code: { label: "Code", type: "text" },
+        idToken: { label: "ID token", type: "text" },
       },
       authorize: async (credentials) => {
-        const phone = typeof credentials?.phone === "string" ? credentials.phone : "";
-        const code = typeof credentials?.code === "string" ? credentials.code : "";
-        const user = verifySoloOtp(phone, code);
+        const idToken = typeof credentials?.idToken === "string" ? credentials.idToken : "";
+        const claims = await verifyFirebaseIdToken(idToken);
+        if (!claims) return null;
+        const user = admitFirebasePhone(claims.phone);
         if (!user) return null;
         return { id: user.id, email: user.email, name: user.name, image: user.image };
       },
     }),
   ];
-
-  if (isGoogleAuthConfigured()) {
-    providers.push(
-      Google({
-        clientId: googleClientId(),
-        clientSecret: googleClientSecret(),
-      }),
-    );
-  }
 
   if (isDevLoginEnabled()) {
     providers.push(

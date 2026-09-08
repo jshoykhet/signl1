@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { LoginForm } from "@/components/login-form";
-import { isDevLoginEnabled, isGoogleAuthConfigured } from "@/lib/access";
+import { isDevLoginEnabled } from "@/lib/access";
+import { getFirebasePublicConfig } from "@/lib/firebase-config";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,7 @@ export default async function LoginPage({
           <h1 className="mt-6 text-[28px] font-semibold tracking-[-0.03em]">Sign in</h1>
         </div>
         <LoginForm
-          googleConfigured={isGoogleAuthConfigured()}
+          firebaseConfig={getFirebasePublicConfig()}
           devLogin={isDevLoginEnabled()}
           callbackUrl={callbackUrl}
           errorCode={params.error ?? null}

@@ -83,7 +83,7 @@ export type StatusSnapshot = {
   demoMode: boolean;
   bearerToken: "present" | "missing";
   grok: "present" | "missing";
-  googleAuth?: "present" | "missing";
+  firebaseAuth?: "present" | "missing";
   whatsappLinked: boolean;
   poller: {
     healthy: boolean;

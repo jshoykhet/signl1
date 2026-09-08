@@ -1,52 +1,42 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { signIn } from "next-auth/react";
+import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from "firebase/auth";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { sameOriginCallbackPath } from "@/lib/dev-preview";
+import { getFirebaseAuth } from "@/lib/firebase-client";
+import type { FirebasePublicConfig } from "@/lib/firebase-config";
 import { DIAL_COUNTRIES, formatPhone, normalizePhone } from "@/lib/phone";
 import { cn } from "@/lib/utils";
 
-const ENTE_AUTH = "https://ente.io/auth/";
-const ENTE_IOS = "https://apps.apple.com/app/ente-auth/id6444121398";
-const ENTE_ANDROID = "https://play.google.com/store/apps/details?id=io.ente.auth";
-const AEGIS = "https://github.com/beemdevelopment/Aegis";
-
-type StartPayload =
-  | { mode: "challenge"; phone: string }
-  | { mode: "enroll"; phone: string; qrDataUrl: string; otpauthUrl: string; secret: string };
-
 const ERRORS: Record<string, string> = {
-  CredentialsSignin: "That code is wrong or expired. Try the current 6-digit code.",
-  Configuration: "Sign-in is not configured. Set AUTH_SECRET, or add GOOGLE_CLIENT_SECRET for Google.",
-  AccessDenied: "This Signl1 already has an owner. Sign in with that account.",
-  OAuthCallback: "Google sign-in failed. Add this site to the OAuth client's authorized redirect URIs.",
-  OAuthAccountNotLinked: "That Google account is not the owner of this Signl1.",
+  CredentialsSignin: "That code is wrong or expired, or this Signl1 already has another owner.",
+  Configuration: "Sign-in is not configured. Set AUTH_SECRET, or add the Firebase web config.",
+  AccessDenied: "This Signl1 already has an owner. Sign in with that phone number.",
   Default: "Sign-in failed. Try again.",
 };
 
-function GoogleMark() {
-  return (
-    <svg aria-hidden viewBox="0 0 24 24" className="size-5">
-      <path
-        fill="#4285F4"
-        d="M23.5 12.3c0-.8-.1-1.6-.2-2.4H12v4.5h6.4c-.3 1.5-1.1 2.8-2.4 3.7v3h3.9c2.3-2.1 3.6-5.2 3.6-8.8Z"
-      />
-      <path
-        fill="#34A853"
-        d="M12 24c3.2 0 5.9-1.1 7.9-2.9l-3.9-3c-1.1.7-2.5 1.2-4 1.2-3.1 0-5.7-2.1-6.6-4.9H1.4v3.1C3.4 21.3 7.4 24 12 24Z"
-      />
-      <path
-        fill="#FBBC05"
-        d="M5.4 14.4c-.2-.7-.4-1.4-.4-2.4s.1-1.7.4-2.4V6.5H1.4C.5 8.3 0 10.1 0 12s.5 3.7 1.4 5.5l4-3.1Z"
-      />
-      <path
-        fill="#EA4335"
-        d="M12 4.7c1.8 0 3.3.6 4.6 1.8l3.4-3.4C17.9 1.1 15.2 0 12 0 7.4 0 3.4 2.7 1.4 6.5l4 3.1C6.3 6.8 8.9 4.7 12 4.7Z"
-      />
-    </svg>
-  );
+const FIREBASE_ERRORS: Record<string, string> = {
+  "auth/invalid-phone-number": "Enter a valid mobile number with country code.",
+  "auth/too-many-requests": "Too many tries. Wait a minute and try again.",
+  "auth/invalid-verification-code": "That code is wrong or expired.",
+  "auth/code-expired": "That code expired. Send a new one.",
+  "auth/missing-verification-code": "Enter the 6-digit code from the text.",
+  "auth/captcha-check-failed": "The reCAPTCHA check failed. Refresh and try again.",
+  "auth/operation-not-allowed": "Phone sign-in is off in the Firebase console.",
+  "auth/quota-exceeded": "SMS quota is used up. Try again later.",
+  "auth/missing-app-credential": "reCAPTCHA is not ready. Refresh and try again.",
+};
+
+function firebaseMessage(error: unknown): string {
+  const code = typeof error === "object" && error && "code" in error ? String((error as { code: string }).code) : "";
+  if (code && FIREBASE_ERRORS[code]) return FIREBASE_ERRORS[code];
+  const message =
+    typeof error === "object" && error && "message" in error ? String((error as { message: string }).message) : "";
+  if (message.length > 8 && message.length < 180) return message;
+  return "Could not send or verify that code. Try again.";
 }
 
 export function SkipSignInButton({
@@ -64,11 +54,12 @@ export function SkipSignInButton({
 }
 
 export function LoginForm({
-  googleConfigured = false,
+  firebaseConfig,
   devLogin,
   callbackUrl,
   errorCode,
 }: {
+  firebaseConfig: FirebasePublicConfig | null;
   googleConfigured?: boolean;
   publicSignup?: boolean;
   devLogin: boolean;
@@ -78,10 +69,12 @@ export function LoginForm({
   const [iso, setIso] = useState("US");
   const [national, setNational] = useState("");
   const [code, setCode] = useState("");
-  const [step, setStep] = useState<"phone" | "enroll" | "challenge">("phone");
-  const [start, setStart] = useState<StartPayload | null>(null);
+  const [phone, setPhone] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const recaptchaHost = useRef<HTMLDivElement>(null);
+  const verifierRef = useRef<RecaptchaVerifier | null>(null);
+  const confirmationRef = useRef<ConfirmationResult | null>(null);
 
   const country = DIAL_COUNTRIES.find((row) => row.iso === iso) ?? DIAL_COUNTRIES[0]!;
   const error = useMemo(() => {
@@ -92,31 +85,56 @@ export function LoginForm({
     return ERRORS.Default;
   }, [errorCode, localError]);
 
-  async function onContinue(event: React.FormEvent) {
+  useEffect(() => {
+    return () => {
+      verifierRef.current?.clear();
+      verifierRef.current = null;
+    };
+  }, []);
+
+  function resetVerifier() {
+    try {
+      verifierRef.current?.clear();
+    } catch {
+      /* already cleared */
+    }
+    verifierRef.current = null;
+  }
+
+  async function ensureVerifier() {
+    if (!firebaseConfig || !recaptchaHost.current) {
+      throw new Error("Phone sign-in is not ready.");
+    }
+    if (verifierRef.current) return verifierRef.current;
+    const auth = getFirebaseAuth(firebaseConfig);
+    const verifier = new RecaptchaVerifier(auth, recaptchaHost.current, { size: "invisible" });
+    verifierRef.current = verifier;
+    await verifier.render();
+    return verifier;
+  }
+
+  async function onSendCode(event: React.FormEvent) {
     event.preventDefault();
     setLocalError(null);
-    const phone = normalizePhone(country.dial, national);
-    if (!phone) {
+    if (!firebaseConfig) {
+      setLocalError("Phone sign-in is not configured. Add the Firebase web config.");
+      return;
+    }
+    const nextPhone = normalizePhone(country.dial, national);
+    if (!nextPhone) {
       setLocalError("Enter a valid mobile number.");
       return;
     }
     setPending(true);
     try {
-      const res = await fetch("/api/auth/otp/start", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ phone }),
-      });
-      const data = (await res.json()) as StartPayload & { error?: string };
-      if (!res.ok) {
-        setLocalError(data.error ?? "Could not start sign-in.");
-        return;
-      }
-      setStart(data);
-      setStep(data.mode);
+      const verifier = await ensureVerifier();
+      const confirmation = await signInWithPhoneNumber(getFirebaseAuth(firebaseConfig), formatPhone(nextPhone), verifier);
+      confirmationRef.current = confirmation;
+      setPhone(nextPhone);
       setCode("");
-    } catch {
-      setLocalError("Could not connect. Try again.");
+    } catch (err) {
+      resetVerifier();
+      setLocalError(firebaseMessage(err));
     } finally {
       setPending(false);
     }
@@ -124,22 +142,28 @@ export function LoginForm({
 
   async function onVerify(event: React.FormEvent) {
     event.preventDefault();
-    if (!start) return;
+    if (!confirmationRef.current) return;
     setLocalError(null);
     setPending(true);
     const next = sameOriginCallbackPath(callbackUrl);
-    const result = await signIn("otp", {
-      phone: start.phone,
-      code,
-      callbackUrl: next,
-      redirect: false,
-    });
-    if (result?.error || !result?.ok) {
-      setLocalError(result?.error ?? "CredentialsSignin");
+    try {
+      const credential = await confirmationRef.current.confirm(code);
+      const idToken = await credential.user.getIdToken();
+      const result = await signIn("firebase", {
+        idToken,
+        callbackUrl: next,
+        redirect: false,
+      });
+      if (result?.error || !result?.ok) {
+        setLocalError(result?.error ?? "CredentialsSignin");
+        setPending(false);
+        return;
+      }
+      window.location.assign(next);
+    } catch (err) {
+      setLocalError(firebaseMessage(err));
       setPending(false);
-      return;
     }
-    window.location.assign(next);
   }
 
   return (
@@ -148,36 +172,17 @@ export function LoginForm({
         <div className="rounded-2xl bg-destructive/10 px-3.5 py-2.5 text-[15px] text-destructive">{error}</div>
       ) : null}
 
-      {googleConfigured && step === "phone" ? (
-        <div className="space-y-4">
-          <Button
-            type="button"
-            size="lg"
-            variant="outline"
-            className="h-12 w-full rounded-xl text-[16px]"
-            disabled={pending}
-            onClick={() => {
-              setPending(true);
-              void signIn("google", { callbackUrl: sameOriginCallbackPath(callbackUrl) });
-            }}
-          >
-            <GoogleMark />
-            Continue with Google
-          </Button>
-          <div className="flex items-center gap-3 text-[12px] text-muted-foreground">
-            <span className="h-px flex-1 bg-border" />
-            or use your phone
-            <span className="h-px flex-1 bg-border" />
-          </div>
-        </div>
+      {!firebaseConfig && !devLogin ? (
+        <p className="text-[15px] leading-snug text-muted-foreground">
+          Phone sign-in is not configured. Add the Firebase web config on the server, enable the Phone provider, and
+          authorize this domain.
+        </p>
       ) : null}
 
-      {step === "phone" ? (
-        <form onSubmit={onContinue} className="space-y-4">
+      {firebaseConfig && !phone ? (
+        <form onSubmit={(event) => void onSendCode(event)} className="space-y-4">
           <p className="text-[15px] leading-snug text-muted-foreground">
-            {googleConfigured
-              ? "Or enter your number for a code from your authenticator."
-              : "Enter your number. We'll ask for a code from your authenticator."}
+            Enter your number. We&apos;ll text a 6-digit code. Standard SMS rates apply.
           </p>
           <div className="flex gap-2">
             <label className="sr-only" htmlFor="phone-country">
@@ -208,65 +213,29 @@ export function LoginForm({
             />
           </div>
           <Button type="submit" size="lg" className="h-12 w-full rounded-xl text-[16px]" disabled={pending}>
-            {pending ? "Checking…" : "Continue"}
+            {pending ? "Sending…" : "Text me a code"}
           </Button>
-          <p className="text-[13px] leading-relaxed text-muted-foreground">
-            Use an open-source authenticator on your phone —{" "}
-            <a href={ENTE_AUTH} className="underline underline-offset-2" target="_blank" rel="noreferrer">
-              Ente Auth
-            </a>{" "}
-            (iOS and Android) or{" "}
-            <a href={AEGIS} className="underline underline-offset-2" target="_blank" rel="noreferrer">
-              Aegis
-            </a>{" "}
-            (Android).
-          </p>
         </form>
       ) : null}
 
-      {step !== "phone" && start ? (
-        <form onSubmit={onVerify} className="space-y-4">
+      {firebaseConfig && phone ? (
+        <form onSubmit={(event) => void onVerify(event)} className="space-y-4">
           <button
             type="button"
             className="text-[13px] text-muted-foreground underline-offset-2 hover:underline"
             onClick={() => {
-              setStep("phone");
-              setStart(null);
+              setPhone(null);
               setCode("");
               setLocalError(null);
+              confirmationRef.current = null;
+              resetVerifier();
             }}
           >
-            ← {formatPhone(start.phone)}
+            ← {formatPhone(phone)}
           </button>
-
-          {start.mode === "enroll" ? (
-            <div className="space-y-3">
-              <p className="text-[15px] leading-snug text-muted-foreground">
-                Scan this with{" "}
-                <a href={ENTE_AUTH} className="underline underline-offset-2" target="_blank" rel="noreferrer">
-                  Ente Auth
-                </a>{" "}
-                or Aegis, then enter the 6-digit code.
-              </p>
-              <div className="flex justify-center rounded-2xl bg-white p-4">
-                <img src={start.qrDataUrl} alt="Authenticator QR code" width={200} height={200} className="size-[200px]" />
-              </div>
-              <p className="break-all text-center font-mono text-[12px] text-muted-foreground">{start.secret}</p>
-              <div className="flex justify-center gap-3 text-[13px]">
-                <a href={ENTE_IOS} className="underline underline-offset-2" target="_blank" rel="noreferrer">
-                  Ente Auth for iPhone
-                </a>
-                <a href={ENTE_ANDROID} className="underline underline-offset-2" target="_blank" rel="noreferrer">
-                  Android
-                </a>
-              </div>
-            </div>
-          ) : (
-            <p className="text-[15px] leading-snug text-muted-foreground">
-              Enter the current 6-digit code from Ente Auth or Aegis.
-            </p>
-          )}
-
+          <p className="text-[15px] leading-snug text-muted-foreground">
+            Enter the 6-digit code we texted you.
+          </p>
           <Input
             id="phone-otp"
             type="text"
@@ -291,14 +260,14 @@ export function LoginForm({
         </form>
       ) : null}
 
+      <div ref={recaptchaHost} id="recaptcha-container" />
+
       {devLogin ? (
         <div className="space-y-2 border-t border-border pt-4">
           <a href="/skip" className={cn(buttonVariants({ size: "lg", variant: "outline" }), "h-12 w-full rounded-xl")}>
             Skip sign-in
           </a>
-          <p className="text-[13px] leading-relaxed text-muted-foreground">
-            This skip is for local preview only.
-          </p>
+          <p className="text-[13px] leading-relaxed text-muted-foreground">This skip is for local preview only.</p>
         </div>
       ) : null}
     </div>
