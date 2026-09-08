@@ -179,7 +179,7 @@ export async function handleWhatsAppAgentUpsert(
             authorName: match.authorName,
             text: match.text,
             permalink: match.permalink,
-            likeCount: match.likeCount,
+            likeCount: match.likeCount ?? 0,
           })),
           emptyHint: "Inbox is empty. Search X, or wait for the next poll.",
         }),

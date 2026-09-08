@@ -23,7 +23,7 @@ FROM base AS poller
 CMD ["npm", "run", "poller"]
 
 FROM base AS web
-ENV NODE_OPTIONS=--max-old-space-size=1536
+ENV NODE_OPTIONS=--max-old-space-size=768
 RUN npm run build
 EXPOSE 3847
 CMD ["npm", "run", "start"]

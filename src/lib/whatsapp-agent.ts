@@ -71,7 +71,11 @@ export function agentHelpText(): string {
 
 export function formatAgentResults(opts: {
   label: string;
-  tweets: Array<Pick<NormalizedTweet, "authorHandle" | "authorName" | "text" | "permalink" | "likeCount">>;
+  tweets: Array<
+    Pick<NormalizedTweet, "authorHandle" | "authorName" | "text" | "permalink"> & {
+      likeCount?: number | null;
+    }
+  >;
   demo?: boolean;
   emptyHint?: string;
 }): string {
