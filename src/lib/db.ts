@@ -303,6 +303,8 @@ const DESK_META_KEYS = [
   "watchlist_poll_interval_ms",
   "key_leaders_enabled",
   "monitor_mode",
+  "launch_tracked",
+  "launch_muted",
 ] as const;
 
 function migrateTickersToDesk(db: Database.Database) {
@@ -1871,5 +1873,61 @@ export function syncKeyLeaderRules(userId: string, db = getDb()) {
     }
   });
   apply();
+}
+
+function parseIdList(raw: string | null): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (Array.isArray(parsed)) {
+      return [...new Set(parsed.map((item) => String(item).trim()).filter(Boolean))];
+    }
+  } catch {
+    /* fall through */
+  }
+  return [...new Set(raw.split(/[\s,]+/).map((item) => item.trim()).filter(Boolean))];
+}
+
+export function listLaunchTracked(userId: string, db = getDb()): string[] {
+  return parseIdList(getUserMeta(userId, "launch_tracked", db));
+}
+
+export function listLaunchMuted(userId: string, db = getDb()): string[] {
+  return parseIdList(getUserMeta(userId, "launch_muted", db));
+}
+
+export type LaunchStoryAction = "track" | "untrack" | "mute" | "unmute";
+
+export function applyLaunchStoryAction(
+  userId: string,
+  storyId: string,
+  action: LaunchStoryAction,
+  db = getDb(),
+): { tracked: string[]; muted: string[]; watchlistSymbol: string | null } {
+  const id = storyId.trim();
+  if (!id) throw new Error("Story is required.");
+  const tracked = new Set(listLaunchTracked(userId, db));
+  const muted = new Set(listLaunchMuted(userId, db));
+  let watchlistSymbol: string | null = null;
+  const theme = id.startsWith("theme:") ? id.slice("theme:".length) : id;
+  if (action === "track") {
+    tracked.add(id);
+    muted.delete(id);
+    if (theme.startsWith("$") && theme.length <= 6) {
+      addTickers(userId, [theme], db);
+      watchlistSymbol = theme.slice(1).toUpperCase();
+    }
+  } else if (action === "untrack") {
+    tracked.delete(id);
+  } else if (action === "mute") {
+    muted.add(id);
+  } else if (action === "unmute") {
+    muted.delete(id);
+  } else {
+    throw new Error("Unknown action.");
+  }
+  setUserMeta(userId, "launch_tracked", JSON.stringify([...tracked]), db);
+  setUserMeta(userId, "launch_muted", JSON.stringify([...muted]), db);
+  return { tracked: [...tracked], muted: [...muted], watchlistSymbol };
 }
 

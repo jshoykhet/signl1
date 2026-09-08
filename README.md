@@ -170,9 +170,9 @@ The inbox and rules pages are searchable. In the inbox, `/` or Ctrl/Cmd+K focuse
 
 Signed-in home (`/`) is a control panel, not the full inbox (that lives at `/inbox`).
 
-- **Worth a look** — top 20 posts from the last 24 hours, ranked for interestingness: unique takes, themes the tape is clustering on, and engagement that punches above account size — not a mega-account dump. Near-duplicate headlines are collapsed. If the last day is thin, Signl1 widens the window until the tape fills.
-- **Developing today** — cashtags, hashtags, and macro/venture clusters from that tape. Click a theme to research it.
-- **High engagement** — the most-liked posts in the same window.
+- **Worth a look** — clustered story cards (headline, one-sentence summary, why it surfaced, velocity vs the tape, source count). Ranked for unique takes and zeitgeist, not mega-account dumps. Track, Mute, Ask, and View sources sit on every card. If the last day is thin, Signl1 widens the window until the tape fills.
+- **Developing today** — the same story-card format for themes that are clustering (multiple sources).
+- **Heat** — stories ranked by **abnormal velocity** (likes relative to age and account size vs the rest of the tape), then diversified so one ticker cannot fill the column.
 - **Research** — ask a question. Grok (xAI) writes one or two X recent-search queries, Signl1 runs them against the X API (or sample posts in demo), and Grok writes a short brief. Without `XAI_API_KEY`, the same search still runs and you get raw hits.
 
 Set `XAI_API_KEY` in `.env` and recreate the **web** container. The model defaults to `grok-4-fast`. Settings shows whether the Grok key is present; the secret is never displayed.

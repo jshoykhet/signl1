@@ -56,7 +56,7 @@ export type LaunchTheme = {
   sample: LaunchTweet;
 };
 
-function asTweet(match: Match): LaunchTweet {
+export function matchToLaunchTweet(match: Match): LaunchTweet {
   return {
     id: match.id,
     tweetId: match.tweetId,
@@ -270,7 +270,7 @@ export function rankWorthLookingAt(matches: Match[], now = Date.now(), limit = L
     picked.push(candidate);
     if (picked.length >= limit) break;
   }
-  return picked.map((row) => asTweet(row.match));
+  return picked.map((row) => matchToLaunchTweet(row.match));
 }
 
 export function rankHighEngagement(matches: Match[], limit = LAUNCH_HEAT_N): LaunchTweet[] {
@@ -278,7 +278,7 @@ export function rankHighEngagement(matches: Match[], limit = LAUNCH_HEAT_N): Lau
     .filter((match) => (match.likeCount ?? 0) > 0 && match.userLabel !== "low")
     .sort((a, b) => (b.likeCount ?? 0) - (a.likeCount ?? 0) || worthScore(b) - worthScore(a))
     .slice(0, limit)
-    .map(asTweet);
+    .map(matchToLaunchTweet);
 }
 
 export function extractThemeKeys(text: string): string[] {
@@ -297,7 +297,7 @@ export function extractThemeKeys(text: string): string[] {
   return [...keys];
 }
 
-function themeLabel(id: string): string {
+export function themeLabel(id: string): string {
   if (id.startsWith("$") || id.startsWith("#")) return id;
   if (id === "fomc") return "FOMC";
   if (id === "cpi") return "CPI";
@@ -336,7 +336,7 @@ export function developingThemes(matches: Match[], limit = LAUNCH_THEME_N): Laun
       label: themeLabel(id),
       count: value.count,
       likes: value.likes,
-      sample: asTweet(value.sample),
+      sample: matchToLaunchTweet(value.sample),
     }));
 }
 
@@ -367,18 +367,4 @@ export function demoMatchesForLaunch(now = Date.now()): Match[] {
       kol: true,
     };
   });
-}
-
-export function buildLaunchBoard(matches: Match[], now = Date.now()) {
-  const recent = uniqueByTweet(matches).filter((match) =>
-    inLaunchWindow(match.tweetCreatedAt || match.matchedAt, now),
-  );
-  const pool = recent.length >= 8 ? recent : uniqueByTweet(matches);
-  return {
-    windowHours: 24,
-    usedFallbackWindow: recent.length < 8,
-    top: rankWorthLookingAt(pool, now),
-    heat: rankHighEngagement(pool),
-    themes: developingThemes(pool),
-  };
 }

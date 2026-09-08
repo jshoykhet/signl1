@@ -6,17 +6,25 @@ import { ChevronRight, Flame, Heart, LoaderCircle, Search, Sparkles } from "luci
 import { toast } from "sonner";
 import { UserMenu } from "@/components/user-menu";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/empty-state";
 import { formatCompact, formatRelative } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { LaunchTheme, LaunchTweet } from "@/lib/launch-board";
+import type { LaunchTweet } from "@/lib/launch-board";
+import type { LaunchStory } from "@/lib/launch-stories";
 import type { ResearchResult } from "@/lib/research";
 
 type LaunchPayload = {
-  top: LaunchTweet[];
-  heat: LaunchTweet[];
-  themes: LaunchTheme[];
+  top: LaunchStory[];
+  heat: LaunchStory[];
+  developing: LaunchStory[];
   usedFallbackWindow: boolean;
   demoMode: boolean;
   grok: "present" | "missing";
@@ -85,51 +93,110 @@ function TweetCard({ tweet, compact }: { tweet: LaunchTweet; compact?: boolean }
   );
 }
 
-function HeatCard({ tweet }: { tweet: LaunchTweet }) {
+function StoryActions({
+  story,
+  onAsk,
+  onAction,
+  onSources,
+}: {
+  story: LaunchStory;
+  onAsk: (question: string) => void;
+  onAction: (story: LaunchStory, action: "track" | "untrack" | "mute" | "unmute") => void;
+  onSources: (story: LaunchStory) => void;
+}) {
+  return (
+    <div className="mt-3 flex flex-wrap gap-1">
+      <Button
+        type="button"
+        size="sm"
+        variant={story.tracked ? "secondary" : "ghost"}
+        className="h-8 min-h-8 rounded-full px-2.5 text-[12px]"
+        onClick={() => onAction(story, story.tracked ? "untrack" : "track")}
+      >
+        {story.tracked ? "Tracking" : "Track"}
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        className="h-8 min-h-8 rounded-full px-2.5 text-[12px]"
+        onClick={() => onAction(story, "mute")}
+      >
+        Mute
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        className="h-8 min-h-8 rounded-full px-2.5 text-[12px]"
+        onClick={() => onAsk(story.headline)}
+      >
+        Ask
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        className="h-8 min-h-8 rounded-full px-2.5 text-[12px]"
+        onClick={() => onSources(story)}
+      >
+        View sources
+      </Button>
+    </div>
+  );
+}
+
+function StoryBody({ story }: { story: LaunchStory }) {
   return (
     <>
-      <a
-        href={tweet.permalink}
-        target="_blank"
-        rel="noreferrer"
-        className="flex w-[min(78vw,20rem)] shrink-0 snap-start flex-col rounded-[22px] bg-card p-4 shadow-[0_1px_0_rgba(0,0,0,0.04),0_10px_30px_rgba(0,0,0,0.05)] ring-1 ring-black/[0.04] transition-transform active:scale-[0.98] lg:hidden dark:ring-white/[0.06]"
-      >
-        <div className="flex items-center gap-2">
-          <Avatar handle={tweet.authorHandle} />
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-[15px] font-semibold tracking-[-0.02em]">@{tweet.authorHandle}</div>
-            <div className="text-[12px] text-muted-foreground">{formatRelative(tweet.tweetCreatedAt)}</div>
-          </div>
-        </div>
-        <p className="mt-3 line-clamp-4 text-[15px] leading-[1.35]">{tweet.text}</p>
-        <div className="mt-3 flex items-center gap-1 text-[13px] font-medium text-muted-foreground">
-          <Heart className="size-3.5 fill-current text-rose-500/80" />
-          {formatCompact(tweet.likeCount)}
-        </div>
-      </a>
-      <div className="hidden lg:block">
-        <TweetCard tweet={tweet} compact />
+      <div className="text-[12px] font-medium tracking-[0.01em] text-muted-foreground uppercase">
+        {story.themeLabel}
+      </div>
+      <h3 className="mt-1 text-[17px] leading-[1.25] font-semibold tracking-[-0.03em] lg:text-[16px]">
+        {story.headline}
+      </h3>
+      <p className="mt-1.5 text-[14px] leading-snug text-foreground/85">{story.summary}</p>
+      <p className="mt-2 text-[12px] leading-snug text-muted-foreground">
+        <span className="font-medium text-foreground/70">Why you&apos;re seeing this. </span>
+        {story.reason}
+      </p>
+      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] tabular-nums text-muted-foreground">
+        <span>{story.velocityLabel}</span>
+        <span className="text-foreground/20">·</span>
+        <span>
+          {story.sourceCount} source{story.sourceCount === 1 ? "" : "s"}
+        </span>
       </div>
     </>
   );
 }
 
-function ThemeChip({ theme, onAsk }: { theme: LaunchTheme; onAsk: (label: string) => void }) {
+function StoryCard({
+  story,
+  layout,
+  onAsk,
+  onAction,
+  onSources,
+}: {
+  story: LaunchStory;
+  layout: "rail" | "list";
+  onAsk: (question: string) => void;
+  onAction: (story: LaunchStory, action: "track" | "untrack" | "mute" | "unmute") => void;
+  onSources: (story: LaunchStory) => void;
+}) {
+  if (layout === "rail") {
+    return (
+      <article className="flex w-[min(78vw,22rem)] shrink-0 snap-start flex-col rounded-[22px] bg-card p-4 shadow-[0_1px_0_rgba(0,0,0,0.04),0_10px_30px_rgba(0,0,0,0.05)] ring-1 ring-black/[0.04] lg:w-full lg:rounded-none lg:px-4 lg:py-4 lg:shadow-none lg:ring-0 dark:ring-white/[0.06]">
+        <StoryBody story={story} />
+        <StoryActions story={story} onAsk={onAsk} onAction={onAction} onSources={onSources} />
+      </article>
+    );
+  }
   return (
-    <button
-      type="button"
-      onClick={() => onAsk(theme.label)}
-      className="flex w-[min(72vw,18.5rem)] shrink-0 snap-start flex-col rounded-[22px] bg-card p-4 text-left shadow-[0_1px_0_rgba(0,0,0,0.04),0_10px_30px_rgba(0,0,0,0.05)] ring-1 ring-black/[0.04] transition-transform active:scale-[0.98] lg:w-full lg:flex-row lg:items-start lg:gap-3 lg:rounded-none lg:px-4 lg:py-3.5 lg:shadow-none lg:ring-0 lg:active:scale-100 lg:hover:bg-black/[0.03] dark:ring-white/[0.06] dark:lg:hover:bg-white/[0.04]"
-    >
-      <div className="min-w-0 flex-1">
-        <div className="text-[17px] font-semibold tracking-[-0.03em] lg:text-[15px]">{theme.label}</div>
-        <p className="mt-1 line-clamp-2 text-[13px] leading-snug text-muted-foreground">{theme.sample.text}</p>
-      </div>
-      <div className="mt-3 flex items-center gap-3 text-[12px] tabular-nums text-muted-foreground lg:mt-0 lg:shrink-0 lg:flex-col lg:items-end lg:gap-0">
-        <span>{theme.count} posts</span>
-        <span>{formatCompact(theme.likes)} likes</span>
-      </div>
-    </button>
+    <article className="px-4 py-4 sm:px-5">
+      <StoryBody story={story} />
+      <StoryActions story={story} onAsk={onAsk} onAction={onAction} onSources={onSources} />
+    </article>
   );
 }
 
@@ -174,6 +241,7 @@ export function LaunchPad() {
   const [question, setQuestion] = useState("");
   const [research, setResearch] = useState<ResearchResult | null>(null);
   const [asking, setAsking] = useState(false);
+  const [sources, setSources] = useState<LaunchStory | null>(null);
   const researchRef = useRef<HTMLElement>(null);
 
   const load = async () => {
@@ -221,6 +289,41 @@ export function LaunchPad() {
       setAsking(false);
     }
   };
+
+  const act = async (story: LaunchStory, action: "track" | "untrack" | "mute" | "unmute") => {
+    try {
+      const res = await fetch("/api/launch", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id: story.id, action }),
+      });
+      const data = (await res.json()) as LaunchPayload & {
+        error?: string;
+        watchlistSymbol?: string | null;
+      };
+      if (!res.ok) throw new Error(data.error ?? "Could not update that story");
+      setBoard(data);
+      if (action === "mute") {
+        toast("Muted on the launch pad", {
+          action: {
+            label: "Undo",
+            onClick: () => void act(story, "unmute"),
+          },
+        });
+      } else if (action === "track") {
+        toast(
+          data.watchlistSymbol
+            ? `Tracking ${story.themeLabel} — added ${data.watchlistSymbol} to Watchlist`
+            : `Tracking ${story.themeLabel}`,
+        );
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not update that story");
+    }
+  };
+
+  const empty =
+    board && board.top.length === 0 && board.developing.length === 0 && board.heat.length === 0;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -348,7 +451,7 @@ export function LaunchPad() {
 
       {!board ? (
         <LaunchSkeleton />
-      ) : board.top.length === 0 ? (
+      ) : empty ? (
         <EmptyState
           title="Quiet so far"
           description="Nothing on the desk yet. Re-poll from Inbox, or ask a question above."
@@ -364,15 +467,21 @@ export function LaunchPad() {
                 "lg:overflow-hidden lg:rounded-[24px] lg:bg-card lg:ring-1 lg:ring-black/[0.04] dark:lg:ring-white/[0.07]",
               )}
             >
-              {board.themes.length === 0 ? (
-                <p className="px-4 py-4 text-[15px] text-muted-foreground">No clustered themes yet.</p>
+              {board.developing.length === 0 ? (
+                <p className="px-4 py-4 text-[15px] text-muted-foreground">No clustered stories yet.</p>
               ) : (
-                board.themes.map((theme) => (
+                board.developing.map((story) => (
                   <div
-                    key={theme.id}
+                    key={story.id}
                     className="shrink-0 lg:shrink lg:border-b lg:border-black/[0.06] lg:last:border-b-0 dark:lg:border-white/[0.08]"
                   >
-                    <ThemeChip theme={theme} onAsk={(label) => void ask(label)} />
+                    <StoryCard
+                      story={story}
+                      layout="rail"
+                      onAsk={(label) => void ask(label)}
+                      onAction={(item, action) => void act(item, action)}
+                      onSources={setSources}
+                    />
                   </div>
                 ))
               )}
@@ -383,8 +492,15 @@ export function LaunchPad() {
             <SectionLabel>Worth a look</SectionLabel>
             <Surface>
               <div className="divide-y divide-black/[0.06] dark:divide-white/[0.08]">
-                {board.top.map((tweet) => (
-                  <TweetCard key={tweet.id} tweet={tweet} />
+                {board.top.map((story) => (
+                  <StoryCard
+                    key={story.id}
+                    story={story}
+                    layout="list"
+                    onAsk={(label) => void ask(label)}
+                    onAction={(item, action) => void act(item, action)}
+                    onSources={setSources}
+                  />
                 ))}
               </div>
             </Surface>
@@ -405,14 +521,20 @@ export function LaunchPad() {
               )}
             >
               {board.heat.length === 0 ? (
-                <p className="px-4 py-4 text-[15px] text-muted-foreground">No liked posts in this window.</p>
+                <p className="px-4 py-4 text-[15px] text-muted-foreground">Nothing moving abnormally yet.</p>
               ) : (
-                board.heat.map((tweet) => (
+                board.heat.map((story) => (
                   <div
-                    key={tweet.id}
+                    key={story.id}
                     className="shrink-0 lg:shrink lg:border-b lg:border-black/[0.06] lg:last:border-b-0 dark:lg:border-white/[0.08]"
                   >
-                    <HeatCard tweet={tweet} />
+                    <StoryCard
+                      story={story}
+                      layout="rail"
+                      onAsk={(label) => void ask(label)}
+                      onAction={(item, action) => void act(item, action)}
+                      onSources={setSources}
+                    />
                   </div>
                 ))
               )}
@@ -420,6 +542,29 @@ export function LaunchPad() {
           </section>
         </div>
       )}
+
+      <Dialog
+        open={sources != null}
+        onOpenChange={(next) => {
+          if (!next) setSources(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-lg" showCloseButton>
+          <DialogHeader>
+            <DialogTitle>{sources?.headline ?? "Sources"}</DialogTitle>
+            <DialogDescription>
+              {sources
+                ? `${sources.sourceCount} source${sources.sourceCount === 1 ? "" : "s"} on ${sources.themeLabel}`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="-mx-5 max-h-[60vh] overflow-y-auto border-t border-black/[0.06] dark:border-white/[0.08]">
+            {sources?.sources.map((tweet) => (
+              <TweetCard key={tweet.id} tweet={tweet} compact />
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
