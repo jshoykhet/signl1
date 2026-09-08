@@ -57,9 +57,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (bare) return <>{children}</>;
 
+  const hideMobileBrand = pathname === "/";
+
   return (
     <div className="flex h-dvh overflow-hidden bg-background text-foreground">
-      <aside className="hidden h-full w-[232px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
+      <aside className="hidden h-full w-[232px] shrink-0 flex-col border-r border-sidebar-border/80 bg-sidebar/80 backdrop-blur-xl md:flex">
         <div className="flex items-center gap-2.5 px-4 pt-5 pb-4">
           <img
             src="/signl1-logo-256.png"
@@ -90,7 +92,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex h-9 items-center gap-2.5 rounded-[9px] px-3 text-[15px] transition-colors",
+                  "flex h-10 items-center gap-2.5 rounded-full px-3 text-[15px] transition-colors",
                   active
                     ? "bg-sidebar-accent font-medium text-foreground"
                     : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-foreground",
@@ -134,29 +136,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 md:hidden">
-          <div className="flex items-center gap-2.5">
-            <img
-              src="/signl1-logo-256.png"
-              alt=""
-              width={36}
-              height={36}
-              className="size-9 rounded-xl ring-1 ring-amber-400/25"
-            />
-            <span className="text-[18px] font-semibold tracking-[-0.02em]">Signl1</span>
-          </div>
-          <UserMenu compact />
-        </header>
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto pb-[calc(4.75rem+env(safe-area-inset-bottom))] md:pb-0">
+        {hideMobileBrand ? null : (
+          <header className="flex items-center justify-between gap-3 border-b border-black/[0.04] bg-background/75 px-4 py-2.5 backdrop-blur-2xl md:hidden dark:border-white/[0.06]">
+            <div className="flex items-center gap-2.5">
+              <img
+                src="/signl1-logo-256.png"
+                alt=""
+                width={32}
+                height={32}
+                className="size-8 rounded-[10px] ring-1 ring-black/5"
+              />
+              <span className="text-[17px] font-semibold tracking-[-0.03em]">Signl1</span>
+            </div>
+            <UserMenu compact />
+          </header>
+        )}
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-y-contain pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0">
           {children}
         </main>
       </div>
 
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-sidebar/90 backdrop-blur-xl md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-black/[0.06] bg-background/80 backdrop-blur-2xl md:hidden dark:border-white/[0.08]"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        <div className="grid h-[4.75rem] grid-cols-5">
+        <div className="grid h-[4.5rem] grid-cols-5">
           {MOBILE_NAV.map((item) => {
             const active = isActive(pathname, item.href);
             const Icon = item.icon;
@@ -165,14 +169,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 text-[11px] font-medium",
-                  active ? "text-amber-700 dark:text-amber-300" : "text-muted-foreground",
+                  "flex touch-manipulation flex-col items-center justify-center gap-0.5 text-[10px] font-medium tracking-[-0.01em]",
+                  active ? "text-foreground" : "text-muted-foreground",
                 )}
               >
-                <span className="relative">
-                  <Icon className="size-6" />
+                <span className={cn("relative rounded-full px-3 py-1", active && "bg-foreground/10")}>
+                  <Icon className="size-[22px]" strokeWidth={active ? 2.25 : 1.75} />
                   {item.href === "/inbox" && status && status.counts.unread > 0 ? (
-                    <span className="absolute -top-1.5 -right-2.5 min-w-4 rounded-full bg-amber-400 px-1 text-center text-[10px] font-semibold text-amber-950">
+                    <span className="absolute -top-0.5 -right-1 min-w-4 rounded-full bg-amber-400 px-1 text-center text-[10px] font-semibold text-amber-950">
                       {status.counts.unread > 99 ? "99+" : status.counts.unread}
                     </span>
                   ) : null}
