@@ -121,15 +121,15 @@ export function SettingsView() {
                     {status.grok === "present" ? "Present" : "Missing"}
                   </span>
                 </Row>
-                <Row label="Phone sign-in">
+                <Row label="Google sign-in">
                   <span
                     className={
-                      status.firebaseAuth === "present"
+                      status.googleAuth === "present"
                         ? "text-emerald-600 dark:text-emerald-400"
                         : "text-amber-700 dark:text-amber-300"
                     }
                   >
-                    {status.firebaseAuth === "present" ? "Firebase" : "Missing config"}
+                    {status.googleAuth === "present" ? "Google" : "Missing client ID"}
                   </span>
                 </Row>
                 <Row label="Mode">{status.demoMode ? "Sample posts" : "Live"}</Row>

@@ -1,6 +1,6 @@
 import { LoginForm, SkipSignInButton } from "@/components/login-form";
 import { isDevLoginEnabled } from "@/lib/access";
-import { getFirebasePublicConfig } from "@/lib/firebase-config";
+import { googleClientId, isGoogleAuthConfigured } from "@/lib/google-auth";
 
 export function MarketingHome({
   errorCode,
@@ -51,7 +51,8 @@ export function MarketingHome({
             <h2 className="text-[20px] font-semibold tracking-[-0.02em]">Sign in</h2>
             <div className="mt-5">
               <LoginForm
-                firebaseConfig={getFirebasePublicConfig()}
+                googleClientId={googleClientId()}
+                googleConfigured={isGoogleAuthConfigured()}
                 devLogin={devLogin}
                 callbackUrl="/"
                 errorCode={errorCode}

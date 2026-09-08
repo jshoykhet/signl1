@@ -2,23 +2,26 @@ import NextAuth from "next-auth";
 import type { NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { authConfig } from "./auth.config";
-import { admitUser, getUserByEmail, isDevLoginEnabled } from "./lib/access";
-import { verifyFirebaseIdToken } from "./lib/firebase-id-token";
-import { admitFirebasePhone } from "./lib/solo-auth";
+import { admitGoogleUser, admitUser, getUserByEmail, isDevLoginEnabled } from "./lib/access";
+import { verifyGoogleIdToken } from "./lib/google-id-token";
 
 function buildProviders(): NextAuthConfig["providers"] {
   const providers: NextAuthConfig["providers"] = [
     Credentials({
-      id: "firebase",
-      name: "Phone",
+      id: "google",
+      name: "Google",
       credentials: {
         idToken: { label: "ID token", type: "text" },
       },
       authorize: async (credentials) => {
         const idToken = typeof credentials?.idToken === "string" ? credentials.idToken : "";
-        const claims = await verifyFirebaseIdToken(idToken);
+        const claims = await verifyGoogleIdToken(idToken);
         if (!claims) return null;
-        const user = admitFirebasePhone(claims.phone);
+        const user = admitGoogleUser({
+          email: claims.email,
+          name: claims.name,
+          image: claims.picture,
+        });
         if (!user) return null;
         return { id: user.id, email: user.email, name: user.name, image: user.image };
       },

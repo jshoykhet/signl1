@@ -2,9 +2,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { listUsers } from "./access";
+import { admitGoogleUser, listUsers } from "./access";
 import { openDatabase } from "./db";
-import { admitFirebasePhone, getSoloAuth } from "./solo-auth";
+import { phoneToEmail } from "./phone";
+import { clearSoloPhone, getSoloAuth, markSoloPhone } from "./solo-auth";
 
 const tmpDirs: string[] = [];
 
@@ -15,33 +16,49 @@ afterEach(() => {
 });
 
 function tempDb() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-otp-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-google-"));
   tmpDirs.push(dir);
   return openDatabase(path.join(dir, "test.db"));
 }
 
-describe("Firebase solo phone", () => {
-  it("makes the first verified number the owner", () => {
+describe("Google solo desk", () => {
+  it("makes the first verified Gmail the owner", () => {
     const db = tempDb();
-    const user = admitFirebasePhone("+1 415 555 2671", db);
+    const user = admitGoogleUser({ email: " Desk.Lead@Gmail.com ", name: "Lead" }, db);
     expect(user?.role).toBe("admin");
-    expect(user?.email).toBe("14155552671@phone.signl1");
-    expect(getSoloAuth(db)).toMatchObject({ phone: "14155552671", confirmed: true });
+    expect(user?.email).toBe("desk.lead@gmail.com");
     expect(listUsers(db)).toHaveLength(1);
 
-    const again = admitFirebasePhone("14155552671", db);
+    const again = admitGoogleUser({ email: "desk.lead@gmail.com" }, db);
     expect(again?.id).toBe(user?.id);
   });
 
-  it("rejects a second number after the desk is claimed", () => {
+  it("rejects a second Gmail after the desk is claimed", () => {
     const db = tempDb();
-    expect(admitFirebasePhone("14155552671", db)).toBeTruthy();
-    expect(admitFirebasePhone("447700900123", db)).toBeNull();
+    expect(admitGoogleUser({ email: "lead@gmail.com" }, db)).toBeTruthy();
+    expect(admitGoogleUser({ email: "other@gmail.com" }, db)).toBeNull();
     expect(listUsers(db)).toHaveLength(1);
   });
 
-  it("rejects an invalid number", () => {
+  it("rebinds a leftover phone owner to the first Google email", () => {
     const db = tempDb();
-    expect(admitFirebasePhone("123", db)).toBeNull();
+    admitGoogleUser({ email: phoneToEmail("14155552671"), name: "+14155552671" }, db);
+    markSoloPhone("14155552671", db);
+    expect(getSoloAuth(db).confirmed).toBe(true);
+
+    const google = admitGoogleUser({ email: "owner@gmail.com", name: "Owner" }, db);
+    expect(google?.email).toBe("owner@gmail.com");
+    expect(google?.name).toBe("Owner");
+    expect(listUsers(db)).toHaveLength(1);
+    expect(listUsers(db)[0]?.email).toBe("owner@gmail.com");
+    expect(getSoloAuth(db).phone).toBeNull();
+  });
+
+  it("clears stored phone meta", () => {
+    const db = tempDb();
+    markSoloPhone("+1 415 555 2671", db);
+    expect(getSoloAuth(db)).toMatchObject({ phone: "14155552671", confirmed: true });
+    clearSoloPhone(db);
+    expect(getSoloAuth(db).phone).toBeNull();
   });
 });

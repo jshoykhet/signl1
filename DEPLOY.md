@@ -12,9 +12,9 @@ This file assumes you already bought a hostname. The stack never hard-codes it �
 | Caddy | HTTP→HTTPS, reverse-proxy to the web container |
 | `web` | Next.js on port 3847, internal only |
 | `poller` | X search + WhatsApp, shares the data volume |
-| Firebase phone | Solo sign-in. First number to verify the SMS owns this Signl1. |
+| Google sign-in | Solo sign-in. First verified Gmail owns this Signl1. |
 
-This instance is **solo**. Sign in with your phone. Firebase texts a 6-digit code. One X bearer token and one linked WhatsApp sending number.
+This instance is **solo**. Sign in with Google. One X bearer token and one linked WhatsApp sending number.
 
 The hostname you bought is never hard-coded — set `DOMAIN` in `.env`.
 
@@ -38,16 +38,16 @@ At your registrar, create:
 
 Use the hostname you want to type, for example `signl1.xyz` or `signals.yourfund.com`. Point both the apex (`@`) and `www` A records at the VPS if you want the bare domain. Wait until `dig +short your.hostname` returns the VPS IP before starting Compose. Caddy will fail TLS issuance if DNS still points elsewhere. Set `REDIRECT_FROM=old.hostname` if you are moving off a subdomain.
 
-## 3. Firebase phone auth
+## 3. Google sign-in
 
-Create a Firebase project and add a **web** app. Copy the config snippet from Project settings.
+Signl1 uses [Google Identity Services](https://developers.google.com/identity/gsi/web/guides/overview) with a web client ID only (no client secret).
 
-1. Authentication → Sign-in method → enable **Phone**.
-2. Authentication → Settings → SMS region policy — allow the countries you will text.
-3. Authentication → Settings → Authorized domains — add `YOUR_DOMAIN` (for example `signl1.xyz`).
-4. Optional: Authentication → Sign-in method → Phone → Phone numbers for testing, for local checks without SMS.
+In [Google Cloud credentials](https://console.cloud.google.com/apis/credentials), open the OAuth 2.0 Web client and add **Authorized JavaScript origins**:
 
-See [Firebase phone auth](https://firebase.google.com/docs/auth/web/phone-auth).
+- `https://YOUR_DOMAIN` (for example `https://signl1.xyz`)
+- `http://127.0.0.1:3847` for local Compose / `npm run dev:web`
+
+You do not need an authorized redirect URI for this ID-token flow. The default client ID is already in the repo; override `GOOGLE_CLIENT_ID` if you rotate it. Optional: set `AUTH_GOOGLE_EMAIL` to the one Gmail that may own the desk.
 
 ## 4. Secrets and the first sign-in
 
@@ -65,11 +65,8 @@ AUTH_URL=https://signl1.xyz
 REDIRECT_FROM=signals.signl1.xyz   # optional; 301 the old host to DOMAIN
 AUTH_DEV_LOGIN=0
 X_BEARER_TOKEN=       # live X, or leave empty for demo fixtures
-FIREBASE_API_KEY=
-FIREBASE_AUTH_DOMAIN=   # your-project.firebaseapp.com
-FIREBASE_PROJECT_ID=
-FIREBASE_APP_ID=
-FIREBASE_MESSAGING_SENDER_ID=
+GOOGLE_CLIENT_ID=103020933710-3n07noae1t93om6qq96vmoarpf14hq5f.apps.googleusercontent.com
+# AUTH_GOOGLE_EMAIL=you@gmail.com   # optional lock
 ```
 
 Generate the session secret on the VPS:
@@ -92,7 +89,7 @@ On a 2 GB VPS, add 2 GB of swap before the first `--build`. Only the `web` image
 Caddy obtains a Let’s Encrypt certificate for `$DOMAIN` and proxies to `web:3847`. Confirm:
 
 - `https://YOUR_DOMAIN/login` loads
-- Phone SMS code returns to the inbox
+- Google sign-in returns to the inbox
 
 ## 6. WhatsApp and data
 
@@ -109,7 +106,7 @@ Copy `whatsapp-auth` the same way if you need a cold spare.
 
 ## 7. After go-live
 
-Open `https://YOUR_DOMAIN`, enter your number, confirm the SMS code, and you land in the inbox with the seeded Fed / Mag 7 / crude rules. Nobody else can sign in.
+Open `https://YOUR_DOMAIN`, sign in with Google, and you land in the inbox with the seeded Fed / Mag 7 / crude rules. Nobody else can sign in. If this desk was previously owned by a phone login, the first Google sign-in rebinds that owner.
 
 Link WhatsApp once on the WhatsApp tab. Alerts send from that linked WhatsApp to the destination number you save there.
 
@@ -118,7 +115,7 @@ Link WhatsApp once on the WhatsApp tab. Alerts send from that linked WhatsApp to
 | File | Use |
 | --- | --- |
 | `docker-compose.yml` | Laptop / this preview: publishes **3847**, `AUTH_DEV_LOGIN` defaults on |
-| `docker-compose.prod.yml` | VPS: Caddy 80/443, Firebase phone auth, `AUTH_URL=https://$DOMAIN` |
+| `docker-compose.prod.yml` | VPS: Caddy 80/443, Google sign-in, `AUTH_URL=https://$DOMAIN` |
 
 ## Troubleshooting
 
@@ -126,9 +123,8 @@ Link WhatsApp once on the WhatsApp tab. Alerts send from that linked WhatsApp to
 | --- | --- |
 | Caddy TLS errors | DNS A record not pointing here yet, or port 80 blocked |
 | `AUTH_SECRET is required` | `.env` missing `AUTH_SECRET`; recreate the web container |
-| SMS never arrives | Phone provider enabled? Domain authorized? SMS region policy allow your country? |
-| reCAPTCHA / `auth/operation-not-allowed` | Enable Phone in Firebase and add `YOUR_DOMAIN` to authorized domains |
-| “Already linked to another number” | This instance is solo — only the enrolled phone can sign in |
+| Google button missing / `The given origin is not allowed` | Add `https://YOUR_DOMAIN` as an Authorized JavaScript origin on the OAuth web client |
+| “Already has another owner” | This instance is solo — only the first Google account can sign in |
 | Infinite login redirect | `AUTH_URL` must be `https://YOUR_DOMAIN` with no path |
 | Empty live inbox | Same as README — token, recent-search product, rule `start_time` |
 | WhatsApp unlinked after recreate | Volume was wiped; link the device again |

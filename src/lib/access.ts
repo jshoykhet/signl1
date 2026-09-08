@@ -1,5 +1,7 @@
 import type Database from "better-sqlite3";
 import { ensureUserDesk, getDb } from "./db";
+import { emailLooksLikePhone } from "./phone";
+import { clearSoloPhone } from "./solo-auth";
 
 export type DeskRole = "admin" | "operator";
 
@@ -68,6 +70,11 @@ export function parseAllowedEmailsEnv(raw = process.env.AUTH_ALLOWED_EMAILS): st
 export function isDevLoginEnabled(): boolean {
   // Bracket access so Next does not inline this at `next build` (Docker image).
   return String(process.env["AUTH_DEV_LOGIN"] ?? "").trim() === "1";
+}
+
+/** Optional lock: only this Gmail can own or take over the desk. */
+export function allowedGoogleEmail(): string | null {
+  return normalizeEmail(process.env.AUTH_GOOGLE_EMAIL);
 }
 
 /** Kept for older env files. The desk stays solo. */
@@ -237,4 +244,59 @@ export function admitUser(
 
   ensureUserDesk(id, conn);
   return getUserByEmail(email, conn);
+}
+
+/**
+ * Google email owns the desk. A later Gmail is refused.
+ * If the only owner is a leftover @phone.signl1 account, the first
+ * verified Google email (or AUTH_GOOGLE_EMAIL) rebinds that row.
+ */
+export function admitGoogleUser(
+  input: { email: string; name?: string | null; image?: string | null },
+  db?: Database.Database,
+): DeskUser | null {
+  const email = normalizeEmail(input.email);
+  if (!email) return null;
+
+  const allowed = allowedGoogleEmail();
+  if (allowed && allowed !== email) return null;
+
+  const admitted = admitUser({ ...input, email }, db);
+  if (admitted) return admitted;
+
+  return rebindPhoneOwner({ ...input, email }, db);
+}
+
+function rebindPhoneOwner(
+  input: { email: string; name?: string | null; image?: string | null },
+  db?: Database.Database,
+): DeskUser | null {
+  const conn = use(db);
+  const users = listUsers(conn);
+  if (users.length !== 1) return null;
+  const owner = users[0]!;
+  if (owner.disabled || !emailLooksLikePhone(owner.email)) return null;
+
+  const ts = nowIso();
+  conn
+    .prepare(
+      `UPDATE users SET
+        email = ?,
+        last_login_at = ?,
+        name = COALESCE(?, name),
+        image = COALESCE(?, image)
+       WHERE id = ?`,
+    )
+    .run(input.email, ts, input.name?.trim() || null, input.image?.trim() || null, owner.id);
+
+  const hadAllow = conn.prepare("SELECT 1 AS ok FROM allowed_emails WHERE email = ?").get(owner.email) as
+    | { ok: number }
+    | undefined;
+  if (hadAllow) {
+    conn.prepare("DELETE FROM allowed_emails WHERE email = ?").run(input.email);
+    conn.prepare("UPDATE allowed_emails SET email = ? WHERE email = ?").run(input.email, owner.email);
+  }
+
+  clearSoloPhone(conn);
+  return getUserByEmail(input.email, conn);
 }

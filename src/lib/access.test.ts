@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { admitUser, isDevLoginEnabled, listUsers } from "./access";
+import { admitGoogleUser, admitUser, allowedGoogleEmail, isDevLoginEnabled, listUsers } from "./access";
 import { openDatabase } from "./db";
 
 const tmpDirs: string[] = [];
@@ -56,6 +56,17 @@ describe("admitUser solo desk", () => {
     expect(again.id).toBe(first.id);
     expect(again.name).toBe("Lead");
     expect(again.lastLoginAt).toBeTruthy();
+  });
+
+  it("honors AUTH_GOOGLE_EMAIL as a lock", () => {
+    const prev = process.env.AUTH_GOOGLE_EMAIL;
+    process.env.AUTH_GOOGLE_EMAIL = "owner@gmail.com";
+    expect(allowedGoogleEmail()).toBe("owner@gmail.com");
+    const db = tempDb();
+    expect(admitGoogleUser({ email: "other@gmail.com" }, db)).toBeNull();
+    expect(admitGoogleUser({ email: "owner@gmail.com" }, db)?.email).toBe("owner@gmail.com");
+    if (prev === undefined) delete process.env.AUTH_GOOGLE_EMAIL;
+    else process.env.AUTH_GOOGLE_EMAIL = prev;
   });
 
 });

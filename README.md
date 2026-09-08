@@ -2,9 +2,9 @@
 
 Signl1 watches what matters on the Timeline. The homepage is a launch pad: the top posts worth looking at, developing themes from the day, high-engagement tweets, and a Grok-powered search box that researches X. Search X from WhatsApp. Slack can fire on each match.
 
-Sign in with your phone. Firebase texts a 6-digit SMS code. The first number to verify owns this Signl1. There is no team or invite list.
+Sign in with Google. The first verified Gmail owns this Signl1. There is no team or invite list.
 
-You run it with Docker Compose (or `npm run dev`) against a local SQLite file. To put Signl1 on a domain you purchased, use a VPS — not Vercel. See [DEPLOY.md](DEPLOY.md) for DNS, Caddy TLS, and Firebase phone auth.
+You run it with Docker Compose (or `npm run dev`) against a local SQLite file. To put Signl1 on a domain you purchased, use a VPS — not Vercel. See [DEPLOY.md](DEPLOY.md) for DNS, Caddy TLS, and Google sign-in.
 
 ## Quick start
 
@@ -13,7 +13,7 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Open [http://localhost:3847](http://localhost:3847). After skip-sign-in (or a Firebase SMS code), you land on the **launch pad**. The full inbox is at `/inbox`. Link a phone on `/whatsapp`.
+Open [http://localhost:3847](http://localhost:3847). After skip-sign-in (or Google), you land on the **launch pad**. The full inbox is at `/inbox`. Link a phone on `/whatsapp`.
 
 Leave `X_BEARER_TOKEN` empty for **demo mode**. Signl1 shows sample posts so you can look around without paid X API access. The UI labels this clearly.
 
@@ -34,12 +34,8 @@ Leave `X_BEARER_TOKEN` empty for **demo mode**. Signl1 shows sample posts so you
 | `AUTH_SECRET` | Prod | Session secret (`openssl rand -base64 32`). Optional locally. |
 | `AUTH_URL` | Prod | Public URL, e.g. `https://signals.example.com`. |
 | `AUTH_DEV_LOGIN` | No | `1` shows **Skip sign-in** on the login page. Default off in production Compose (`AUTH_DEV_LOGIN=0`). |
-| `FIREBASE_API_KEY` | Prod | Firebase web API key (Project settings → Your apps). |
-| `FIREBASE_AUTH_DOMAIN` | Prod | Usually `your-project.firebaseapp.com`. |
-| `FIREBASE_PROJECT_ID` | Prod | Firebase project ID. Used to verify ID tokens. |
-| `FIREBASE_APP_ID` | Prod | Firebase web app ID. |
-| `FIREBASE_MESSAGING_SENDER_ID` | No | Optional sender id from the same snippet. |
-| `FIREBASE_AUTH_TESTING` | No | `1` disables reCAPTCHA and only works with Firebase test phone numbers. |
+| `GOOGLE_CLIENT_ID` | No | Google OAuth web client ID. Defaults to the Signl1 client. Add this origin under Authorized JavaScript origins. |
+| `AUTH_GOOGLE_EMAIL` | No | Optional lock: only this Gmail can own or take over the desk. |
 | `DOMAIN` | Prod | Hostname for `docker-compose.prod.yml` + Caddy. |
 
 Copy `.env.example` to `.env` and fill in what you need. Compose interpolates those values; an empty token is demo mode.
@@ -53,7 +49,7 @@ DATABASE_PATH=./data/signal.db
 
 Do not commit `.env`. Per-rule Slack and generic webhook URLs live in SQLite so different instances can fan out without extra env vars.
 
-On first visit, enter your mobile number. Firebase texts a 6-digit code (standard SMS rates apply). That number owns this Signl1. Later visits must use the same phone. Local preview can still **Skip sign-in** when `AUTH_DEV_LOGIN=1`.
+On first visit, sign in with Google. That email owns this Signl1. Later visits must use the same account. If the desk was previously claimed by a phone login, the first Google sign-in rebinds that owner. Local preview can still **Skip sign-in** when `AUTH_DEV_LOGIN=1`.
 
 ## X bearer token (live mode)
 
@@ -258,7 +254,7 @@ Do not lower every interval to 15s on a live token. Signl1 floors live polls at 
 npm test
 ```
 
-Covers query compilation (including the accounts helper), tweet/rule dedup against SQLite, demo fixture coverage of the sample rules, webhook payload shape, +/− training labels, watchlist cashtags, packed live-search query budgets, relevance scoring, Key Accounts, the blocked list, Focus floors, WhatsApp digest copy, WhatsApp JID formatting, solo Firebase phone admission, per-user isolation, launch-pad ranking/themes, and Grok research query fallback.
+Covers query compilation (including the accounts helper), tweet/rule dedup against SQLite, demo fixture coverage of the sample rules, webhook payload shape, +/− training labels, watchlist cashtags, packed live-search query budgets, relevance scoring, Key Accounts, the blocked list, Focus floors, WhatsApp digest copy, WhatsApp JID formatting, solo Google admission, per-user isolation, launch-pad ranking/themes, and Grok research query fallback.
 
 ## Layout
 

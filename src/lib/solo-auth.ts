@@ -1,7 +1,6 @@
 import type Database from "better-sqlite3";
-import { admitUser, type DeskUser } from "./access";
 import { getDb, getMeta, setMeta } from "./db";
-import { formatPhone, parseE164, phoneToEmail } from "./phone";
+import { parseE164 } from "./phone";
 
 const PHONE_KEY = "solo_phone";
 const CONFIRMED_KEY = "solo_phone_confirmed";
@@ -27,21 +26,16 @@ export function getSoloAuth(db?: Database.Database): SoloAuthState {
   };
 }
 
-/** First verified Firebase phone owns the desk. A different number is refused. */
-export function admitFirebasePhone(rawPhone: string, db?: Database.Database): DeskUser | null {
-  const phone = parseE164(rawPhone);
-  if (!phone) return null;
-
+/** Drop leftover Firebase phone claim after a Google email takes over. */
+export function clearSoloPhone(db?: Database.Database): void {
   const conn = use(db);
-  const current = getSoloAuth(conn);
-  if (current.confirmed && current.phone && current.phone !== phone) {
-    return null;
-  }
+  conn.prepare("DELETE FROM meta WHERE key IN (?, ?)").run(PHONE_KEY, CONFIRMED_KEY);
+}
 
-  const user = admitUser({ email: phoneToEmail(phone), name: formatPhone(phone) }, conn);
-  if (!user) return null;
-
-  setMeta(PHONE_KEY, phone, conn);
-  setMeta(CONFIRMED_KEY, "1", conn);
-  return user;
+/** Kept so older tests / backups can still record a phone claim. */
+export function markSoloPhone(rawPhone: string, db?: Database.Database): void {
+  const phone = parseE164(rawPhone);
+  if (!phone) return;
+  setMeta(PHONE_KEY, phone, db);
+  setMeta(CONFIRMED_KEY, "1", db);
 }
