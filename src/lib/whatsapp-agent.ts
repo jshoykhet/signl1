@@ -5,6 +5,12 @@ import { isSameWhatsAppUser } from "./whatsapp";
 export const AGENT_RESULT_LIMIT = 6;
 export const AGENT_LOOKBACK_HOURS = 24;
 export const AGENT_COOLDOWN_MS = 8_000;
+export const WHATSAPP_PENDING_WELCOME_META = "whatsapp_pending_welcome";
+export const WHATSAPP_WELCOME_SENT_META = "whatsapp_agent_welcome_sent";
+
+export function shouldSendAgentWelcome(pending: string | null | undefined): boolean {
+  return pending === "1";
+}
 
 export type AgentIntent =
   | { kind: "help" }
@@ -122,7 +128,7 @@ export function senderIsAllowed(sender: string, allowed: string[]): boolean {
 export function agentHelpText(): string {
   return [
     "*Signl1 agent*",
-    "Text a search. I check the last 24 hours on X and reply with the best posts.",
+    "Text a search. I check the last 24 hours on X and reply with the highest-signal posts — not content farms.",
     "",
     "• `$NVDA` or `NVDA`",
     "• `@federalreserve` or `from:reuters`",
@@ -148,7 +154,9 @@ export function formatAgentResults(opts: {
   if (!opts.tweets.length) {
     return [
       `*Signl1 search* · ${opts.label}`,
-      opts.demo ? "Sample tape. No match in the fixtures." : (opts.emptyHint ?? "Nothing in the last 24 hours."),
+      opts.demo
+        ? "Sample tape. No match in the fixtures."
+        : (opts.emptyHint ?? "Nothing high-signal in the last 24 hours. Farms and empty chatter are skipped."),
     ].join("\n");
   }
   const head = opts.demo

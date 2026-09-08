@@ -337,9 +337,9 @@ export function WhatsAppSettings() {
               <span className="text-muted-foreground">{wa?.agentEnabled === false ? "Off" : "On"}</span>
             </div>
             <p className="text-[14px] leading-relaxed text-muted-foreground sm:text-[13px]">
-              Text this WhatsApp a ticker, @handle, or search. Signl1 checks the last 24 hours on X and
-              replies. Try <span className="text-foreground">help</span>, <span className="text-foreground">$NVDA</span>, or{" "}
-              <span className="text-foreground">inbox</span>.
+              How-to lands here the first time you link. After that, text a ticker, @handle, or search.
+              Signl1 ranks the last 24 hours on X for high-signal posts and skips content farms. Try{" "}
+              <span className="text-foreground">$NVDA</span> or <span className="text-foreground">inbox</span>.
             </p>
             {wa?.lastAgentQuery ? (
               <p className="text-[13px] text-muted-foreground">

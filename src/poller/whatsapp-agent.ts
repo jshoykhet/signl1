@@ -1,3 +1,4 @@
+import { AGENT_SEARCH_POOL, rankAgentTweets } from "../lib/agent-search";
 import { isDemoMode, xBearerToken } from "../lib/config";
 import {
   getWhatsAppTo,
@@ -85,10 +86,12 @@ function lookbackStart(): string {
 
 function searchFixtures(query: string) {
   const now = new Date().toISOString();
-  return [...DEMO_FIXTURES, ...VENTURE_DEMO_FIXTURES]
-    .map((fixture) => fixtureToTweet(fixture, fixture.id, now))
-    .filter((tweet) => matchesQuery(tweet, query))
-    .slice(0, AGENT_RESULT_LIMIT);
+  return rankAgentTweets(
+    [...DEMO_FIXTURES, ...VENTURE_DEMO_FIXTURES]
+      .map((fixture) => fixtureToTweet(fixture, fixture.id, now))
+      .filter((tweet) => matchesQuery(tweet, query)),
+    { query, limit: AGENT_RESULT_LIMIT },
+  );
 }
 
 async function reply(to: string, text: string) {
@@ -115,12 +118,10 @@ async function runSearch(userId: string, to: string, raw: string, query: string)
     bearerToken: token,
     query,
     startTime: lookbackStart(),
-    maxResults: 10,
+    maxResults: AGENT_SEARCH_POOL,
     limiter,
   });
-  const tweets = result.tweets
-    .filter((tweet) => !tweet.isRetweet)
-    .slice(0, AGENT_RESULT_LIMIT);
+  const tweets = rankAgentTweets(result.tweets, { query, limit: AGENT_RESULT_LIMIT });
   await reply(to, formatAgentResults({ label: raw, tweets }));
 }
 

@@ -6,6 +6,7 @@ import {
   isSignl1Outbound,
   parseAgentMessage,
   senderIsAllowed,
+  shouldSendAgentWelcome,
 } from "./whatsapp-agent";
 
 describe("parseAgentMessage", () => {
@@ -102,6 +103,14 @@ describe("formatAgentResults", () => {
   });
 
   it("explains an empty live search", () => {
-    expect(formatAgentResults({ label: "xyzzy", tweets: [] })).toContain("Nothing in the last 24 hours");
+    expect(formatAgentResults({ label: "xyzzy", tweets: [] })).toContain("Nothing high-signal in the last 24 hours");
+  });
+});
+
+describe("shouldSendAgentWelcome", () => {
+  it("sends only while a first-link welcome is pending", () => {
+    expect(shouldSendAgentWelcome("1")).toBe(true);
+    expect(shouldSendAgentWelcome("")).toBe(false);
+    expect(shouldSendAgentWelcome(null)).toBe(false);
   });
 });

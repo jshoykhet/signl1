@@ -2,7 +2,7 @@ import fs from "node:fs";
 import type { ConnectionState, WASocket } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
 import pino from "pino";
-import { getMeta, getWhatsAppTo, setMeta, takeMetaValue } from "../lib/db";
+import { getMeta, getWhatsAppTo, listDeskUserIds, setMeta, takeMetaValue } from "../lib/db";
 import {
   hasCompletedPairHandshake,
   isTransientWhatsAppDisconnect,
@@ -12,6 +12,12 @@ import {
   WA_RESTART_REQUIRED,
 } from "../lib/whatsapp-disconnect";
 import { formatPairingCode, isSameWhatsAppUser, isWhatsAppSocketReady, toOwnChatJid, toWhatsAppJid, whatsappAuthDir } from "../lib/whatsapp";
+import {
+  agentHelpText,
+  shouldSendAgentWelcome,
+  WHATSAPP_PENDING_WELCOME_META,
+  WHATSAPP_WELCOME_SENT_META,
+} from "../lib/whatsapp-agent";
 
 const log = pino({ level: process.env.WHATSAPP_DEBUG === "1" ? "debug" : "warn" });
 
@@ -50,6 +56,8 @@ function writeStatus(
 
 function wipeAuthDir() {
   fs.rmSync(whatsappAuthDir(), { recursive: true, force: true });
+  setMeta(WHATSAPP_PENDING_WELCOME_META, "");
+  setMeta(WHATSAPP_WELCOME_SENT_META, "");
 }
 
 function endSocket(target: WASocket | null) {
@@ -108,6 +116,7 @@ function handleConnectionUpdate(
 
   if (isNewLogin) {
     console.log("[whatsapp] pairing confirmed; WhatsApp will restart the socket");
+    setMeta(WHATSAPP_PENDING_WELCOME_META, "1");
     writeStatus("connecting", { qr: "", error: "" });
   }
 
@@ -124,6 +133,8 @@ function handleConnectionUpdate(
   }
 
   if (connection === "open") {
+    const hadPairingCode = Boolean(getMeta("whatsapp_pairing_code"));
+    if (hadPairingCode) setMeta(WHATSAPP_PENDING_WELCOME_META, "1");
     connecting = false;
     pairingIssuedForPhone = null;
     lastQr = null;
@@ -134,6 +145,9 @@ function handleConnectionUpdate(
     writeStatus("connected", { qr: "", pairingCode: "", linkedAs, error: "" });
     setMeta("whatsapp_pair_phone", "");
     console.log(`[whatsapp] linked as ${linkedAs || "unknown"}`);
+    if (shouldSendAgentWelcome(getMeta(WHATSAPP_PENDING_WELCOME_META))) {
+      sendAgentWelcomeSoon();
+    }
   }
 
   if (connection === "close") {
@@ -313,6 +327,30 @@ function destinationForSend(override?: string | null): string | null {
 }
 
 let sendTail: Promise<void> = Promise.resolve();
+let welcomeTimer: ReturnType<typeof setTimeout> | null = null;
+
+function sendAgentWelcomeSoon() {
+  if (welcomeTimer) return;
+  welcomeTimer = setTimeout(() => {
+    welcomeTimer = null;
+    void sendAgentWelcome();
+  }, 1_200);
+}
+
+async function sendAgentWelcome() {
+  if (!shouldSendAgentWelcome(getMeta(WHATSAPP_PENDING_WELCOME_META))) return;
+  if (!sessionLinked()) return;
+  try {
+    const to = listDeskUserIds().map((id) => getWhatsAppTo(id)).find((value) => Boolean(value)) ?? null;
+    await sendWhatsAppText(agentHelpText(), { mustBeLinked: true, to });
+    setMeta(WHATSAPP_WELCOME_SENT_META, sock?.user?.id ?? "1");
+    setMeta(WHATSAPP_PENDING_WELCOME_META, "");
+    console.log("[whatsapp] sent agent help after first link");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[whatsapp] first-link help failed: ${message}`);
+  }
+}
 
 function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;

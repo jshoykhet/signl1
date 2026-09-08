@@ -1,3 +1,4 @@
+import { AGENT_SEARCH_POOL, rankAgentTweets } from "./agent-search";
 import { isDemoMode, xBearerToken } from "./config";
 import { DEMO_FIXTURES, VENTURE_DEMO_FIXTURES, fixtureToTweet } from "./demo-fixtures";
 import { grokComplete, isGrokConfigured, parseJsonObject } from "./grok";
@@ -96,10 +97,12 @@ function toHit(tweet: NormalizedTweet): ResearchHit {
 
 function searchFixtures(query: string, limit: number): NormalizedTweet[] {
   const now = new Date().toISOString();
-  return [...DEMO_FIXTURES, ...VENTURE_DEMO_FIXTURES]
-    .map((fixture) => fixtureToTweet(fixture, fixture.id, now))
-    .filter((tweet) => matchesQuery(tweet, query))
-    .slice(0, limit);
+  return rankAgentTweets(
+    [...DEMO_FIXTURES, ...VENTURE_DEMO_FIXTURES]
+      .map((fixture) => fixtureToTweet(fixture, fixture.id, now))
+      .filter((tweet) => matchesQuery(tweet, query)),
+    { query, limit },
+  );
 }
 
 async function runQueries(plan: ResearchPlan): Promise<{ tweets: NormalizedTweet[]; demo: boolean }> {
@@ -116,7 +119,7 @@ async function runQueries(plan: ResearchPlan): Promise<{ tweets: NormalizedTweet
             bearerToken: token!,
             query,
             startTime,
-            maxResults: 10,
+            maxResults: AGENT_SEARCH_POOL,
             limiter,
           })
         ).tweets;
@@ -126,8 +129,7 @@ async function runQueries(plan: ResearchPlan): Promise<{ tweets: NormalizedTweet
       collected.push(tweet);
     }
   }
-  collected.sort((a, b) => b.likeCount - a.likeCount);
-  return { tweets: collected.slice(0, 12), demo };
+  return { tweets: rankAgentTweets(collected, { query: plan.queries.join(" "), limit: 12 }), demo };
 }
 
 function fallbackBrief(question: string, tweets: NormalizedTweet[], demo: boolean): string {
