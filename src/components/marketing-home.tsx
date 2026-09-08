@@ -1,5 +1,5 @@
 import { LoginForm, SkipSignInButton } from "@/components/login-form";
-import { isDevLoginEnabled } from "@/lib/access";
+import { isDevLoginEnabled, isGoogleAuthConfigured } from "@/lib/access";
 
 export function MarketingHome({
   errorCode,
@@ -10,6 +10,7 @@ export function MarketingHome({
   publicSignup?: boolean;
 }) {
   const devLogin = isDevLoginEnabled();
+  const googleConfigured = isGoogleAuthConfigured();
   return (
     <div className="min-h-dvh bg-background text-foreground">
       <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-5 py-5">
@@ -49,7 +50,12 @@ export function MarketingHome({
           <div id="start" className="rounded-3xl bg-card p-6 shadow-sm ring-1 ring-border">
             <h2 className="text-[20px] font-semibold tracking-[-0.02em]">Sign in</h2>
             <div className="mt-5">
-              <LoginForm devLogin={devLogin} callbackUrl="/" errorCode={errorCode} />
+              <LoginForm
+                googleConfigured={googleConfigured}
+                devLogin={devLogin}
+                callbackUrl="/"
+                errorCode={errorCode}
+              />
             </div>
           </div>
         </div>

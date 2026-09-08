@@ -19,9 +19,35 @@ type StartPayload =
 
 const ERRORS: Record<string, string> = {
   CredentialsSignin: "That code is wrong or expired. Try the current 6-digit code.",
-  Configuration: "Sign-in is not configured. Set AUTH_SECRET, or enable AUTH_DEV_LOGIN=1 locally.",
+  Configuration: "Sign-in is not configured. Set AUTH_SECRET, or add GOOGLE_CLIENT_SECRET for Google.",
+  AccessDenied: "This Signl1 already has an owner. Sign in with that account.",
+  OAuthCallback: "Google sign-in failed. Add this site to the OAuth client's authorized redirect URIs.",
+  OAuthAccountNotLinked: "That Google account is not the owner of this Signl1.",
   Default: "Sign-in failed. Try again.",
 };
+
+function GoogleMark() {
+  return (
+    <svg aria-hidden viewBox="0 0 24 24" className="size-5">
+      <path
+        fill="#4285F4"
+        d="M23.5 12.3c0-.8-.1-1.6-.2-2.4H12v4.5h6.4c-.3 1.5-1.1 2.8-2.4 3.7v3h3.9c2.3-2.1 3.6-5.2 3.6-8.8Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 24c3.2 0 5.9-1.1 7.9-2.9l-3.9-3c-1.1.7-2.5 1.2-4 1.2-3.1 0-5.7-2.1-6.6-4.9H1.4v3.1C3.4 21.3 7.4 24 12 24Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.4 14.4c-.2-.7-.4-1.4-.4-2.4s.1-1.7.4-2.4V6.5H1.4C.5 8.3 0 10.1 0 12s.5 3.7 1.4 5.5l4-3.1Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 4.7c1.8 0 3.3.6 4.6 1.8l3.4-3.4C17.9 1.1 15.2 0 12 0 7.4 0 3.4 2.7 1.4 6.5l4 3.1C6.3 6.8 8.9 4.7 12 4.7Z"
+      />
+    </svg>
+  );
+}
 
 export function SkipSignInButton({
   className,
@@ -38,6 +64,7 @@ export function SkipSignInButton({
 }
 
 export function LoginForm({
+  googleConfigured = false,
   devLogin,
   callbackUrl,
   errorCode,
@@ -121,10 +148,36 @@ export function LoginForm({
         <div className="rounded-2xl bg-destructive/10 px-3.5 py-2.5 text-[15px] text-destructive">{error}</div>
       ) : null}
 
+      {googleConfigured && step === "phone" ? (
+        <div className="space-y-4">
+          <Button
+            type="button"
+            size="lg"
+            variant="outline"
+            className="h-12 w-full rounded-xl text-[16px]"
+            disabled={pending}
+            onClick={() => {
+              setPending(true);
+              void signIn("google", { callbackUrl: sameOriginCallbackPath(callbackUrl) });
+            }}
+          >
+            <GoogleMark />
+            Continue with Google
+          </Button>
+          <div className="flex items-center gap-3 text-[12px] text-muted-foreground">
+            <span className="h-px flex-1 bg-border" />
+            or use your phone
+            <span className="h-px flex-1 bg-border" />
+          </div>
+        </div>
+      ) : null}
+
       {step === "phone" ? (
         <form onSubmit={onContinue} className="space-y-4">
           <p className="text-[15px] leading-snug text-muted-foreground">
-            Enter your number. We&apos;ll ask for a code from your authenticator.
+            {googleConfigured
+              ? "Or enter your number for a code from your authenticator."
+              : "Enter your number. We'll ask for a code from your authenticator."}
           </p>
           <div className="flex gap-2">
             <label className="sr-only" htmlFor="phone-country">

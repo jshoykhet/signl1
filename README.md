@@ -34,6 +34,9 @@ Leave `X_BEARER_TOKEN` empty for **demo mode**. Signl1 shows sample posts so you
 | `AUTH_SECRET` | Prod | Session secret (`openssl rand -base64 32`). Optional locally. |
 | `AUTH_URL` | Prod | Public URL, e.g. `https://signals.example.com`. |
 | `AUTH_DEV_LOGIN` | No | `1` shows **Skip sign-in** on the login page. Default off in production Compose (`AUTH_DEV_LOGIN=0`). |
+| `GOOGLE_CLIENT_ID` | No | Google OAuth web client ID. Defaults to the Signl1 web client. |
+| `GOOGLE_CLIENT_SECRET` | No | Google OAuth client secret. Required to show **Continue with Google**. |
+| `AUTH_GOOGLE_EMAIL` | No | Gmail that may open an existing phone-claimed desk. Without it, Google can only claim an empty instance or return as the same email. |
 | `DOMAIN` | Prod | Hostname for `docker-compose.prod.yml` + Caddy. |
 
 Copy `.env.example` to `.env` and fill in what you need. Compose interpolates those values; an empty token is demo mode.
@@ -47,7 +50,7 @@ DATABASE_PATH=./data/signal.db
 
 Do not commit `.env`. Per-rule Slack and generic webhook URLs live in SQLite so different instances can fan out without extra env vars.
 
-On first visit, enter your mobile number, scan the QR with Ente Auth or Aegis, and confirm the 6-digit code. Later visits only ask for the current code. Local preview can still **Skip sign-in** when `AUTH_DEV_LOGIN=1`.
+On first visit, **Continue with Google** (if `GOOGLE_CLIENT_SECRET` is set) or enter your mobile number, scan the QR with Ente Auth or Aegis, and confirm the 6-digit code. The first account owns this Signl1. Later Google visits must use that same Gmail, unless you set `AUTH_GOOGLE_EMAIL` to link Google to a desk that was claimed with a phone. Local preview can still **Skip sign-in** when `AUTH_DEV_LOGIN=1`.
 
 ## X bearer token (live mode)
 

@@ -121,6 +121,17 @@ export function SettingsView() {
                     {status.grok === "present" ? "Present" : "Missing"}
                   </span>
                 </Row>
+                <Row label="Google sign-in">
+                  <span
+                    className={
+                      status.googleAuth === "present"
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-amber-700 dark:text-amber-300"
+                    }
+                  >
+                    {status.googleAuth === "present" ? "Present" : "Missing secret"}
+                  </span>
+                </Row>
                 <Row label="Mode">{status.demoMode ? "Sample posts" : "Live"}</Row>
               </SettingsGroup>
               <CadenceSettings />

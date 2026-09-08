@@ -63,7 +63,17 @@ AUTH_URL=https://signl1.xyz
 REDIRECT_FROM=signals.signl1.xyz   # optional; 301 the old host to DOMAIN
 AUTH_DEV_LOGIN=0
 X_BEARER_TOKEN=       # live X, or leave empty for demo fixtures
+GOOGLE_CLIENT_ID=103020933710-9rud6dti1f9brh6khs31p00qi5ua6g7s.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET= # from Google Cloud → Credentials → the web client
+AUTH_GOOGLE_EMAIL=    # your Gmail, if the desk was already claimed with a phone
 ```
+
+In Google Cloud, the OAuth **web** client must allow:
+
+- Authorized JavaScript origins: `https://YOUR_DOMAIN`, `http://127.0.0.1:3847`
+- Authorized redirect URIs: `https://YOUR_DOMAIN/api/auth/callback/google`, `http://127.0.0.1:3847/api/auth/callback/google`
+
+`GOOGLE_CLIENT_SECRET` is required. The client ID alone does not complete the sign-in. If this instance already has a phone owner, set `AUTH_GOOGLE_EMAIL` to your Gmail so Google opens that same desk instead of being refused.
 
 Generate the session secret on the VPS:
 

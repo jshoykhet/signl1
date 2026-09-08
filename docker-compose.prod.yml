@@ -37,6 +37,9 @@ services:
       AUTH_URL: https://${DOMAIN}
       AUTH_TRUST_HOST: "true"
       AUTH_DEV_LOGIN: ${AUTH_DEV_LOGIN:-0}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-103020933710-9rud6dti1f9brh6khs31p00qi5ua6g7s.apps.googleusercontent.com}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      AUTH_GOOGLE_EMAIL: ${AUTH_GOOGLE_EMAIL:-}
       X_BEARER_TOKEN: ${X_BEARER_TOKEN:-}
       XAI_API_KEY: ${XAI_API_KEY:-}
       GROK_API_KEY: ${GROK_API_KEY:-}

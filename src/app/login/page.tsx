@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { LoginForm } from "@/components/login-form";
-import { isDevLoginEnabled } from "@/lib/access";
+import { isDevLoginEnabled, isGoogleAuthConfigured } from "@/lib/access";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +32,12 @@ export default async function LoginPage({
           />
           <h1 className="mt-6 text-[28px] font-semibold tracking-[-0.03em]">Sign in</h1>
         </div>
-        <LoginForm devLogin={isDevLoginEnabled()} callbackUrl={callbackUrl} errorCode={params.error ?? null} />
+        <LoginForm
+          googleConfigured={isGoogleAuthConfigured()}
+          devLogin={isDevLoginEnabled()}
+          callbackUrl={callbackUrl}
+          errorCode={params.error ?? null}
+        />
       </div>
     </div>
   );

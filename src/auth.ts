@@ -1,8 +1,16 @@
 import NextAuth from "next-auth";
 import type { NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import Google from "next-auth/providers/google";
 import { authConfig } from "./auth.config";
-import { admitUser, getUserByEmail, isDevLoginEnabled } from "./lib/access";
+import {
+  admitUser,
+  getUserByEmail,
+  googleClientId,
+  googleClientSecret,
+  isDevLoginEnabled,
+  isGoogleAuthConfigured,
+} from "./lib/access";
 import { verifySoloOtp } from "./lib/solo-auth";
 
 function buildProviders(): NextAuthConfig["providers"] {
@@ -23,6 +31,15 @@ function buildProviders(): NextAuthConfig["providers"] {
       },
     }),
   ];
+
+  if (isGoogleAuthConfigured()) {
+    providers.push(
+      Google({
+        clientId: googleClientId(),
+        clientSecret: googleClientSecret(),
+      }),
+    );
+  }
 
   if (isDevLoginEnabled()) {
     providers.push(
