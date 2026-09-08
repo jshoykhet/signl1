@@ -83,6 +83,7 @@ export function compileAgentQuery(raw: string): string {
 export function parseAgentMessage(text: string): AgentIntent | null {
   const trimmed = text.replace(/\s+/g, " ").trim();
   if (!trimmed) return null;
+  if (isSignl1Outbound(trimmed)) return null;
   for (const command of COMMANDS) {
     if (command.re.test(trimmed)) return { kind: command.kind };
   }
@@ -91,6 +92,27 @@ export function parseAgentMessage(text: string): AgentIntent | null {
   const query = compileAgentQuery(raw);
   if (!query) return { kind: "help" };
   return { kind: "search", raw, query };
+}
+
+/** Replies we send — never treat these as a new ask (Message yourself echoes fromMe). */
+export function isSignl1Outbound(text: string): boolean {
+  const t = text.trim();
+  if (/^Wait \d+s, then search again\.?$/i.test(t)) return true;
+  if (/^\*Signl1\b/i.test(t)) return true;
+  if (/^Search failed\./i.test(t)) return true;
+  if (/^WhatsApp agent is off/i.test(t)) return true;
+  return false;
+}
+
+/** In Message yourself, only honor clear commands so our replies cannot loop. */
+export function isExplicitAgentAsk(text: string): boolean {
+  const trimmed = text.replace(/\s+/g, " ").trim();
+  if (!trimmed || isSignl1Outbound(trimmed)) return false;
+  if (COMMANDS.some((command) => command.re.test(trimmed))) return true;
+  if (/^(search|find|look\s*up|lookup|show me)\s+\S/i.test(trimmed)) return true;
+  if (/^\$?[A-Za-z]{1,5}$/.test(trimmed)) return true;
+  if (/^(?:from:|@)[A-Za-z0-9_]{1,15}$/.test(trimmed)) return true;
+  return false;
 }
 
 export function senderIsAllowed(sender: string, allowed: string[]): boolean {

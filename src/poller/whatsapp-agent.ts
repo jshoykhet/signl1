@@ -14,6 +14,8 @@ import {
   AGENT_RESULT_LIMIT,
   agentHelpText,
   formatAgentResults,
+  isExplicitAgentAsk,
+  isSignl1Outbound,
   parseAgentMessage,
   senderIsAllowed,
 } from "../lib/whatsapp-agent";
@@ -97,10 +99,7 @@ async function runSearch(userId: string, to: string, raw: string, query: string)
   const key = `${userId}:${to}`;
   const last = lastSearchAt.get(key) ?? 0;
   const wait = AGENT_COOLDOWN_MS - (Date.now() - last);
-  if (wait > 0) {
-    await reply(to, `Wait ${Math.ceil(wait / 1000)}s, then search again.`);
-    return;
-  }
+  if (wait > 0) return;
   lastSearchAt.set(key, Date.now());
   setUserMeta(userId, "whatsapp_agent_last_at", new Date().toISOString());
   setUserMeta(userId, "whatsapp_agent_last_query", raw.slice(0, 180));
@@ -145,7 +144,8 @@ export async function handleWhatsAppAgentUpsert(
     }
 
     const text = extractText(msg.message).trim();
-    if (!text) continue;
+    if (!text || isSignl1Outbound(text)) continue;
+    if (msg.key?.fromMe && selfChat && !isExplicitAgentAsk(text)) continue;
     const intent = parseAgentMessage(text);
     if (!intent) continue;
 

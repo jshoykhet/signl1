@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   compileAgentQuery,
   formatAgentResults,
+  isExplicitAgentAsk,
+  isSignl1Outbound,
   parseAgentMessage,
   senderIsAllowed,
 } from "./whatsapp-agent";
@@ -38,6 +40,16 @@ describe("parseAgentMessage", () => {
 
   it("ignores empty text", () => {
     expect(parseAgentMessage("   ")).toBeNull();
+  });
+
+  it("does not treat our own replies as a new search", () => {
+    expect(parseAgentMessage("Wait 5s, then search again.")).toBeNull();
+    expect(parseAgentMessage("Wait 4s, then search again.")).toBeNull();
+    expect(isSignl1Outbound("*Signl1* (3 matches, last 15m)")).toBe(true);
+    expect(isExplicitAgentAsk("Wait 5s, then search again.")).toBe(false);
+    expect(isExplicitAgentAsk("$NVDA")).toBe(true);
+    expect(isExplicitAgentAsk("search FOMC")).toBe(true);
+    expect(isExplicitAgentAsk("inbox")).toBe(true);
   });
 });
 
