@@ -102,18 +102,21 @@ function showStorySummary(story: LaunchStory): boolean {
   return true;
 }
 
-function compactWhy(story: LaunchStory): string {
-  const sources = `${story.sourceCount} source${story.sourceCount === 1 ? "" : "s"}`;
+function compactWhy(story: LaunchStory): string | null {
+  if (story.tracked) return "On your watchlist";
   const stripped = story.reason
     .replace(/\s*[—-]\s*moving\s+[^.]+\.?/i, "")
     .replace(/^moving\s+[^.]+\.?/i, "")
     .replace(/\s+/g, " ")
-    .trim();
-  if (story.tracked) return `Tracking · ${sources}`;
+    .trim()
+    .replace(/\.$/, "");
   if (!stripped || /^on the desk/i.test(stripped) || /^you're seeing this/i.test(stripped)) {
-    return sources;
+    return null;
   }
-  return stripped.replace(/\.$/, "");
+  if (/^\d+ sources? clustering/i.test(stripped) || /^two independent sources/i.test(stripped)) {
+    return null;
+  }
+  return stripped;
 }
 
 function StoryActions({
@@ -128,9 +131,9 @@ function StoryActions({
   onSources: (story: LaunchStory) => void;
 }) {
   const btn =
-    "h-11 min-h-11 w-full rounded-2xl px-3 text-[14px] font-medium lg:h-8 lg:min-h-8 lg:w-auto lg:rounded-full lg:px-2.5 lg:text-[12px]";
+    "h-11 min-h-11 min-w-0 flex-1 rounded-xl px-1 text-[13px] font-medium lg:h-8 lg:min-h-8 lg:w-auto lg:flex-none lg:rounded-full lg:px-2.5 lg:text-[12px]";
   return (
-    <div className="mt-3 grid grid-cols-2 gap-2 lg:flex lg:flex-wrap lg:gap-1">
+    <div className="mt-3.5 grid grid-cols-4 gap-1.5 lg:mt-3 lg:flex lg:flex-wrap lg:gap-1">
       <Button
         type="button"
         size="sm"
@@ -138,7 +141,14 @@ function StoryActions({
         className={btn}
         onClick={() => onAction(story, story.tracked ? "untrack" : "track")}
       >
-        {story.tracked ? "Tracking" : "Track"}
+        {story.tracked ? (
+          <>
+            <span className="lg:hidden">On</span>
+            <span className="hidden lg:inline">Tracking</span>
+          </>
+        ) : (
+          "Track"
+        )}
       </Button>
       <Button type="button" size="sm" variant="outline" className={btn} onClick={() => onAction(story, "mute")}>
         Mute
@@ -159,25 +169,32 @@ function StoryBody({ story }: { story: LaunchStory }) {
   return (
     <>
       <div className="flex items-center gap-2">
-        <div className="min-w-0 truncate text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
+        <div className="min-w-0 truncate text-[12px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
           {story.themeLabel}
+          {story.sourceCount > 1 ? (
+            <span className="ml-1.5 font-medium tracking-normal text-muted-foreground/80 normal-case">
+              · {story.sourceCount} sources
+            </span>
+          ) : null}
         </div>
-        <span className="ml-auto shrink-0 rounded-full bg-amber-500/14 px-2 py-0.5 text-[11px] font-medium tabular-nums text-amber-900 dark:text-amber-200">
+        <span className="ml-auto shrink-0 rounded-full bg-amber-500/16 px-2 py-1 text-[12px] font-semibold tabular-nums text-amber-900 dark:text-amber-200">
           {story.velocityLabel}
         </span>
       </div>
-      <h3 className="mt-2 line-clamp-3 text-[17px] leading-[1.28] font-semibold tracking-[-0.03em] lg:line-clamp-none lg:text-[16px]">
+      <h3 className="mt-2.5 line-clamp-3 text-[18px] leading-[1.25] font-semibold tracking-[-0.03em] lg:mt-2 lg:line-clamp-none lg:text-[16px]">
         {story.headline}
       </h3>
       {showStorySummary(story) ? (
-        <p className="mt-1.5 line-clamp-2 text-[14px] leading-snug text-foreground/80 lg:line-clamp-none">
+        <p className="mt-1.5 hidden text-[14px] leading-snug text-foreground/80 lg:block">
           {story.summary}
         </p>
       ) : null}
-      <p className="mt-2 line-clamp-2 text-[13px] leading-snug text-muted-foreground">
-        <span className="hidden font-medium text-foreground/70 lg:inline">Why you&apos;re seeing this. </span>
-        <span className="lg:hidden">{why}</span>
-        <span className="hidden lg:inline">{story.reason}</span>
+      {why ? (
+        <p className="mt-2 line-clamp-2 text-[13px] leading-snug text-muted-foreground lg:hidden">{why}</p>
+      ) : null}
+      <p className="mt-2 hidden text-[13px] leading-snug text-muted-foreground lg:block">
+        <span className="font-medium text-foreground/70">Why you&apos;re seeing this. </span>
+        {story.reason}
       </p>
       <div className="mt-1.5 hidden text-[12px] tabular-nums text-muted-foreground lg:block">
         {story.sourceCount} source{story.sourceCount === 1 ? "" : "s"}
@@ -201,7 +218,7 @@ function StoryCard({
 }) {
   if (layout === "rail") {
     return (
-      <article className="flex w-[min(88vw,21.5rem)] shrink-0 snap-start flex-col rounded-[22px] bg-card p-4 shadow-[0_1px_0_rgba(0,0,0,0.04),0_10px_30px_rgba(0,0,0,0.05)] ring-1 ring-black/[0.04] lg:w-full lg:rounded-none lg:px-4 lg:py-4 lg:shadow-none lg:ring-0 dark:ring-white/[0.06]">
+      <article className="flex w-[min(84vw,20rem)] shrink-0 snap-center flex-col rounded-[22px] bg-card p-4 shadow-[0_1px_0_rgba(0,0,0,0.04),0_10px_30px_rgba(0,0,0,0.05)] ring-1 ring-black/[0.04] lg:w-full lg:rounded-none lg:px-4 lg:py-4 lg:shadow-none lg:ring-0 dark:ring-white/[0.06]">
         <StoryBody story={story} />
         <StoryActions story={story} onAsk={onAsk} onAction={onAction} onSources={onSources} />
       </article>
@@ -342,14 +359,14 @@ export function LaunchPad() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="sticky top-0 z-20 border-b border-black/[0.04] bg-background/75 px-4 pt-2 pb-3 backdrop-blur-2xl sm:px-6 sm:pt-5 sm:pb-4 dark:border-white/[0.06]">
-        <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-3 sm:gap-4">
+      <header className="sticky top-0 z-20 border-b border-black/[0.04] bg-background/75 px-4 pt-2 pb-2.5 backdrop-blur-2xl sm:px-6 sm:pt-5 sm:pb-4 dark:border-white/[0.06]">
+        <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-2.5 sm:gap-4">
           <div className="flex items-end justify-between gap-3">
             <div className="min-w-0">
-              <h1 className="max-w-[11em] text-[28px] leading-[1.05] font-semibold tracking-[-0.045em] sm:max-w-none sm:text-[40px] sm:leading-none">
+              <h1 className="max-w-[11em] text-[24px] leading-[1.08] font-semibold tracking-[-0.045em] sm:max-w-none sm:text-[40px] sm:leading-none">
                 What matters on the Timeline
               </h1>
-              <p className="mt-2 max-w-md text-[14px] leading-snug text-muted-foreground sm:text-[15px]">
+              <p className="mt-2 hidden max-w-md text-[14px] leading-snug text-muted-foreground sm:block sm:text-[15px]">
                 <Link href="/whatsapp" className="font-medium text-amber-700 dark:text-amber-300">
                   WhatsApp agent
                 </Link>{" "}
@@ -359,7 +376,7 @@ export function LaunchPad() {
             <div className="flex items-center gap-1">
               <Link
                 href="/inbox"
-                className="inline-flex min-h-11 items-center gap-0.5 pr-1 text-[15px] font-medium text-amber-700 sm:min-h-0 dark:text-amber-300"
+                className="hidden min-h-11 items-center gap-0.5 pr-1 text-[15px] font-medium text-amber-700 sm:inline-flex sm:min-h-0 dark:text-amber-300"
               >
                 Inbox
                 <ChevronRight className="size-4 opacity-70" />
@@ -472,12 +489,12 @@ export function LaunchPad() {
           description="Nothing on the desk yet. Re-poll from Inbox, or ask a question above."
         />
       ) : (
-        <div className="mx-auto grid w-full max-w-[1180px] gap-6 px-4 py-5 pb-12 sm:px-6 sm:py-8 sm:pb-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.25fr)_minmax(0,0.85fr)] lg:items-start">
-          <section className="min-w-0">
+        <div className="mx-auto grid w-full max-w-[1180px] gap-5 px-4 py-4 pb-6 sm:px-6 sm:py-8 sm:pb-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.25fr)_minmax(0,0.85fr)] lg:items-start">
+          <section className="min-w-0 order-1">
             <SectionLabel>Developing</SectionLabel>
             <div
               className={cn(
-                "-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 lg:mx-0 lg:flex-col lg:gap-0 lg:overflow-visible lg:px-0 lg:pb-0 lg:shadow-[0_1px_0_rgba(0,0,0,0.04),0_8px_28px_rgba(0,0,0,0.045)]",
+                "-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 lg:mx-0 lg:flex-col lg:gap-0 lg:overflow-visible lg:px-0 lg:pb-0 lg:shadow-[0_1px_0_rgba(0,0,0,0.04),0_8px_28px_rgba(0,0,0,0.045)]",
                 hideScroll,
                 "lg:overflow-hidden lg:rounded-[24px] lg:bg-card lg:ring-1 lg:ring-black/[0.04] dark:lg:ring-white/[0.07]",
               )}
@@ -503,7 +520,7 @@ export function LaunchPad() {
             </div>
           </section>
 
-          <section className="min-w-0">
+          <section className="min-w-0 order-3 lg:order-2">
             <SectionLabel>Worth a look</SectionLabel>
             <Surface>
               <div className="divide-y divide-black/[0.06] dark:divide-white/[0.08]">
@@ -521,7 +538,7 @@ export function LaunchPad() {
             </Surface>
           </section>
 
-          <section className="min-w-0">
+          <section className="min-w-0 order-2 lg:order-3">
             <SectionLabel>
               <span className="inline-flex items-center gap-1.5">
                 <Flame className="size-3.5 text-amber-600" />
@@ -530,7 +547,7 @@ export function LaunchPad() {
             </SectionLabel>
             <div
               className={cn(
-                "-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 lg:mx-0 lg:flex-col lg:gap-0 lg:overflow-visible lg:px-0 lg:pb-0",
+                "-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 lg:mx-0 lg:flex-col lg:gap-0 lg:overflow-visible lg:px-0 lg:pb-0",
                 hideScroll,
                 "lg:overflow-hidden lg:rounded-[24px] lg:bg-card lg:shadow-[0_1px_0_rgba(0,0,0,0.04),0_8px_28px_rgba(0,0,0,0.045)] lg:ring-1 lg:ring-black/[0.04] dark:lg:ring-white/[0.07]",
               )}
@@ -564,7 +581,10 @@ export function LaunchPad() {
           if (!next) setSources(null);
         }}
       >
-        <DialogContent className="sm:max-w-lg" showCloseButton>
+        <DialogContent
+          className="max-sm:top-auto max-sm:bottom-0 max-sm:left-0 max-sm:right-0 max-sm:max-h-[85dvh] max-sm:w-full max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-t-[28px] max-sm:rounded-b-none sm:max-w-lg"
+          showCloseButton
+        >
           <DialogHeader>
             <DialogTitle>{sources?.headline ?? "Sources"}</DialogTitle>
             <DialogDescription>

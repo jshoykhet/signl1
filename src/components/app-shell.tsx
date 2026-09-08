@@ -157,7 +157,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <UserMenu compact />
           </header>
         )}
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-y-contain pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0">
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-y-contain pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
           {children}
         </main>
       </div>
@@ -166,7 +166,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         className="fixed inset-x-0 bottom-0 z-40 border-t border-black/[0.06] bg-background/80 backdrop-blur-2xl md:hidden dark:border-white/[0.08]"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        <div className="grid h-[4.5rem] grid-cols-5">
+        <div className="grid h-16 grid-cols-5">
           {MOBILE_NAV.map((item) => {
             const active = isActive(pathname, item.href);
             const Icon = item.icon;
