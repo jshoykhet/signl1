@@ -168,18 +168,13 @@ function StoryBody({ story }: { story: LaunchStory }) {
   const why = compactWhy(story);
   return (
     <>
-      <div className="flex items-center gap-2">
-        <div className="min-w-0 truncate text-[12px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
-          {story.themeLabel}
-          {story.sourceCount > 1 ? (
-            <span className="ml-1.5 font-medium tracking-normal text-muted-foreground/80 normal-case">
-              · {story.sourceCount} sources
-            </span>
-          ) : null}
-        </div>
-        <span className="ml-auto shrink-0 rounded-full bg-amber-500/16 px-2 py-1 text-[12px] font-semibold tabular-nums text-amber-900 dark:text-amber-200">
-          {story.velocityLabel}
-        </span>
+      <div className="min-w-0 truncate text-[12px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
+        {story.themeLabel}
+        {story.sourceCount > 1 ? (
+          <span className="ml-1.5 font-medium tracking-normal text-muted-foreground/80 normal-case">
+            · {story.sourceCount} sources
+          </span>
+        ) : null}
       </div>
       <h3 className="mt-2.5 line-clamp-3 text-[18px] leading-[1.25] font-semibold tracking-[-0.03em] lg:mt-2 lg:line-clamp-none lg:text-[16px]">
         {story.headline}

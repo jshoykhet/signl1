@@ -169,7 +169,7 @@ The inbox and rules pages are searchable. In the inbox, `/` or Ctrl/Cmd+K focuse
 
 Signed-in home (`/`) is a control panel, not the full inbox (that lives at `/inbox`).
 
-- **Worth a look** — clustered story cards (headline, one-sentence summary, why it surfaced, velocity vs the tape, source count). Ranked for unique takes and zeitgeist, not mega-account dumps. Track, Mute, Ask, and View sources sit on every card. If the last day is thin, Signl1 widens the window until the tape fills.
+- **Worth a look** — clustered story cards (headline, one-sentence summary, why it surfaced, source count). Ranked for unique takes and zeitgeist, not mega-account dumps. Track, Mute, Ask, and View sources sit on every card. If the last day is thin, Signl1 widens the window until the tape fills.
 - **Developing today** — the same story-card format for themes that are clustering (multiple sources).
 - **Heat** — stories ranked by **abnormal velocity** (likes relative to age and account size vs the rest of the tape), then diversified so one ticker cannot fill the column.
 - **Research** — ask a question. Grok (xAI) writes one or two X recent-search queries, Signl1 runs them against the X API (or sample posts in demo), and Grok writes a short brief. Without `XAI_API_KEY`, the same search still runs and you get raw hits.
