@@ -1,4 +1,4 @@
-FROM node:22-bookworm-slim
+FROM node:22-bookworm-slim AS base
 
 WORKDIR /app
 
@@ -19,8 +19,11 @@ ENV DATABASE_PATH=/data/signal.db
 ENV AUTH_TRUST_HOST=true
 ENV AUTH_SECRET=build-placeholder
 
+FROM base AS poller
+CMD ["npm", "run", "poller"]
+
+FROM base AS web
+ENV NODE_OPTIONS=--max-old-space-size=1536
 RUN npm run build
-
 EXPOSE 3847
-
 CMD ["npm", "run", "start"]

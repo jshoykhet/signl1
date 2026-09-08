@@ -23,7 +23,9 @@ services:
     restart: unless-stopped
 
   web:
-    build: .
+    build:
+      context: .
+      target: web
     command: npm run start
     expose:
       - "3847"
@@ -47,7 +49,9 @@ services:
     restart: unless-stopped
 
   poller:
-    build: .
+    build:
+      context: .
+      target: poller
     command: npm run poller
     # Host network so X + WhatsApp use the VPS public path. Poller publishes no ports.
     network_mode: host

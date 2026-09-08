@@ -80,6 +80,8 @@ docker compose -f docker-compose.prod.yml --env-file .env up -d --build
 docker compose -f docker-compose.prod.yml logs -f caddy web
 ```
 
+On a 2 GB VPS, add 2 GB of swap before the first `--build`. Only the `web` image runs `next build`; the poller image does not.
+
 Caddy obtains a Let’s Encrypt certificate for `$DOMAIN` and proxies to `web:3847`. Confirm:
 
 - `https://YOUR_DOMAIN/login` loads

@@ -1,6 +1,8 @@
 services:
   web:
-    build: .
+    build:
+      context: .
+      target: web
     command: npm run start
     ports:
       - "3847:3847"
@@ -24,7 +26,9 @@ services:
     restart: unless-stopped
 
   poller:
-    build: .
+    build:
+      context: .
+      target: poller
     command: npm run poller
     # Host network: this VM's Compose bridge has no MASQUERADE for 172.18/16,
     # so api.x.com and WhatsApp time out from the container. Poller has no published ports.
