@@ -32,6 +32,10 @@ function isPublicPath(pathname: string): boolean {
     pathname === "/login" ||
     pathname === "/logout" ||
     pathname === "/skip" ||
+    pathname === "/opengraph-image" ||
+    pathname === "/twitter-image" ||
+    pathname === "/apple-icon" ||
+    pathname === "/icon" ||
     pathname.startsWith("/api/auth")
   );
 }
