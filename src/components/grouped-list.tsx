@@ -63,11 +63,41 @@ export function GroupedRow({
   return (
     <div
       className={cn(
-        "flex min-h-11 items-center gap-3 border-b border-border px-4 py-2.5 last:border-b-0",
+        "flex min-h-12 items-center gap-3 border-b border-border px-4 py-3 last:border-b-0",
         className,
       )}
     >
       {children}
     </div>
+  );
+}
+
+export function SettingsToggleRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <GroupedRow className="justify-between gap-4">
+      <div className="min-w-0 text-[16px] leading-snug">{label}</div>
+      <div className="shrink-0">{children}</div>
+    </GroupedRow>
+  );
+}
+
+export function SettingsStackRow({
+  label,
+  children,
+}: {
+  label?: string;
+  children: ReactNode;
+}) {
+  return (
+    <GroupedRow className="flex-col items-stretch gap-2.5 py-3.5">
+      {label ? <div className="text-[16px] leading-snug">{label}</div> : null}
+      {children}
+    </GroupedRow>
   );
 }

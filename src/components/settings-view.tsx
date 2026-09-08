@@ -16,9 +16,9 @@ import type { StatusSnapshot } from "@/lib/types";
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <GroupedRow className="flex-col items-start sm:flex-row sm:items-center">
-      <div className="w-full shrink-0 text-[13px] text-muted-foreground sm:w-[9.5rem] sm:text-[15px]">{label}</div>
-      <div className="min-w-0 w-full flex-1 text-[16px] sm:text-[15px]">{children}</div>
+    <GroupedRow className="items-start justify-between gap-4 sm:items-center">
+      <div className="w-[7.5rem] shrink-0 text-[15px] text-muted-foreground sm:w-[9.5rem]">{label}</div>
+      <div className="min-w-0 flex-1 text-right text-[15px] leading-snug sm:text-left">{children}</div>
     </GroupedRow>
   );
 }
@@ -55,9 +55,9 @@ export function SettingsView() {
       <div className="mx-auto w-full max-w-[680px] flex-1 px-4 py-6 sm:px-5 sm:py-8">
         <PageHeader
           title="Settings"
-          description="Your X token stays on the server. Link a phone on the WhatsApp tab to search X from chat."
+          description="Your X token stays on the server. Link a phone on WhatsApp to search X from chat."
         />
-        <div className="mt-6 space-y-8 sm:mt-8">
+        <div className="mt-5 space-y-6 sm:mt-8 sm:space-y-8">
           {error ? (
             <div className="rounded-2xl bg-destructive/10 px-4 py-3 text-[15px] text-destructive">{error}</div>
           ) : null}
@@ -91,17 +91,6 @@ export function SettingsView() {
                 </GroupedRow>
               </SettingsGroup>
               <AppearanceSettings />
-              <SettingsGroup title="Brand">
-                <Row label="Logo">
-                  <a
-                    href="/signl1-logo.png"
-                    download="signl1_logo.png"
-                    className="text-amber-700 underline-offset-4 hover:underline dark:text-amber-300"
-                  >
-                    Download Signl1 logo
-                  </a>
-                </Row>
-              </SettingsGroup>
               <SettingsGroup title="X API">
                 <Row label="Bearer token">
                   <span

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { GroupedRow, SettingsGroup } from "@/components/grouped-list";
+import { GroupedRow, SettingsGroup, SettingsStackRow, SettingsToggleRow } from "@/components/grouped-list";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -16,15 +16,6 @@ import {
 } from "@/lib/desk-settings";
 import { signalLevelHint, type DeskMode } from "@/lib/desk-mode";
 import { FocusControl } from "@/components/focus-control";
-
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <GroupedRow className="items-start sm:items-center">
-      <div className="w-full shrink-0 text-[15px] text-muted-foreground sm:w-[9.5rem]">{label}</div>
-      <div className="min-w-0 flex-1 text-[15px]">{children}</div>
-    </GroupedRow>
-  );
-}
 
 export function DeskFilters() {
   const [filters, setFilters] = useState<DeskFilterSettings | null>(null);
@@ -97,58 +88,53 @@ export function DeskFilters() {
         <div className="px-4 py-3.5 text-[15px] text-muted-foreground">Loading filters…</div>
       ) : (
         <>
-          <Row label="Focus">
+          <SettingsStackRow>
             <FocusControl
+              compact
               value={filters.deskMode}
               disabled={busy}
               onChange={(id) => void save({ deskMode: id })}
             />
-          </Row>
-          <Row label="Key accounts only">
-            <div className="flex items-center justify-end gap-3 sm:justify-start">
-              <Switch
-                checked={filters.kolOnly}
-                disabled={busy}
-                onCheckedChange={(checked) => void save({ kolOnly: checked === true })}
-              />
+          </SettingsStackRow>
+          <SettingsToggleRow label="Key accounts only">
+            <Switch
+              checked={filters.kolOnly}
+              disabled={busy}
+              onCheckedChange={(checked) => void save({ kolOnly: checked === true })}
+            />
+          </SettingsToggleRow>
+          <SettingsStackRow label="Signal">
+            <div className="flex rounded-full bg-muted p-0.5">
+              {(Object.keys(SIGNAL_LEVELS) as SignalLevel[]).map((level) => (
+                <button
+                  key={level}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void save({ signalLevel: level })}
+                  className={
+                    filters.signalLevel === level
+                      ? "min-h-11 flex-1 rounded-full bg-background px-2 text-[14px] font-medium text-foreground shadow-sm sm:min-h-0 sm:py-1.5 sm:text-[13px]"
+                      : "min-h-11 flex-1 rounded-full px-2 text-[14px] text-muted-foreground sm:min-h-0 sm:py-1.5 sm:text-[13px]"
+                  }
+                >
+                  {SIGNAL_LEVELS[level].label}
+                </button>
+              ))}
             </div>
-          </Row>
-          <Row label="Signal">
-            <div className="grid gap-2">
-              <div className="flex rounded-full bg-muted p-0.5">
-                {(Object.keys(SIGNAL_LEVELS) as SignalLevel[]).map((level) => (
-                  <button
-                    key={level}
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void save({ signalLevel: level })}
-                    className={
-                      filters.signalLevel === level
-                        ? "flex-1 rounded-full bg-background px-3 py-1.5 text-[13px] font-medium text-foreground shadow-sm"
-                        : "flex-1 rounded-full px-3 py-1.5 text-[13px] text-muted-foreground"
-                    }
-                  >
-                    {SIGNAL_LEVELS[level].label}
-                  </button>
-                ))}
-              </div>
-              <p className="text-[13px] leading-relaxed text-muted-foreground">
-                {signalLevelHint(filters.signalLevel, mode)}
-              </p>
-            </div>
-          </Row>
-          <Row label="Recent tweets">
-            <div className="flex items-center justify-end gap-3 sm:justify-start">
-              <Switch
-                checked={filters.allowFresh}
-                disabled={busy}
-                onCheckedChange={(checked) => void save({ allowFresh: checked === true })}
-              />
-            </div>
-          </Row>
-          <GroupedRow className="flex-col items-stretch gap-3 py-3.5 sm:flex-col">
+            <p className="text-[13px] leading-snug text-muted-foreground">
+              {signalLevelHint(filters.signalLevel, mode)}
+            </p>
+          </SettingsStackRow>
+          <SettingsToggleRow label="Recent tweets">
+            <Switch
+              checked={filters.allowFresh}
+              disabled={busy}
+              onCheckedChange={(checked) => void save({ allowFresh: checked === true })}
+            />
+          </SettingsToggleRow>
+          <GroupedRow className="flex-col items-stretch gap-3 py-3.5">
             <div className="flex items-center justify-between gap-3">
-              <div className="text-[15px] text-muted-foreground">Min likes</div>
+              <div className="text-[16px] leading-snug">Min likes</div>
               <Input
                 type="text"
                 inputMode="numeric"
@@ -156,7 +142,7 @@ export function DeskFilters() {
                 value={likesDraft}
                 disabled={busy}
                 aria-label="Minimum likes"
-                className="h-8 w-16 rounded-lg bg-muted text-center font-medium tabular-nums"
+                className="h-10 w-[4.25rem] rounded-xl bg-muted text-center text-[16px] font-medium tabular-nums sm:h-8 sm:text-[15px]"
                 onChange={(event) => {
                   const raw = event.target.value.replace(/[^\d]/g, "");
                   setLikesDraft(raw);
@@ -190,38 +176,32 @@ export function DeskFilters() {
               }}
               className="py-1"
             />
-            <p className="text-[13px] leading-relaxed text-muted-foreground">
+            <p className="text-[13px] leading-snug text-muted-foreground">
               Default is 5. Posts below this stay out, unless they&apos;re new from a large account or from someone on
               Key Accounts.
             </p>
           </GroupedRow>
-          <Row label="Require likes">
-            <div className="flex items-center justify-end gap-3 sm:justify-start">
-              <Switch
-                checked={filters.requireEngagement}
-                disabled={busy}
-                onCheckedChange={(checked) => void save({ requireEngagement: checked === true })}
-              />
-            </div>
-          </Row>
-          <Row label="Hide crypto">
-            <div className="flex items-center justify-end gap-3 sm:justify-start">
-              <Switch
-                checked={filters.hideCrypto}
-                disabled={busy}
-                onCheckedChange={(checked) => void save({ hideCrypto: checked === true })}
-              />
-            </div>
-          </Row>
-          <Row label="Hide chat apps">
-            <div className="flex items-center justify-end gap-3 sm:justify-start">
-              <Switch
-                checked={filters.hideMessagingApps}
-                disabled={busy}
-                onCheckedChange={(checked) => void save({ hideMessagingApps: checked === true })}
-              />
-            </div>
-          </Row>
+          <SettingsToggleRow label="Require likes">
+            <Switch
+              checked={filters.requireEngagement}
+              disabled={busy}
+              onCheckedChange={(checked) => void save({ requireEngagement: checked === true })}
+            />
+          </SettingsToggleRow>
+          <SettingsToggleRow label="Hide crypto">
+            <Switch
+              checked={filters.hideCrypto}
+              disabled={busy}
+              onCheckedChange={(checked) => void save({ hideCrypto: checked === true })}
+            />
+          </SettingsToggleRow>
+          <SettingsToggleRow label="Hide chat apps">
+            <Switch
+              checked={filters.hideMessagingApps}
+              disabled={busy}
+              onCheckedChange={(checked) => void save({ hideMessagingApps: checked === true })}
+            />
+          </SettingsToggleRow>
         </>
       )}
     </SettingsGroup>
