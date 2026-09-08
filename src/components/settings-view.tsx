@@ -91,7 +91,14 @@ export function SettingsView() {
                 </GroupedRow>
               </SettingsGroup>
               <AppearanceSettings />
-              <SettingsGroup title="X API">
+              <SettingsGroup
+                title="X API"
+                footer={
+                  status.grok === "present"
+                    ? null
+                    : "Without Grok, asks still search X but skip the written brief."
+                }
+              >
                 <Row label="Bearer token">
                   <span
                     className={
@@ -111,9 +118,7 @@ export function SettingsView() {
                         : "text-amber-700 dark:text-amber-300"
                     }
                   >
-                    {status.grok === "present"
-                      ? "XAI_API_KEY present"
-                      : "Missing — asks still search X, without a written brief"}
+                    {status.grok === "present" ? "Present" : "Missing"}
                   </span>
                 </Row>
                 <Row label="Mode">{status.demoMode ? "Sample posts" : "Live"}</Row>
