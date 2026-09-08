@@ -44,7 +44,7 @@ describe("launch board", () => {
       }),
       match({
         tweetId: "fed",
-        text: "FOMC holds",
+        text: "FOMC holds the funds rate; the takeaway is the Committee left the door open.",
         likeCount: 80,
         signalScore: 90,
         kol: true,
@@ -52,6 +52,102 @@ describe("launch board", () => {
       }),
     ], now);
     expect(ranked[0]?.tweetId).toBe("fed");
+  });
+
+  it("ranks a unique mid-size take over a mega-account headline dump", () => {
+    const now = Date.now();
+    const ranked = rankWorthLookingAt(
+      [
+        match({
+          tweetId: "wire",
+          authorHandle: "reuters",
+          text: "BREAKING: Nvidia beats EPS and raises guidance.",
+          followersCount: 25_000_000,
+          likeCount: 2_400,
+          signalScore: 92,
+          kol: true,
+          tweetCreatedAt: new Date(now - 50 * 60 * 1000).toISOString(),
+        }),
+        match({
+          tweetId: "take",
+          authorHandle: "desk_notes",
+          text: "The implication is the $NVDA beat does not matter: guidance implies HBM remains the constraint, and the tape is pricing a 40% increment supply cannot fill.",
+          followersCount: 8_400,
+          likeCount: 46,
+          signalScore: 28,
+          kol: false,
+          tweetCreatedAt: new Date(now - 40 * 60 * 1000).toISOString(),
+        }),
+      ],
+      now,
+    );
+    expect(ranked[0]?.tweetId).toBe("take");
+  });
+
+  it("keeps one copy of near-duplicate wire headlines", () => {
+    const now = Date.now();
+    const ranked = rankWorthLookingAt(
+      [
+        match({
+          tweetId: "r1",
+          authorHandle: "reuters",
+          text: "BREAKING: Chair Powell says the FOMC is not on a preset course and will adjust interest rate policy.",
+          followersCount: 25_000_000,
+          likeCount: 500,
+          kol: true,
+        }),
+        match({
+          tweetId: "b1",
+          authorHandle: "bloomberg",
+          text: "BREAKING: Chair Powell says the FOMC is not on a preset course and will adjust interest rate policy if data warrant.",
+          followersCount: 9_000_000,
+          likeCount: 410,
+          kol: true,
+        }),
+        match({
+          tweetId: "view",
+          authorHandle: "rates_desk",
+          text: "Net-net Powell left the door open; 2s10s is pricing a cut the dots do not show. Watch liquidity into the print.",
+          followersCount: 12_000,
+          likeCount: 38,
+        }),
+      ],
+      now,
+    );
+    const ids = ranked.map((item) => item.tweetId);
+    expect(ids).toContain("view");
+    expect(ids.filter((id) => id === "r1" || id === "b1")).toHaveLength(1);
+  });
+
+  it("boosts a post on a clustering theme over unrelated chatter", () => {
+    const now = Date.now();
+    const ranked = rankWorthLookingAt(
+      [
+        match({
+          tweetId: "nvda-1",
+          text: "$NVDA data-center revenue beat; HBM sold out through next year.",
+          likeCount: 22,
+          followersCount: 40_000,
+        }),
+        match({
+          tweetId: "nvda-2",
+          authorHandle: "ft",
+          text: "$NVDA guidance raised as Blackwell remains sold out.",
+          likeCount: 18,
+          followersCount: 80_000,
+        }),
+        match({
+          tweetId: "chat",
+          authorHandle: "random_notes",
+          text: "Markets are mixed this morning and traders are waiting around.",
+          likeCount: 30,
+          followersCount: 50_000,
+        }),
+      ],
+      now,
+    );
+    expect(ranked[0]?.tweetId).not.toBe("chat");
+    expect(ranked.map((item) => item.tweetId)).toEqual(expect.arrayContaining(["nvda-1", "nvda-2"]));
   });
 
   it("sorts heat by likes", () => {

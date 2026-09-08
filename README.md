@@ -170,7 +170,7 @@ The inbox and rules pages are searchable. In the inbox, `/` or Ctrl/Cmd+K focuse
 
 Signed-in home (`/`) is a control panel, not the full inbox (that lives at `/inbox`).
 
-- **Worth a look** — top 20 posts from the last 24 hours, ranked by signal, Key Account, likes, and recency. If the last day is thin, Signl1 widens the window until the tape fills.
+- **Worth a look** — top 20 posts from the last 24 hours, ranked for interestingness: unique takes, themes the tape is clustering on, and engagement that punches above account size — not a mega-account dump. Near-duplicate headlines are collapsed. If the last day is thin, Signl1 widens the window until the tape fills.
 - **Developing today** — cashtags, hashtags, and macro/venture clusters from that tape. Click a theme to research it.
 - **High engagement** — the most-liked posts in the same window.
 - **Research** — ask a question. Grok (xAI) writes one or two X recent-search queries, Signl1 runs them against the X API (or sample posts in demo), and Grok writes a short brief. Without `XAI_API_KEY`, the same search still runs and you get raw hits.
