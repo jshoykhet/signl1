@@ -22,6 +22,11 @@ export async function POST(request: Request) {
     return NextResponse.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Research failed.";
-    return NextResponse.json({ error: message }, { status: 400 });
+    const friendly = /Ambiguous use of and/i.test(message)
+      ? "X rejected that search because of the word “and”. Try a ticker, @handle, or a shorter phrase."
+      : /X API 400/.test(message)
+        ? "X rejected that search. Try a ticker, @handle, or a shorter phrase."
+        : message;
+    return NextResponse.json({ error: friendly }, { status: 400 });
   }
 }

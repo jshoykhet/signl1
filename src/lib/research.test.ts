@@ -19,4 +19,11 @@ describe("research fallback planner", () => {
     expect(plan.queries[0]).toMatch(/^AI /);
     expect(plan.queries[0]).not.toContain("$AI");
   });
+
+  it("does not send a bare AND to X", () => {
+    const plan = planResearchFallback("find what people are saying about nvidia and the fed");
+    expect(plan.queries[0]?.toLowerCase()).not.toMatch(/\band\b/);
+    expect(plan.queries[0]).not.toMatch(/^find /i);
+    expect(plan.queries[0]).toContain("nvidia");
+  });
 });

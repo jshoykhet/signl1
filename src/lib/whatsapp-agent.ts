@@ -22,6 +22,21 @@ export function stripSearchPrefix(text: string): string {
   return text.replace(/^(search|find|look\s*up|lookup|show me|show|get)\s+/i, "").trim();
 }
 
+/** X recent-search treats a bare AND as an operator. Spaces already mean AND. */
+export function neutralizeXAnd(query: string): string {
+  const pieces: string[] = [];
+  const quoted = /"(?:\\.|[^"\\])*"/g;
+  let last = 0;
+  let match: RegExpExecArray | null;
+  while ((match = quoted.exec(query))) {
+    pieces.push(query.slice(last, match.index).replace(/\bAND\b/gi, " "));
+    pieces.push(match[0]);
+    last = match.index + match[0].length;
+  }
+  pieces.push(query.slice(last).replace(/\bAND\b/gi, " "));
+  return pieces.join("").replace(/\s+/g, " ").trim();
+}
+
 /** Short words that are themes/macro, not cashtags. `$NVDA` still compiles as a ticker. */
 const BARE_TICKER_STOP = new Set([
   "ai",
@@ -50,7 +65,7 @@ const BARE_TICKER_STOP = new Set([
 ]);
 
 export function compileAgentQuery(raw: string): string {
-  let q = raw.trim().replace(/\s+/g, " ");
+  let q = neutralizeXAnd(stripSearchPrefix(raw.replace(/[\n\r]+/g, " ").trim()));
   if (!q) return "";
   const ticker = /^\$([A-Za-z]{1,5})$/.exec(q) ?? /^([A-Za-z]{1,5})$/.exec(q);
   if (ticker && (q.startsWith("$") || !BARE_TICKER_STOP.has(ticker[1].toLowerCase()))) {

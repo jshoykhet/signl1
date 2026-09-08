@@ -63,7 +63,7 @@ export async function planResearch(question: string): Promise<ResearchPlan> {
       json: true,
       timeoutMs: 18_000,
       system:
-        "You write X (Twitter) recent-search queries for a markets/venture desk. Return JSON only: {\"queries\": string[], \"lookbackHours\": number, \"angle\": string}. One or two queries. Prefer cashtags, from: handles, and news language. Always include lang:en -is:retweet. lookbackHours 1-24.",
+        "You write X (Twitter) recent-search queries for a markets/venture desk. Return JSON only: {\"queries\": string[], \"lookbackHours\": number, \"angle\": string}. One or two queries. Prefer cashtags, from: handles, and news language. Always include lang:en -is:retweet. lookbackHours 1-24. Never use the word AND — a space already means AND. Do not start a query with find or search. Quote phrases that contain the word and.",
       user: question,
     });
     const parsed = parseJsonObject(text);

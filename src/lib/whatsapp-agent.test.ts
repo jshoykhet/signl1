@@ -52,6 +52,14 @@ describe("compileAgentQuery", () => {
     expect(compileAgentQuery("AI")).toBe("AI lang:en -is:retweet");
     expect(compileAgentQuery("FOMC")).toBe("FOMC lang:en -is:retweet");
   });
+
+  it("strips find/search and drops a bare AND so X does not 400", () => {
+    expect(compileAgentQuery("find nvidia earnings and guidance")).toBe(
+      "nvidia earnings guidance lang:en -is:retweet",
+    );
+    expect(compileAgentQuery("oil AND gas")).toBe("oil gas lang:en -is:retweet");
+    expect(compileAgentQuery('NVDA "supply and demand"')).toBe('NVDA "supply and demand" lang:en -is:retweet');
+  });
 });
 
 describe("senderIsAllowed", () => {
