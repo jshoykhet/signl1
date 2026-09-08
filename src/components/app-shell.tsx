@@ -79,7 +79,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   {DESK_MODES[status.deskFilters.deskMode].shortLabel}
                 </span>
               ) : (
-                "Signl1"
+                "SignlHQ"
               )}
             </div>
           </div>

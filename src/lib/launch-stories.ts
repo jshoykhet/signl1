@@ -88,7 +88,7 @@ function capText(raw: string, max: number): string {
 }
 
 export function storyHeadline(text: string): string {
-  return capSentence(text, 92) || "Developing on the tape";
+  return capSentence(text, 92) || "Developing in the feed";
 }
 
 export function storySummary(members: Match[], headline: string): string {
@@ -106,9 +106,9 @@ export function storySummary(members: Match[], headline: string): string {
     }
   }
   const lead = ranked[0];
-  if (!lead) return "On the desk in the last 24 hours.";
+  if (!lead) return "In SignlHQ in the last 24 hours.";
   const n = members.length;
-  return `${n} source${n === 1 ? "" : "s"} on the tape, led by @${lead.authorHandle}.`;
+  return `${n} source${n === 1 ? "" : "s"} in the feed, led by @${lead.authorHandle}.`;
 }
 
 export function tweetVelocity(match: Match, now = Date.now()): number {
@@ -188,7 +188,7 @@ export function clusterMatches(matches: Match[]): Match[][] {
 }
 
 function joinReasons(parts: string[]): string {
-  if (parts.length === 0) return "On the desk in the last 24 hours.";
+  if (parts.length === 0) return "In SignlHQ in the last 24 hours.";
   if (parts.length === 1) {
     const one = parts[0]!;
     return one.charAt(0).toUpperCase() + one.slice(1) + (/[.!?]$/.test(one) ? "" : ".");
@@ -238,7 +238,7 @@ export function storyFromCluster(
     reasons.push("Key Account print");
   }
   if (ranked.some((match) => match.userLabel === "high")) reasons.push("you marked a source high-signal");
-  if (reasons.length === 0) reasons.push("on the desk in the last 24 hours");
+  if (reasons.length === 0) reasons.push("in SignlHQ in the last 24 hours");
 
   return {
     id,

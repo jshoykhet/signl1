@@ -45,7 +45,7 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
             <span className="block truncate text-[13px] font-medium text-foreground">
               {displayIdentity(user.email, user.name)}
             </span>
-            <span className="block truncate text-[12px] text-muted-foreground">Your desk</span>
+            <span className="block truncate text-[12px] text-muted-foreground">SignlHQ</span>
           </span>
         )}
       </DropdownMenuTrigger>

@@ -14,7 +14,7 @@ This file assumes you already bought a hostname. The stack never hard-codes it �
 | `poller` | X search + WhatsApp, shares the data volume |
 | Google sign-in | Solo sign-in. First verified Gmail owns this Signl1. |
 
-Each Google account gets its own desk. One X bearer token and one linked WhatsApp sending number are shared on the instance.
+Each Google account gets its own SignlHQ. One X bearer token and one linked WhatsApp sending number are shared on the instance.
 
 The hostname you bought is never hard-coded — set `DOMAIN` in `.env`.
 
@@ -47,7 +47,7 @@ In [Google Cloud credentials](https://console.cloud.google.com/apis/credentials)
 - `https://YOUR_DOMAIN` (for example `https://signl1.xyz`)
 - `http://127.0.0.1:3847` for local Compose / `npm run dev:web`
 
-You do not need an authorized redirect URI for this ID-token flow. The default client ID is already in the repo; override `GOOGLE_CLIENT_ID` if you rotate it. Leave `AUTH_GOOGLE_EMAIL` and `AUTH_ALLOWED_EMAILS` empty so any verified Google account can start a desk, or set them to restrict who may join.
+You do not need an authorized redirect URI for this ID-token flow. The default client ID is already in the repo; override `GOOGLE_CLIENT_ID` if you rotate it. Leave `AUTH_GOOGLE_EMAIL` and `AUTH_ALLOWED_EMAILS` empty so any verified Google account can open a SignlHQ, or set them to restrict who may join.
 
 ## 4. Secrets and the first sign-in
 
@@ -107,7 +107,7 @@ Copy `whatsapp-auth` the same way if you need a cold spare.
 
 ## 7. After go-live
 
-Open `https://YOUR_DOMAIN`, sign in with Google, and you land in the inbox with the seeded Fed / Mag 7 / crude rules. The next person who signs in gets their own desk. If this instance was previously owned by a phone login, the first Google sign-in rebinds that owner.
+Open `https://YOUR_DOMAIN`, sign in with Google, and you land in the inbox with the seeded Fed / Mag 7 / crude rules. The next person who signs in gets their own SignlHQ. If this instance was previously owned by a phone login, the first Google sign-in rebinds that owner.
 
 Link WhatsApp once on the WhatsApp tab. Alerts send from that linked WhatsApp to the destination number you save there.
 
@@ -125,7 +125,7 @@ Link WhatsApp once on the WhatsApp tab. Alerts send from that linked WhatsApp to
 | Caddy TLS errors | DNS A record not pointing here yet, or port 80 blocked |
 | `AUTH_SECRET is required` | `.env` missing `AUTH_SECRET`; recreate the web container |
 | Google button missing / `The given origin is not allowed` | Add `https://YOUR_DOMAIN` as an Authorized JavaScript origin on the OAuth web client |
-| “Not allowed to start a desk” | That email is not on `AUTH_ALLOWED_EMAILS` / `AUTH_GOOGLE_EMAIL` |
+| “Not allowed to open a SignlHQ” | That email is not on `AUTH_ALLOWED_EMAILS` / `AUTH_GOOGLE_EMAIL` |
 | Infinite login redirect | `AUTH_URL` must be `https://YOUR_DOMAIN` with no path |
 | Empty live inbox | Same as README — token, recent-search product, rule `start_time` |
 | WhatsApp unlinked after recreate | Volume was wiped; link the device again |

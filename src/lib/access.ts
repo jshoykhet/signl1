@@ -77,7 +77,7 @@ export function allowedGoogleEmail(): string | null {
   return normalizeEmail(process.env.AUTH_GOOGLE_EMAIL);
 }
 
-/** AUTH_GOOGLE_EMAIL plus AUTH_ALLOWED_EMAILS. Empty means any verified Google account can start a desk. */
+/** AUTH_GOOGLE_EMAIL plus AUTH_ALLOWED_EMAILS. Empty means any verified Google account can open a SignlHQ. */
 export function signupAllowlist(): string[] {
   const emails = parseAllowedEmailsEnv();
   const google = allowedGoogleEmail();
@@ -228,7 +228,7 @@ function touchLogin(
 }
 
 /**
- * Each verified email gets their own desk. The first account is admin;
+ * Each verified email gets their own SignlHQ. The first account is admin;
  * later accounts are operators with isolated filters, rules, and inbox.
  * Returning users are touched and admitted.
  */

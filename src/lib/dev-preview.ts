@@ -3,7 +3,7 @@ export const DEV_PREVIEW_EMAIL = "lead@desk.com";
 
 /**
  * Keep post-login navigation on the origin the browser is already on.
- * Auth.js often returns http://localhost:3847 even when the desk is opened at
+ * Auth.js often returns http://localhost:3847 even when SignlHQ is opened at
  * 127.0.0.1 (or a preview host), which drops the session cookie.
  */
 export function sameOriginCallbackPath(callbackUrl: string | undefined): string {

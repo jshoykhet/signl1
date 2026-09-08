@@ -38,7 +38,7 @@ function story(partial: Partial<LaunchStory> & Pick<LaunchStory, "id" | "themeId
   return {
     themeLabel: partial.themeLabel ?? partial.themeId,
     summary: partial.summary ?? "Summary.",
-    reason: partial.reason ?? "On the desk.",
+    reason: partial.reason ?? "In SignlHQ.",
     velocity: partial.velocity ?? 1,
     velocityLabel: partial.velocityLabel ?? "In line with the feed",
     sourceCount: partial.sourceCount ?? 1,

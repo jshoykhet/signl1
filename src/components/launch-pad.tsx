@@ -98,7 +98,7 @@ function showStorySummary(story: LaunchStory): boolean {
   const headline = story.headline.trim();
   if (!summary) return false;
   if (summary.toLowerCase() === headline.toLowerCase()) return false;
-  if (/^\d+\s+sources? on the tape/i.test(summary)) return false;
+  if (/^\d+\s+sources? (?:on the tape|in the feed)/i.test(summary)) return false;
   return true;
 }
 
@@ -110,7 +110,12 @@ function compactWhy(story: LaunchStory): string | null {
     .replace(/\s+/g, " ")
     .trim()
     .replace(/\.$/, "");
-  if (!stripped || /^on the desk/i.test(stripped) || /^you're seeing this/i.test(stripped)) {
+  if (
+    !stripped ||
+    /^on the desk/i.test(stripped) ||
+    /^in signlhq/i.test(stripped) ||
+    /^you're seeing this/i.test(stripped)
+  ) {
     return null;
   }
   if (/^\d+ sources? clustering/i.test(stripped) || /^two independent sources/i.test(stripped)) {
@@ -365,7 +370,7 @@ export function LaunchPad() {
                 <Link href="/whatsapp" className="font-medium text-amber-700 dark:text-amber-300">
                   WhatsApp agent
                 </Link>{" "}
-                so you can search the tape from chat.
+                so you can search the feed from chat.
               </p>
             </div>
             <div className="flex items-center gap-1">
@@ -412,7 +417,7 @@ export function LaunchPad() {
             <p className="px-1 text-[12px] text-muted-foreground">
               {board.grok === "present" ? "Grok on" : "Grok off — searches still run"}
               <span className="mx-1.5 text-foreground/20">·</span>
-              {board.bearerToken === "present" ? "Live X" : "Sample tape"}
+              {board.bearerToken === "present" ? "Live X" : "Sample feed"}
               {board.usedFallbackWindow ? (
                 <>
                   <span className="mx-1.5 text-foreground/20">·</span>
@@ -481,7 +486,7 @@ export function LaunchPad() {
       ) : empty ? (
         <EmptyState
           title="Quiet so far"
-          description="Nothing on the desk yet. Re-poll from Inbox, or ask a question above."
+          description="Nothing in SignlHQ yet. Re-poll from Inbox, or ask a question above."
         />
       ) : (
         <div className="mx-auto grid w-full max-w-[1180px] gap-5 px-4 py-4 pb-6 sm:px-6 sm:py-8 sm:pb-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.25fr)_minmax(0,0.85fr)] lg:items-start">

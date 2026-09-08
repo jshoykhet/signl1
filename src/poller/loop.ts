@@ -202,9 +202,9 @@ async function pollLiveShared(
       users += result.users;
     }
     recordSearchCost(posts, users);
-    const desks = new Set(rules.map((rule) => rule.userId).filter(Boolean)).size;
+    const hqs = new Set(rules.map((rule) => rule.userId).filter(Boolean)).size;
     console.log(
-      `[poller] shared ${due.length} desk${due.length === 1 ? "" : "s"} (${desks} with rules) into ${batches.length} search${batches.length === 1 ? "" : "es"}; ${posts} tweet${posts === 1 ? "" : "s"}`,
+      `[poller] shared ${due.length} HQ${due.length === 1 ? "" : "s"} (${hqs} with rules) into ${batches.length} search${batches.length === 1 ? "" : "es"}; ${posts} tweet${posts === 1 ? "" : "s"}`,
     );
   } else {
     recordSearchCost(0, 0);

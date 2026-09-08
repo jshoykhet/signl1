@@ -2,7 +2,7 @@
 
 Signl1 watches what matters on the Timeline. The homepage is a launch pad: the top posts worth looking at, developing themes from the day, high-engagement tweets, and a Grok-powered search box that researches X. Search X from WhatsApp. Slack can fire on each match.
 
-Sign in with Google. Each verified account gets its own desk — Focus, rules, blocked list, and inbox stay separate. The X token and WhatsApp session are shared on the server.
+Sign in with Google. Each verified account gets its own SignlHQ — Focus, rules, blocked list, and inbox stay separate. The X token and WhatsApp session are shared on the server.
 
 You run it with Docker Compose (or `npm run dev`) against a local SQLite file. To put Signl1 on a domain you purchased, use a VPS — not Vercel. See [DEPLOY.md](DEPLOY.md) for DNS, Caddy TLS, and Google sign-in.
 
@@ -36,7 +36,7 @@ Leave `X_BEARER_TOKEN` empty for **demo mode**. Signl1 shows sample posts so you
 | `AUTH_DEV_LOGIN` | No | `1` shows **Skip sign-in** on the login page. Default off in production Compose (`AUTH_DEV_LOGIN=0`). |
 | `GOOGLE_CLIENT_ID` | No | Google OAuth web client ID. Defaults to the Signl1 client. Add this origin under Authorized JavaScript origins. |
 | `AUTH_GOOGLE_EMAIL` | No | Optional. Added to the signup allowlist if set. |
-| `AUTH_ALLOWED_EMAILS` | No | Optional comma-separated Gmails that may start a desk. Empty means any verified Google account can. |
+| `AUTH_ALLOWED_EMAILS` | No | Optional comma-separated Gmails that may open a SignlHQ. Empty means any verified Google account can. |
 | `DOMAIN` | Prod | Hostname for `docker-compose.prod.yml` + Caddy. |
 
 Copy `.env.example` to `.env` and fill in what you need. Compose interpolates those values; an empty token is demo mode.
@@ -50,7 +50,7 @@ DATABASE_PATH=./data/signal.db
 
 Do not commit `.env`. Per-rule Slack and generic webhook URLs live in SQLite so different instances can fan out without extra env vars.
 
-On first visit, sign in with Google. That account becomes admin and gets a seeded desk. The next person who signs in gets their own operator desk with the same default monitors, then customizes Focus and rules independently. If an allowlist is set (`AUTH_GOOGLE_EMAIL` or `AUTH_ALLOWED_EMAILS`), only those emails can start a desk. A leftover phone owner is rebound to the first Google sign-in. Local preview can still **Skip sign-in** when `AUTH_DEV_LOGIN=1`.
+On first visit, sign in with Google. That account becomes admin and gets a seeded SignlHQ. The next person who signs in gets their own member HQ with the same default monitors, then customizes Focus and rules independently. If an allowlist is set (`AUTH_GOOGLE_EMAIL` or `AUTH_ALLOWED_EMAILS`), only those emails can open a SignlHQ. A leftover phone owner is rebound to the first Google sign-in. Local preview can still **Skip sign-in** when `AUTH_DEV_LOGIN=1`.
 
 ## X bearer token (live mode)
 
@@ -77,7 +77,7 @@ Seeded monitors live on **Rules**, split into two modes. Each monitor is indepen
 
 | Name | Query |
 | --- | --- |
-| Key Leaders | `from:` searches of Markets Key Accounts (wires, squawk, desks). Edited on Accounts. |
+| Key Leaders | `from:` searches of Markets Key Accounts (wires and accounts). Edited on Accounts. |
 | Watchlist | User cashtags from the Watchlist page |
 | Fed | `(FOMC OR "interest rate" OR "fed funds" OR Powell) lang:en -is:retweet` |
 | Oil | `(OPEC OR "crude oil" OR WTI OR Brent) lang:en -is:retweet` |
@@ -146,7 +146,7 @@ Inbox + / − labels still train author priors.
 Every match lands in the in-app inbox.
 
 - **Slack:** rule-level incoming webhook, else `SLACK_WEBHOOK_URL`.
-- **WhatsApp:** link a phone on the **WhatsApp** tab with a QR or pairing code ([Baileys](https://baileys.wiki/) WhatsApp Web API). Optional destination (`WHATSAPP_TO` or the field on that tab). If that number is the linked account, replies land in WhatsApp **Message yourself** and often will not push-notify — use another number or a group JID for a normal chat ping. Signl1 does not send scheduled WhatsApp digests. The agent is the only WhatsApp interaction: the first time you link, Signl1 texts the how-to; after that, text a ticker (`$NVDA`), `@handle`, or `search FOMC`. One recent-search on X (last 24 hours), ranked for high-signal posts, skipping content farms. `inbox` returns what is already on the desk. `help` lists commands again. Only the destination number can ask. Turn **Agent** off to ignore chats. Each search is one X request. After you enter the pairing code, WhatsApp sends a stream restart (code 515); Signl1 reconnects immediately. Session files live on the data volume so you do not scan again after restart.
+- **WhatsApp:** link a phone on the **WhatsApp** tab with a QR or pairing code ([Baileys](https://baileys.wiki/) WhatsApp Web API). Optional destination (`WHATSAPP_TO` or the field on that tab). If that number is the linked account, replies land in WhatsApp **Message yourself** and often will not push-notify — use another number or a group JID for a normal chat ping. Signl1 does not send scheduled WhatsApp digests. The agent is the only WhatsApp interaction: the first time you link, Signl1 texts the how-to; after that, text a ticker (`$NVDA`), `@handle`, or `search FOMC`. One recent-search on X (last 24 hours), ranked for high-signal posts, skipping content farms. `inbox` returns what is already in SignlHQ. `help` lists commands again. Only the destination number can ask. Turn **Agent** off to ignore chats. Each search is one X request. After you enter the pairing code, WhatsApp sends a stream restart (code 515); Signl1 reconnects immediately. Session files live on the data volume so you do not scan again after restart.
 - **Generic webhook:** `POST` JSON:
 
 ```json
@@ -255,7 +255,7 @@ Do not lower every interval to 15s on a live token. Signl1 floors live polls at 
 npm test
 ```
 
-Covers query compilation (including the accounts helper), tweet/rule dedup against SQLite, demo fixture coverage of the sample rules, webhook payload shape, +/− training labels, watchlist cashtags, packed live-search query budgets, relevance scoring, Key Accounts, the blocked list, Focus floors, WhatsApp digest copy, WhatsApp JID formatting, personal Google desks, per-user isolation, launch-pad ranking/themes, and Grok research query fallback.
+Covers query compilation (including the accounts helper), tweet/rule dedup against SQLite, demo fixture coverage of the sample rules, webhook payload shape, +/− training labels, watchlist cashtags, packed live-search query budgets, relevance scoring, Key Accounts, the blocked list, Focus floors, WhatsApp digest copy, WhatsApp JID formatting, personal SignlHQ isolation, launch-pad ranking/themes, and Grok research query fallback.
 
 ## Layout
 

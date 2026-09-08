@@ -55,7 +55,7 @@ export function SettingsView() {
       <div className="mx-auto w-full max-w-[680px] flex-1 px-4 py-6 sm:px-5 sm:py-8">
         <PageHeader
           title="Settings"
-          description="Focus, rules, and the blocked list on this page belong to your desk. Other people who sign in get their own copy."
+          description="Focus, rules, and the blocked list on this page belong to your SignlHQ. Other people who sign in get their own copy."
         />
         <div className="mt-5 space-y-6 sm:mt-8 sm:space-y-8">
           {error ? (
@@ -67,11 +67,11 @@ export function SettingsView() {
             <>
               {status.account ? (
                 <SettingsGroup
-                  title="Your desk"
+                  title="SignlHQ"
                   footer="Each Google account has its own inbox and filters. The X token and WhatsApp link are shared on this server."
                 >
                   <Row label="Signed in">{status.account.email}</Row>
-                  <Row label="Role">{status.account.role === "admin" ? "Admin" : "Your desk"}</Row>
+                  <Row label="Role">{status.account.role === "admin" ? "Admin" : "Member"}</Row>
                   {status.account.people.length > 1 ? (
                     <Row label="People">
                       {status.account.people

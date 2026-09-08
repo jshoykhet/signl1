@@ -2,9 +2,9 @@ import { parseDeskMode, type DeskMode } from "./desk-mode";
 import { VENTURE_KOL_HANDLES } from "./venture-kol";
 
 /**
- * Key Network Nodes whose posts skip engagement floors and get a desk
+ * Key Network Nodes whose posts skip engagement floors and get a relevance
  * priority bump. Markets seeds wires, squawk, All-In, CNBC/FT talent, and
- * official desks. Venture seeds funds, startup reporters, and tech wires.
+ * official accounts. Venture seeds funds, startup reporters, and tech wires.
  * Extra handles come from KOL_HANDLES.
  *
  * KOL_HANDLES: comma, space, or newline separated; @ is optional.
@@ -12,7 +12,7 @@ import { VENTURE_KOL_HANDLES } from "./venture-kol";
  */
 
 export const DEFAULT_KOL_HANDLES: readonly string[] = [
-  // Screenshot / All-In / desks
+  // Screenshot / All-In / accounts
   "zerohedge",
   "elonmusk",
   "jason",

@@ -64,7 +64,7 @@ export async function planResearch(question: string): Promise<ResearchPlan> {
       json: true,
       timeoutMs: 18_000,
       system:
-        "You write X (Twitter) recent-search queries for a markets/venture desk. Return JSON only: {\"queries\": string[], \"lookbackHours\": number, \"angle\": string}. One or two queries. Prefer cashtags, from: handles, and news language. Always include lang:en -is:retweet. lookbackHours 1-24. Never use the word AND — a space already means AND. Do not start a query with find or search. Quote phrases that contain the word and.",
+        "You write X (Twitter) recent-search queries for SignlHQ. Return JSON only: {\"queries\": string[], \"lookbackHours\": number, \"angle\": string}. One or two queries. Prefer cashtags, from: handles, and news language. Always include lang:en -is:retweet. lookbackHours 1-24. Never use the word AND — a space already means AND. Do not start a query with find or search. Quote phrases that contain the word and.",
       user: question,
     });
     const parsed = parseJsonObject(text);
@@ -140,7 +140,7 @@ function fallbackBrief(question: string, tweets: NormalizedTweet[], demo: boolea
   }
   const lines = tweets.slice(0, 4).map((tweet) => `@${tweet.authorHandle}: ${tweet.text.replace(/\s+/g, " ").slice(0, 140)}`);
   return [
-    demo ? "Sample tape (no live X token)." : "Live X search, no Grok key — raw hits:",
+    demo ? "Sample feed (no live X token)." : "Live X search, no Grok key — raw hits:",
     ...lines,
   ].join("\n");
 }
@@ -162,7 +162,7 @@ export async function writeResearchBrief(
     return await grokComplete({
       timeoutMs: 28_000,
       system:
-        "You are Signl1, a terse markets/venture research desk. Write 5-8 sentences. What happened, who is saying it, disagreement, what to watch next. Cite @handles. No fluff, no lorem, no disclaimers. If the posts are thin, say so.",
+        "You are Signl1, a terse research brief for SignlHQ. Write 5-8 sentences. What happened, who is saying it, disagreement, what to watch next. Cite @handles. No fluff, no lorem, no disclaimers. If the posts are thin, say so.",
       user: `Question: ${question}\nAngle: ${plan.angle}\nQueries: ${plan.queries.join(" | ")}\n\nPosts:\n${catalog || "(none)"}`,
     });
   } catch (error) {

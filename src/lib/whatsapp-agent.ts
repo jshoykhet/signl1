@@ -133,7 +133,7 @@ export function agentHelpText(): string {
     "• `$NVDA` or `NVDA`",
     "• `@federalreserve` or `from:reuters`",
     "• `search FOMC cut`",
-    "• `inbox` — latest posts already on your desk",
+    "• `inbox` — latest posts already in SignlHQ",
     "• `status` — link and mode",
     "• `help`",
     "",
@@ -155,7 +155,7 @@ export function formatAgentResults(opts: {
     return [
       `*Signl1 search* · ${opts.label}`,
       opts.demo
-        ? "Sample tape. No match in the fixtures."
+        ? "Sample feed. No match in the fixtures."
         : (opts.emptyHint ?? "Nothing high-signal in the last 24 hours. Farms and empty chatter are skipped."),
     ].join("\n");
   }

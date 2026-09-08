@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 const ERRORS: Record<string, string> = {
   CredentialsSignin: "Google could not verify that account, or it is not on the allowlist.",
   Configuration: "Sign-in is not configured. Set AUTH_SECRET, or check the Google client ID.",
-  AccessDenied: "That Google account is not allowed to start a desk on this Signl1.",
+  AccessDenied: "That Google account is not allowed to open a SignlHQ on this Signl1.",
   Default: "Sign-in failed. Try again.",
 };
 
@@ -163,7 +163,7 @@ export function LoginForm({
       {configured ? (
         <div className="space-y-3">
           <p className="text-[15px] leading-snug text-muted-foreground">
-            Sign in with Google. Each account gets its own desk — filters, rules, and inbox stay separate.
+            Sign in with Google. Each account gets its own SignlHQ — filters, rules, and inbox stay separate.
           </p>
           <div className={cn("min-h-11", pending && "pointer-events-none opacity-60")}>
             <div ref={buttonHost} className="flex min-h-11 justify-center [&>div]:w-full" />
