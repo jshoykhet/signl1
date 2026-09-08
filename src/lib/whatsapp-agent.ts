@@ -22,11 +22,40 @@ export function stripSearchPrefix(text: string): string {
   return text.replace(/^(search|find|look\s*up|lookup|show me|show|get)\s+/i, "").trim();
 }
 
+/** Short words that are themes/macro, not cashtags. `$NVDA` still compiles as a ticker. */
+const BARE_TICKER_STOP = new Set([
+  "ai",
+  "fed",
+  "fomc",
+  "cpi",
+  "pce",
+  "nfp",
+  "gdp",
+  "ipo",
+  "gpu",
+  "gpus",
+  "oil",
+  "opec",
+  "wti",
+  "ism",
+  "pmi",
+  "dxy",
+  "ecb",
+  "boe",
+  "sec",
+  "fda",
+  "imf",
+  "macro",
+  "series",
+]);
+
 export function compileAgentQuery(raw: string): string {
   let q = raw.trim().replace(/\s+/g, " ");
   if (!q) return "";
-  const ticker = /^\$?([A-Za-z]{1,5})$/.exec(q);
-  if (ticker) return `$${ticker[1].toUpperCase()} lang:en -is:retweet`;
+  const ticker = /^\$([A-Za-z]{1,5})$/.exec(q) ?? /^([A-Za-z]{1,5})$/.exec(q);
+  if (ticker && (q.startsWith("$") || !BARE_TICKER_STOP.has(ticker[1].toLowerCase()))) {
+    return `$${ticker[1].toUpperCase()} lang:en -is:retweet`;
+  }
   const from =
     /^(?:from:|@)([A-Za-z0-9_]{1,15})$/.exec(q) ?? /^@([A-Za-z0-9_]{1,15})\s*$/.exec(q);
   if (from) return `from:${from[1].toLowerCase()} lang:en -is:retweet`;

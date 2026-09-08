@@ -45,6 +45,13 @@ describe("compileAgentQuery", () => {
   it("adds language and retweet filters once", () => {
     expect(compileAgentQuery("Powell lang:en -is:retweet")).toBe("Powell lang:en -is:retweet");
   });
+
+  it("treats $NVDA and NVDA as cashtags, but not theme words", () => {
+    expect(compileAgentQuery("$NVDA")).toBe("$NVDA lang:en -is:retweet");
+    expect(compileAgentQuery("NVDA")).toBe("$NVDA lang:en -is:retweet");
+    expect(compileAgentQuery("AI")).toBe("AI lang:en -is:retweet");
+    expect(compileAgentQuery("FOMC")).toBe("FOMC lang:en -is:retweet");
+  });
 });
 
 describe("senderIsAllowed", () => {

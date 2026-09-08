@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Activity, BadgeDollarSign, Inbox, LayoutDashboard, Settings2, SlidersHorizontal, Users } from "lucide-react";
+import { Activity, BadgeDollarSign, House, Inbox, Settings2, SlidersHorizontal, Users } from "lucide-react";
 import { UserMenu } from "@/components/user-menu";
 import { cn } from "@/lib/utils";
 import { DESK_MODES } from "@/lib/desk-mode";
 import type { StatusSnapshot } from "@/lib/types";
 
 const NAV = [
-  { href: "/", label: "Launch", icon: LayoutDashboard },
+  { href: "/", label: "Launch", icon: House },
   { href: "/inbox", label: "Inbox", icon: Inbox },
   { href: "/watchlist", label: "Watchlist", icon: BadgeDollarSign },
   { href: "/accounts", label: "Accounts", icon: Users },

@@ -13,4 +13,10 @@ describe("research fallback planner", () => {
     const plan = planResearchFallback("@federalreserve");
     expect(plan.queries[0]).toContain("from:federalreserve");
   });
+
+  it("does not turn a theme word into a cashtag", () => {
+    const plan = planResearchFallback("AI");
+    expect(plan.queries[0]).toMatch(/^AI /);
+    expect(plan.queries[0]).not.toContain("$AI");
+  });
 });
