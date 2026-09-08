@@ -2,8 +2,14 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { admitGoogleUser, admitUser, allowedGoogleEmail, isDevLoginEnabled, listUsers } from "./access";
-import { openDatabase } from "./db";
+import {
+  admitGoogleUser,
+  admitUser,
+  allowedGoogleEmail,
+  isDevLoginEnabled,
+  listUsers,
+} from "./access";
+import { listRules, openDatabase } from "./db";
 
 const tmpDirs: string[] = [];
 
@@ -19,8 +25,13 @@ function tempDb() {
   return openDatabase(path.join(dir, "test.db"));
 }
 
-describe("admitUser solo desk", () => {
-  it("makes the first sign-in the owner", () => {
+function restoreEnv(key: string, prev: string | undefined) {
+  if (prev === undefined) delete process.env[key];
+  else process.env[key] = prev;
+}
+
+describe("admitUser personal desks", () => {
+  it("makes the first sign-in the admin", () => {
     const db = tempDb();
     const user = admitUser({ email: " Desk.Lead@Example.com ", name: "Lead" }, db);
     expect(user).toMatchObject({
@@ -32,11 +43,16 @@ describe("admitUser solo desk", () => {
     expect(listUsers(db)).toHaveLength(1);
   });
 
-  it("rejects a second person", () => {
+  it("gives a second person their own operator desk", () => {
     const db = tempDb();
-    admitUser({ email: "lead@desk.com" }, db);
-    expect(admitUser({ email: "intern@desk.com" }, db)).toBeNull();
-    expect(listUsers(db)).toHaveLength(1);
+    const lead = admitUser({ email: "lead@desk.com" }, db)!;
+    const intern = admitUser({ email: "intern@desk.com", name: "Intern" }, db)!;
+    expect(intern.role).toBe("operator");
+    expect(intern.id).not.toBe(lead.id);
+    expect(listUsers(db)).toHaveLength(2);
+    expect(listRules(lead.id, db).length).toBeGreaterThan(0);
+    expect(listRules(intern.id, db).length).toBeGreaterThan(0);
+    expect(listRules(lead.id, db)[0]?.id).not.toBe(listRules(intern.id, db)[0]?.id);
   });
 
   it("reads AUTH_DEV_LOGIN at runtime", () => {
@@ -45,8 +61,7 @@ describe("admitUser solo desk", () => {
     expect(isDevLoginEnabled()).toBe(true);
     process.env.AUTH_DEV_LOGIN = "0";
     expect(isDevLoginEnabled()).toBe(false);
-    if (prev === undefined) delete process.env.AUTH_DEV_LOGIN;
-    else process.env.AUTH_DEV_LOGIN = prev;
+    restoreEnv("AUTH_DEV_LOGIN", prev);
   });
 
   it("updates last login for the returning owner", () => {
@@ -58,15 +73,27 @@ describe("admitUser solo desk", () => {
     expect(again.lastLoginAt).toBeTruthy();
   });
 
-  it("honors AUTH_GOOGLE_EMAIL as a lock", () => {
+  it("honors AUTH_GOOGLE_EMAIL as an allowlist", () => {
     const prev = process.env.AUTH_GOOGLE_EMAIL;
     process.env.AUTH_GOOGLE_EMAIL = "owner@gmail.com";
     expect(allowedGoogleEmail()).toBe("owner@gmail.com");
     const db = tempDb();
     expect(admitGoogleUser({ email: "other@gmail.com" }, db)).toBeNull();
     expect(admitGoogleUser({ email: "owner@gmail.com" }, db)?.email).toBe("owner@gmail.com");
-    if (prev === undefined) delete process.env.AUTH_GOOGLE_EMAIL;
-    else process.env.AUTH_GOOGLE_EMAIL = prev;
+    expect(admitGoogleUser({ email: "other@gmail.com" }, db)).toBeNull();
+    restoreEnv("AUTH_GOOGLE_EMAIL", prev);
   });
 
+  it("lets AUTH_ALLOWED_EMAILS admit more than one desk", () => {
+    const prevGoogle = process.env.AUTH_GOOGLE_EMAIL;
+    const prevAllowed = process.env.AUTH_ALLOWED_EMAILS;
+    delete process.env.AUTH_GOOGLE_EMAIL;
+    process.env.AUTH_ALLOWED_EMAILS = "lead@desk.com, intern@desk.com";
+    const db = tempDb();
+    expect(admitUser({ email: "lead@desk.com" }, db)?.role).toBe("admin");
+    expect(admitUser({ email: "intern@desk.com" }, db)?.role).toBe("operator");
+    expect(admitUser({ email: "stranger@desk.com" }, db)).toBeNull();
+    restoreEnv("AUTH_GOOGLE_EMAIL", prevGoogle);
+    restoreEnv("AUTH_ALLOWED_EMAILS", prevAllowed);
+  });
 });

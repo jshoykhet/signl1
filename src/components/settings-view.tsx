@@ -55,7 +55,7 @@ export function SettingsView() {
       <div className="mx-auto w-full max-w-[680px] flex-1 px-4 py-6 sm:px-5 sm:py-8">
         <PageHeader
           title="Settings"
-          description="Your X token stays on the server. Link a phone on WhatsApp to search X from chat."
+          description="Focus, rules, and the blocked list on this page belong to your desk. Other people who sign in get their own copy."
         />
         <div className="mt-5 space-y-6 sm:mt-8 sm:space-y-8">
           {error ? (
@@ -65,6 +65,22 @@ export function SettingsView() {
             <p className="text-[15px] text-muted-foreground">Loading status…</p>
           ) : (
             <>
+              {status.account ? (
+                <SettingsGroup
+                  title="Your desk"
+                  footer="Each Google account has its own inbox and filters. The X token and WhatsApp link are shared on this server."
+                >
+                  <Row label="Signed in">{status.account.email}</Row>
+                  <Row label="Role">{status.account.role === "admin" ? "Admin" : "Your desk"}</Row>
+                  {status.account.people.length > 1 ? (
+                    <Row label="People">
+                      {status.account.people
+                        .map((person) => person.name?.trim() || person.email)
+                        .join(", ")}
+                    </Row>
+                  ) : null}
+                </SettingsGroup>
+              ) : null}
               {status.demoMode ? (
                 <div className="rounded-2xl bg-amber-400/15 px-4 py-3.5">
                   <div className="text-[15px] font-medium text-amber-800 dark:text-amber-200">Demo mode</div>

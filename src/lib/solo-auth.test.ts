@@ -21,8 +21,8 @@ function tempDb() {
   return openDatabase(path.join(dir, "test.db"));
 }
 
-describe("Google solo desk", () => {
-  it("makes the first verified Gmail the owner", () => {
+describe("Google desks", () => {
+  it("makes the first verified Gmail the admin", () => {
     const db = tempDb();
     const user = admitGoogleUser({ email: " Desk.Lead@Gmail.com ", name: "Lead" }, db);
     expect(user?.role).toBe("admin");
@@ -33,11 +33,14 @@ describe("Google solo desk", () => {
     expect(again?.id).toBe(user?.id);
   });
 
-  it("rejects a second Gmail after the desk is claimed", () => {
+  it("lets a second Gmail start a separate desk", () => {
     const db = tempDb();
-    expect(admitGoogleUser({ email: "lead@gmail.com" }, db)).toBeTruthy();
-    expect(admitGoogleUser({ email: "other@gmail.com" }, db)).toBeNull();
-    expect(listUsers(db)).toHaveLength(1);
+    const first = admitGoogleUser({ email: "lead@gmail.com" }, db);
+    const second = admitGoogleUser({ email: "other@gmail.com" }, db);
+    expect(first?.role).toBe("admin");
+    expect(second?.role).toBe("operator");
+    expect(second?.id).not.toBe(first?.id);
+    expect(listUsers(db)).toHaveLength(2);
   });
 
   it("rebinds a leftover phone owner to the first Google email", () => {

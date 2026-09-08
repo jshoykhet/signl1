@@ -83,7 +83,7 @@ export function DeskFilters() {
         : "News and analysis stay in. Ticker-only posts and dunks stay out. Hide crypto keeps listed names like $COIN. Hide chat apps drops Telegram and WhatsApp. Posts you marked to keep still come through.";
 
   return (
-    <SettingsGroup title="Focus" footer={footer}>
+    <SettingsGroup title="Focus" footer={`${footer} These apply only to your desk.`}>
       {!filters ? (
         <div className="px-4 py-3.5 text-[15px] text-muted-foreground">Loading filters…</div>
       ) : (

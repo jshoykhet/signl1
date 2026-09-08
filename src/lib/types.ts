@@ -84,6 +84,12 @@ export type StatusSnapshot = {
   bearerToken: "present" | "missing";
   grok: "present" | "missing";
   googleAuth?: "present" | "missing";
+  account?: {
+    email: string;
+    name: string | null;
+    role: "admin" | "operator";
+    people: Array<{ email: string; name: string | null; role: "admin" | "operator" }>;
+  };
   whatsappLinked: boolean;
   poller: {
     healthy: boolean;

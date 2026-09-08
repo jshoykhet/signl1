@@ -45,14 +45,14 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
             <span className="block truncate text-[13px] font-medium text-foreground">
               {displayIdentity(user.email, user.name)}
             </span>
-            <span className="block truncate text-[12px] text-muted-foreground">You</span>
+            <span className="block truncate text-[12px] text-muted-foreground">Your desk</span>
           </span>
         )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align={compact ? "end" : "start"} className="w-56 rounded-2xl">
         <DropdownMenuLabel className="font-normal">
           <div className="truncate text-[13px] text-foreground">{displayIdentity(user.email, user.name)}</div>
-          <div className="text-[12px] text-muted-foreground">This Signl1 is yours</div>
+          <div className="truncate text-[12px] text-muted-foreground">{user.email}</div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem

@@ -8,9 +8,9 @@ import { sameOriginCallbackPath } from "@/lib/dev-preview";
 import { cn } from "@/lib/utils";
 
 const ERRORS: Record<string, string> = {
-  CredentialsSignin: "Google could not verify that account, or this Signl1 already has another owner.",
+  CredentialsSignin: "Google could not verify that account, or it is not on the allowlist.",
   Configuration: "Sign-in is not configured. Set AUTH_SECRET, or check the Google client ID.",
-  AccessDenied: "This Signl1 already has an owner. Sign in with that Google account.",
+  AccessDenied: "That Google account is not allowed to start a desk on this Signl1.",
   Default: "Sign-in failed. Try again.",
 };
 
@@ -163,7 +163,7 @@ export function LoginForm({
       {configured ? (
         <div className="space-y-3">
           <p className="text-[15px] leading-snug text-muted-foreground">
-            Sign in with the Google account that owns this Signl1. The first verified email claims the desk.
+            Sign in with Google. Each account gets its own desk — filters, rules, and inbox stay separate.
           </p>
           <div className={cn("min-h-11", pending && "pointer-events-none opacity-60")}>
             <div ref={buttonHost} className="flex min-h-11 justify-center [&>div]:w-full" />

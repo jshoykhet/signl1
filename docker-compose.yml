@@ -26,6 +26,7 @@ services:
       AUTH_DEV_LOGIN: ${AUTH_DEV_LOGIN:-1}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-103020933710-3n07noae1t93om6qq96vmoarpf14hq5f.apps.googleusercontent.com}
       AUTH_GOOGLE_EMAIL: ${AUTH_GOOGLE_EMAIL:-}
+      AUTH_ALLOWED_EMAILS: ${AUTH_ALLOWED_EMAILS:-}
     volumes:
       - signal-data:/data
     restart: unless-stopped

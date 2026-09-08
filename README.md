@@ -2,7 +2,7 @@
 
 Signl1 watches what matters on the Timeline. The homepage is a launch pad: the top posts worth looking at, developing themes from the day, high-engagement tweets, and a Grok-powered search box that researches X. Search X from WhatsApp. Slack can fire on each match.
 
-Sign in with Google. The first verified Gmail owns this Signl1. There is no team or invite list.
+Sign in with Google. Each verified account gets its own desk — Focus, rules, blocked list, and inbox stay separate. The X token and WhatsApp session are shared on the server.
 
 You run it with Docker Compose (or `npm run dev`) against a local SQLite file. To put Signl1 on a domain you purchased, use a VPS — not Vercel. See [DEPLOY.md](DEPLOY.md) for DNS, Caddy TLS, and Google sign-in.
 
@@ -35,7 +35,8 @@ Leave `X_BEARER_TOKEN` empty for **demo mode**. Signl1 shows sample posts so you
 | `AUTH_URL` | Prod | Public URL, e.g. `https://signals.example.com`. |
 | `AUTH_DEV_LOGIN` | No | `1` shows **Skip sign-in** on the login page. Default off in production Compose (`AUTH_DEV_LOGIN=0`). |
 | `GOOGLE_CLIENT_ID` | No | Google OAuth web client ID. Defaults to the Signl1 client. Add this origin under Authorized JavaScript origins. |
-| `AUTH_GOOGLE_EMAIL` | No | Optional lock: only this Gmail can own or take over the desk. |
+| `AUTH_GOOGLE_EMAIL` | No | Optional. Added to the signup allowlist if set. |
+| `AUTH_ALLOWED_EMAILS` | No | Optional comma-separated Gmails that may start a desk. Empty means any verified Google account can. |
 | `DOMAIN` | Prod | Hostname for `docker-compose.prod.yml` + Caddy. |
 
 Copy `.env.example` to `.env` and fill in what you need. Compose interpolates those values; an empty token is demo mode.
@@ -49,7 +50,7 @@ DATABASE_PATH=./data/signal.db
 
 Do not commit `.env`. Per-rule Slack and generic webhook URLs live in SQLite so different instances can fan out without extra env vars.
 
-On first visit, sign in with Google. That email owns this Signl1. Later visits must use the same account. If the desk was previously claimed by a phone login, the first Google sign-in rebinds that owner. Local preview can still **Skip sign-in** when `AUTH_DEV_LOGIN=1`.
+On first visit, sign in with Google. That account becomes admin and gets a seeded desk. The next person who signs in gets their own operator desk with the same default monitors, then customizes Focus and rules independently. If an allowlist is set (`AUTH_GOOGLE_EMAIL` or `AUTH_ALLOWED_EMAILS`), only those emails can start a desk. A leftover phone owner is rebound to the first Google sign-in. Local preview can still **Skip sign-in** when `AUTH_DEV_LOGIN=1`.
 
 ## X bearer token (live mode)
 
@@ -254,7 +255,7 @@ Do not lower every interval to 15s on a live token. Signl1 floors live polls at 
 npm test
 ```
 
-Covers query compilation (including the accounts helper), tweet/rule dedup against SQLite, demo fixture coverage of the sample rules, webhook payload shape, +/− training labels, watchlist cashtags, packed live-search query budgets, relevance scoring, Key Accounts, the blocked list, Focus floors, WhatsApp digest copy, WhatsApp JID formatting, solo Google admission, per-user isolation, launch-pad ranking/themes, and Grok research query fallback.
+Covers query compilation (including the accounts helper), tweet/rule dedup against SQLite, demo fixture coverage of the sample rules, webhook payload shape, +/− training labels, watchlist cashtags, packed live-search query budgets, relevance scoring, Key Accounts, the blocked list, Focus floors, WhatsApp digest copy, WhatsApp JID formatting, personal Google desks, per-user isolation, launch-pad ranking/themes, and Grok research query fallback.
 
 ## Layout
 

@@ -1,23 +1,30 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { listUsers } from "@/lib/access";
 import { jsonError } from "@/lib/api";
-import { getSoloAuth } from "@/lib/solo-auth";
-import { formatPhone } from "@/lib/phone";
+import { requireDeskUser } from "@/lib/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user?.email) return jsonError("Unauthorized", 401);
-  const solo = getSoloAuth();
+  const desk = await requireDeskUser();
+  if (!desk.ok) return desk.response;
+  const people = listUsers()
+    .filter((user) => !user.disabled)
+    .map((user) => ({
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      you: user.id === desk.userId,
+    }));
   return NextResponse.json({
-    solo: true,
-    phone: solo.phone ? formatPhone(solo.phone) : null,
-    confirmed: solo.confirmed,
+    solo: people.length <= 1,
+    email: desk.email,
+    role: desk.role,
+    people,
   });
 }
 
 export async function PUT() {
-  return jsonError("This Signl1 is for one person.", 410);
+  return jsonError("Invite people by signing in with Google, or set AUTH_ALLOWED_EMAILS.", 410);
 }

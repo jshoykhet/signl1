@@ -72,14 +72,31 @@ export function isDevLoginEnabled(): boolean {
   return String(process.env["AUTH_DEV_LOGIN"] ?? "").trim() === "1";
 }
 
-/** Optional lock: only this Gmail can own or take over the desk. */
+/** Optional single Gmail added to the signup allowlist. */
 export function allowedGoogleEmail(): string | null {
   return normalizeEmail(process.env.AUTH_GOOGLE_EMAIL);
 }
 
-/** Kept for older env files. The desk stays solo. */
+/** AUTH_GOOGLE_EMAIL plus AUTH_ALLOWED_EMAILS. Empty means any verified Google account can start a desk. */
+export function signupAllowlist(): string[] {
+  const emails = parseAllowedEmailsEnv();
+  const google = allowedGoogleEmail();
+  if (google && !emails.includes(google)) emails.push(google);
+  return emails;
+}
+
+export function canCreateDesk(email: string, db?: Database.Database): boolean {
+  const normalized = normalizeEmail(email);
+  if (!normalized) return false;
+  const allow = signupAllowlist();
+  if (allow.length === 0 && countAllowedEmails(db) === 0) return true;
+  if (allow.includes(normalized)) return true;
+  return isEmailAllowed(normalized, db);
+}
+
+/** Kept for older env files. Open unless an allowlist is set. */
 export function isPublicSignup(): boolean {
-  return process.env.AUTH_PUBLIC_SIGNUP === "1";
+  return process.env.AUTH_PUBLIC_SIGNUP === "1" || signupAllowlist().length === 0;
 }
 
 function mapUser(row: UserRow): DeskUser {
@@ -211,8 +228,9 @@ function touchLogin(
 }
 
 /**
- * Solo desk: the first sign-in owns the instance. Later emails are refused.
- * Returning owners are touched and admitted.
+ * Each verified email gets their own desk. The first account is admin;
+ * later accounts are operators with isolated filters, rules, and inbox.
+ * Returning users are touched and admitted.
  */
 export function admitUser(
   input: { email: string; name?: string | null; image?: string | null },
@@ -230,41 +248,40 @@ export function admitUser(
     return getUserByEmail(email, conn);
   }
 
-  const userCount = countUsers(conn);
-  if (userCount > 0) return null;
+  if (shouldRebindPhone(email, conn) && canCreateDesk(email, conn)) {
+    return rebindPhoneOwner({ ...input, email }, conn);
+  }
+
+  if (!canCreateDesk(email, conn)) return null;
 
   const ts = nowIso();
   const id = crypto.randomUUID();
+  const role = countUsers(conn) === 0 ? "admin" : "operator";
   conn
     .prepare(
       `INSERT INTO users (id, email, name, image, role, created_at, last_login_at, disabled)
-       VALUES (?, ?, ?, ?, 'admin', ?, ?, 0)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
     )
-    .run(id, email, input.name?.trim() || null, input.image?.trim() || null, ts, ts);
+    .run(id, email, input.name?.trim() || null, input.image?.trim() || null, role, ts, ts);
 
   ensureUserDesk(id, conn);
   return getUserByEmail(email, conn);
 }
 
-/**
- * Google email owns the desk. A later Gmail is refused.
- * If the only owner is a leftover @phone.signl1 account, the first
- * verified Google email (or AUTH_GOOGLE_EMAIL) rebinds that row.
- */
+/** Google sign-in. Same admission as email; leftover phone owners are rebound. */
 export function admitGoogleUser(
   input: { email: string; name?: string | null; image?: string | null },
   db?: Database.Database,
 ): DeskUser | null {
-  const email = normalizeEmail(input.email);
-  if (!email) return null;
+  return admitUser(input, db);
+}
 
-  const allowed = allowedGoogleEmail();
-  if (allowed && allowed !== email) return null;
-
-  const admitted = admitUser({ ...input, email }, db);
-  if (admitted) return admitted;
-
-  return rebindPhoneOwner({ ...input, email }, db);
+function shouldRebindPhone(email: string, db: Database.Database): boolean {
+  if (emailLooksLikePhone(email)) return false;
+  const users = listUsers(db);
+  if (users.length !== 1) return false;
+  const owner = users[0]!;
+  return !owner.disabled && emailLooksLikePhone(owner.email);
 }
 
 function rebindPhoneOwner(

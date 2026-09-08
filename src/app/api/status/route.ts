@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { listUsers } from "@/lib/access";
 import { isDemoMode, xBearerToken } from "@/lib/config";
 import { getStatus } from "@/lib/db";
 import { isGrokConfigured } from "@/lib/grok";
@@ -18,5 +19,13 @@ export async function GET() {
       grokPresent: isGrokConfigured(),
     }),
     googleAuth: isGoogleAuthConfigured() ? "present" : "missing",
+    account: {
+      email: desk.email,
+      name: desk.name,
+      role: desk.role === "admin" ? "admin" : "operator",
+      people: listUsers()
+        .filter((user) => !user.disabled)
+        .map((user) => ({ email: user.email, name: user.name, role: user.role })),
+    },
   });
 }
