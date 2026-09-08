@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getUserMeta, setDeskCadenceMinutes, setUserMeta } from "@/lib/db";
+import { setDeskCadenceMinutes, setUserMeta } from "@/lib/db";
 import { requireDeskUser } from "@/lib/session";
 import { normalizeWhatsAppNumber, toWhatsAppJid } from "@/lib/whatsapp";
 import { getWhatsAppPublicStatus } from "@/lib/whatsapp-status";
@@ -47,9 +47,6 @@ export async function PUT(request: Request) {
   }
   if (body.digestMinutes != null) {
     setDeskCadenceMinutes(desk.userId, Number(body.digestMinutes));
-    if (!getUserMeta(desk.userId, "whatsapp_digest_last_at")) {
-      setUserMeta(desk.userId, "whatsapp_digest_last_at", new Date().toISOString());
-    }
   }
   return NextResponse.json(await getWhatsAppPublicStatus(desk.userId, { canLink: desk.role === "admin" }));
 }

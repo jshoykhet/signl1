@@ -1,6 +1,6 @@
 # Signl1
 
-Signl1 watches what matters on the Timeline. The homepage is a launch pad: the top posts worth looking at, developing themes from the day, high-engagement tweets, and a Grok-powered search box that researches X. WhatsApp alerts so you never miss anything. Slack can fire on each match.
+Signl1 watches what matters on the Timeline. The homepage is a launch pad: the top posts worth looking at, developing themes from the day, high-engagement tweets, and a Grok-powered search box that researches X. Search X from WhatsApp. Slack can fire on each match.
 
 Sign in with your phone and a 6-digit code from an open-source authenticator ([Ente Auth](https://ente.io/auth/) on iOS/Android, or [Aegis](https://github.com/beemdevelopment/Aegis) on Android). The first number to enroll owns this Signl1. There is no team or invite list.
 
@@ -143,8 +143,7 @@ Inbox + / − labels still train author priors.
 Every match lands in the in-app inbox.
 
 - **Slack:** rule-level incoming webhook, else `SLACK_WEBHOOK_URL`.
-- **WhatsApp:** link a phone on the **WhatsApp** tab with a QR or pairing code ([Baileys](https://baileys.wiki/) WhatsApp Web API). Optional destination (`WHATSAPP_TO` or the field on that tab). If that number is the linked account, the text lands in WhatsApp **Message yourself** and often will not push-notify — use another number or a group JID for a normal chat ping. Alerts send only after status is **Linked**. Timing is the same **Updates** interval as X: every 5 / 10 / 15 / 30 / 45 minutes or every 1 / 2 / 3 / 4 / 5 / 10 hours, sending the best 20 posts from that window. After you enter the pairing code, WhatsApp sends a stream restart (code 515); Signl1 reconnects immediately with the new session and does not treat that as an error. Session files live on the data volume so you do not scan again after restart.
-- **WhatsApp agent:** the first time you link, Signl1 texts the how-to into that chat. After that, with the same linked number, text a ticker (`$NVDA`), `@handle`, or `search FOMC`. Signl1 runs one recent-search on X (last 24 hours), ranks for high-signal posts, skips content farms, and replies with links. `inbox` returns what is already on the desk. `help` lists commands again. Only the destination number can ask. Turn **Agent** off on the WhatsApp tab to ignore chats. Each search is one X request.
+- **WhatsApp:** link a phone on the **WhatsApp** tab with a QR or pairing code ([Baileys](https://baileys.wiki/) WhatsApp Web API). Optional destination (`WHATSAPP_TO` or the field on that tab). If that number is the linked account, replies land in WhatsApp **Message yourself** and often will not push-notify — use another number or a group JID for a normal chat ping. Signl1 does not send scheduled WhatsApp digests. The agent is the only WhatsApp interaction: the first time you link, Signl1 texts the how-to; after that, text a ticker (`$NVDA`), `@handle`, or `search FOMC`. One recent-search on X (last 24 hours), ranked for high-signal posts, skipping content farms. `inbox` returns what is already on the desk. `help` lists commands again. Only the destination number can ask. Turn **Agent** off to ignore chats. Each search is one X request. After you enter the pairing code, WhatsApp sends a stream restart (code 515); Signl1 reconnects immediately. Session files live on the data volume so you do not scan again after restart.
 - **Generic webhook:** `POST` JSON:
 
 ```json

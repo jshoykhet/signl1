@@ -55,7 +55,7 @@ export function SettingsView() {
       <div className="mx-auto w-full max-w-[680px] flex-1 px-4 py-6 sm:px-5 sm:py-8">
         <PageHeader
           title="Settings"
-          description="Your X token stays on the server. Link a phone on the WhatsApp tab for alerts."
+          description="Your X token stays on the server. Link a phone on the WhatsApp tab to search X from chat."
         />
         <div className="mt-6 space-y-8 sm:mt-8">
           {error ? (
@@ -76,9 +76,9 @@ export function SettingsView() {
               <SettingsGroup title="WhatsApp" footer="Pairing, destination, and the agent live on the WhatsApp tab.">
                 <GroupedRow>
                   <div className="min-w-0 flex-1">
-                    <div className="text-[17px] font-medium tracking-[-0.01em]">Phone alerts</div>
+                    <div className="text-[17px] font-medium tracking-[-0.01em]">WhatsApp agent</div>
                     <div className="mt-0.5 text-[13px] leading-snug text-muted-foreground">
-                      Link a number so you never miss a post.
+                      Link a number, then text a ticker or search.
                     </div>
                   </div>
                   <Link

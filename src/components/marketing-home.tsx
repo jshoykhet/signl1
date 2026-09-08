@@ -41,7 +41,7 @@ export function MarketingHome({
               What matters on the Timeline
             </h1>
             <p className="mt-5 max-w-xl text-[17px] leading-relaxed text-muted-foreground">
-              WhatsApp alerts so you never miss anything. Signl1 ranks the tape, surfaces themes, and lets you ask Grok
+              WhatsApp agent so you can search the tape from chat. Signl1 ranks the tape, surfaces themes, and lets you ask Grok
               to research X.
             </p>
           </div>

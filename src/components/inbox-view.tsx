@@ -388,7 +388,7 @@ export function InboxView() {
               Tap a post to read it, or open it on X.
               {cadenceMinutes ? (
                 <span className="hidden sm:inline">
-                  {` Checks ${cadenceLabel(cadenceMinutes).replace(/^Every /, "every ")}. WhatsApp uses the same interval.`}
+                  {` Checks ${cadenceLabel(cadenceMinutes).replace(/^Every /, "every ")}.`}
                 </span>
               ) : null}
             </p>
@@ -412,8 +412,8 @@ export function InboxView() {
             <span className="font-semibold">Link WhatsApp</span>
             <span className="mt-0.5 block text-[14px] text-amber-900/80 dark:text-amber-100/75">
               {waStatus === "pairing" || waStatus === "qr" || waStatus === "connecting"
-                ? "Finish pairing so alerts reach your phone."
-                : "Alerts stay on this desk until you link a phone. Tap to pair."}
+                ? "Finish pairing so you can search X from this phone."
+                : "Tap to pair WhatsApp, then text a ticker or search."}
             </span>
           </Link>
         ) : null}

@@ -9,7 +9,7 @@ export function WhatsAppView() {
       <div className="mx-auto w-full max-w-[680px] flex-1 px-4 py-6 sm:px-5 sm:py-8">
         <PageHeader
           title="WhatsApp"
-          description="Never miss the timeline with Whatsapp alerts"
+          description="Text Signl1 from WhatsApp to search the tape"
         />
         <div className="mt-6 sm:mt-8">
           <WhatsAppSettings />

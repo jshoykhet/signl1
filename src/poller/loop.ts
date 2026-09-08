@@ -16,8 +16,8 @@ import {
 } from "../lib/db";
 import { isDigestDue } from "../lib/desk-settings";
 import { DEMO_FIXTURES, VENTURE_DEMO_FIXTURES, fixtureToTweet } from "../lib/demo-fixtures";
-import { notifyMatch, registerWhatsAppSender, flushWhatsAppDigestForUser } from "../lib/notify";
-import { sendWhatsAppText, startWhatsAppBridge } from "./whatsapp-session";
+import { notifyMatch } from "../lib/notify";
+import { startWhatsAppBridge } from "./whatsapp-session";
 import { isWatchedAuthor, matchesQuery } from "../lib/query";
 import { batchIsAccountWatch, indexRulesByQuery, packQueryGroups, searchWindow } from "../lib/query-pack";
 import { estimateReadUsd, searchLookbackMs } from "../lib/x-cost";
@@ -166,12 +166,6 @@ async function injectDemoMatches(rules: Rule[]) {
 
 async function finishUserWindow(userId: string) {
   setUserMeta(userId, "inbox_last_polled_at", isoNow());
-  try {
-    const sent = await flushWhatsAppDigestForUser(userId, new Date(), true);
-    if (sent) console.log("[whatsapp] digest sent");
-  } catch (error) {
-    console.error(`[whatsapp] digest failed: ${error instanceof Error ? error.message : String(error)}`);
-  }
 }
 
 async function pollDemoDesk(userId: string) {
@@ -226,7 +220,6 @@ export async function runPollerLoop() {
   setMeta("poller_started_at", isoNow());
   heartbeat(demo ? "demo" : "live");
   console.log(`[poller] starting in ${demo ? "DEMO" : "LIVE"} mode`);
-  registerWhatsAppSender(sendWhatsAppText);
   void startWhatsAppBridge().catch((error) => {
     console.error("[whatsapp] bridge failed to start", error);
   });

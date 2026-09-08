@@ -449,7 +449,7 @@ async function pumpCommands() {
     const to = test.startsWith("user:") ? getWhatsAppTo(test.slice(5)) : test === "1" ? null : test;
     try {
       await sendWhatsAppText(
-        "Signl1 WhatsApp alerts are linked. If you are reading this, destination routing works.",
+        "Signl1 agent is linked. Text a ticker, @handle, or search.",
         {
           mustBeLinked: true,
           to,

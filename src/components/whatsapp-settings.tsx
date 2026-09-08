@@ -91,23 +91,6 @@ export function WhatsAppSettings() {
     }
   };
 
-  const toggleEnabled = async (enabled: boolean) => {
-    setBusy(true);
-    try {
-      const res = await fetch("/api/whatsapp", {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ enabled }),
-      });
-      if (!res.ok) throw new Error("Could not update WhatsApp");
-      setWa(await res.json());
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not update WhatsApp");
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const toggleAgent = async (agentEnabled: boolean) => {
     setBusy(true);
     try {
@@ -199,7 +182,7 @@ export function WhatsAppSettings() {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="text-[13px] font-medium tracking-[-0.01em] text-muted-foreground">
-                Phone alerts
+                Agent
               </div>
               <div
                 className={
@@ -218,12 +201,6 @@ export function WhatsAppSettings() {
                 </p>
               )}
             </div>
-            <Switch
-              checked={wa?.enabled ?? true}
-              disabled={!wa || busy}
-              onCheckedChange={(checked) => void toggleEnabled(checked === true)}
-              aria-label="Send WhatsApp alerts"
-            />
           </div>
         </div>
 
@@ -317,7 +294,7 @@ export function WhatsAppSettings() {
               Save destination
             </Button>
             <p className="text-[14px] leading-relaxed text-muted-foreground sm:text-[13px]">
-              Number that should receive alerts, with country code. Or a group JID ending in{" "}
+              Number that can ask the agent, with country code. Or a group JID ending in{" "}
               <code className="font-mono text-[12px]">@g.us</code>. Sending to yourself often will
               not notify — look for <span className="text-foreground">Message yourself</span>.
             </p>
@@ -338,7 +315,8 @@ export function WhatsAppSettings() {
             </div>
             <p className="text-[14px] leading-relaxed text-muted-foreground sm:text-[13px]">
               How-to lands here the first time you link. After that, text a ticker, @handle, or search.
-              Signl1 ranks the last 24 hours on X for high-signal posts and skips content farms. Try{" "}
+              Signl1 ranks the last 24 hours on X for high-signal posts and skips content farms. There
+              are no scheduled WhatsApp pushes — the agent only replies when you ask. Try{" "}
               <span className="text-foreground">$NVDA</span> or <span className="text-foreground">inbox</span>.
             </p>
             {wa?.lastAgentQuery ? (
@@ -348,15 +326,6 @@ export function WhatsAppSettings() {
               </p>
             ) : null}
           </div>
-        </GroupedRow>
-        <GroupedRow className="flex-col items-stretch sm:flex-row sm:items-start">
-          <div className="w-full shrink-0 text-[13px] text-muted-foreground sm:w-[9.5rem] sm:text-[15px]">
-            Alerts
-          </div>
-          <p className="min-w-0 flex-1 text-[15px] leading-relaxed text-muted-foreground sm:text-[13px]">
-            WhatsApp uses the Updates interval on this page. Each window sends the best 20 posts.
-            The rest stay in the inbox.
-          </p>
         </GroupedRow>
         <GroupedRow className="flex-col items-stretch gap-2 sm:flex-row sm:items-center">
           <div className="w-full shrink-0 text-[13px] text-muted-foreground sm:w-[9.5rem] sm:text-[15px]">

@@ -42,7 +42,7 @@ export function CadenceSettings() {
   return (
     <SettingsGroup
       title="Updates"
-      footer="Signl1 checks X on this schedule. WhatsApp sends the best 20 posts from that window. Shorter intervals cost more on X. Re-poll still runs now."
+      footer="Signl1 checks X on this schedule. Shorter intervals cost more on X. Re-poll still runs now."
     >
       <GroupedRow className="flex-col items-stretch sm:flex-row sm:items-center">
         <div className="w-full shrink-0 text-[13px] text-muted-foreground sm:w-[9.5rem] sm:text-[15px]">Interval</div>

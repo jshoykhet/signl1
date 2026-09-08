@@ -336,9 +336,9 @@ export function LaunchPad() {
               </h1>
               <p className="mt-2 max-w-md text-[14px] leading-snug text-muted-foreground sm:text-[15px]">
                 <Link href="/whatsapp" className="font-medium text-amber-700 dark:text-amber-300">
-                  WhatsApp alerts
+                  WhatsApp agent
                 </Link>{" "}
-                so you never miss anything.
+                so you can search the tape from chat.
               </p>
             </div>
             <div className="flex items-center gap-1">
