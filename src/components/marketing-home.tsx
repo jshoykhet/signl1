@@ -38,11 +38,11 @@ export function MarketingHome({
         <div className="grid items-start gap-12 lg:grid-cols-[1.15fr_0.85fr]">
           <div>
             <h1 className="max-w-xl text-[40px] leading-[1.08] font-semibold tracking-[-0.035em] md:text-[52px]">
-              What matters on X.
+              What matters on the Timeline
             </h1>
             <p className="mt-5 max-w-xl text-[17px] leading-relaxed text-muted-foreground">
-              The launch pad ranks today&apos;s tape, surfaces developing themes, and lets you ask Grok to research X.
-              WhatsApp can still text you. There is nothing new to learn.
+              WhatsApp alerts so you never miss anything. Signl1 ranks the tape, surfaces themes, and lets you ask Grok
+              to research X.
             </p>
           </div>
 

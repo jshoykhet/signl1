@@ -406,7 +406,7 @@ export function InboxView() {
         <FocusControl value={deskMode} disabled={modeBusy} compact onChange={(id) => void saveMode(id)} />
         {waNeedsLink ? (
           <Link
-            href="/settings#whatsapp"
+            href="/whatsapp"
             className="rounded-2xl bg-amber-400/18 px-4 py-3.5 text-[15px] leading-snug text-amber-950 dark:text-amber-50 lg:hidden"
           >
             <span className="font-semibold">Link WhatsApp</span>

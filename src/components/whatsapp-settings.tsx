@@ -184,7 +184,7 @@ export function WhatsAppSettings() {
 
   return (
     <div id="whatsapp" className="scroll-mt-24">
-      <SettingsGroup title="WhatsApp">
+      <SettingsGroup title="Link">
         {error ? (
           <div className="bg-destructive/10 px-4 py-3 text-[15px] text-destructive">{error}</div>
         ) : null}

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Activity, BadgeDollarSign, House, Inbox, Settings2, SlidersHorizontal, Users } from "lucide-react";
+import { Activity, BadgeDollarSign, House, Inbox, MessageCircle, Settings2, SlidersHorizontal, Users } from "lucide-react";
 import { UserMenu } from "@/components/user-menu";
 import { cn } from "@/lib/utils";
 import { DESK_MODES } from "@/lib/desk-mode";
@@ -12,13 +12,14 @@ import type { StatusSnapshot } from "@/lib/types";
 const NAV = [
   { href: "/", label: "Launch", icon: House },
   { href: "/inbox", label: "Inbox", icon: Inbox },
+  { href: "/whatsapp", label: "WhatsApp", icon: MessageCircle },
   { href: "/watchlist", label: "Watchlist", icon: BadgeDollarSign },
   { href: "/accounts", label: "Accounts", icon: Users },
   { href: "/rules", label: "Rules", icon: SlidersHorizontal },
   { href: "/settings", label: "Settings", icon: Settings2 },
 ];
 
-const MOBILE_NAV = NAV.filter((item) => item.href !== "/rules");
+const MOBILE_NAV = NAV.filter((item) => item.href !== "/rules" && item.href !== "/accounts");
 
 function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -105,6 +106,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     {status.counts.unread}
                   </span>
                 ) : null}
+                {item.href === "/whatsapp" && status && !status.whatsappLinked ? (
+                  <span className="rounded-full bg-amber-400/90 px-1.5 text-center text-[11px] font-semibold text-amber-950">
+                    Link
+                  </span>
+                ) : null}
                 {item.href === "/watchlist" && status && status.counts.tickers > 0 ? (
                   <span className="text-[13px] tabular-nums text-muted-foreground">{status.counts.tickers}</span>
                 ) : null}
@@ -179,6 +185,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <span className="absolute -top-0.5 -right-1 min-w-4 rounded-full bg-amber-400 px-1 text-center text-[10px] font-semibold text-amber-950">
                       {status.counts.unread > 99 ? "99+" : status.counts.unread}
                     </span>
+                  ) : null}
+                  {item.href === "/whatsapp" && status && !status.whatsappLinked ? (
+                    <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-amber-400" />
                   ) : null}
                 </span>
                 {item.label}

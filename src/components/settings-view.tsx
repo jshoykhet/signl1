@@ -9,7 +9,6 @@ import { DeskFilters } from "@/components/desk-filters";
 import { GroupedRow, SettingsGroup } from "@/components/grouped-list";
 import { PageHeader } from "@/components/page-header";
 import { CadenceSettings } from "@/components/cadence-settings";
-import { WhatsAppSettings } from "@/components/whatsapp-settings";
 import { formatClock, formatRelative } from "@/lib/format";
 import { cadenceLabel } from "@/lib/desk-settings";
 import { formatUsd } from "@/lib/x-cost";
@@ -56,7 +55,7 @@ export function SettingsView() {
       <div className="mx-auto w-full max-w-[680px] flex-1 px-4 py-6 sm:px-5 sm:py-8">
         <PageHeader
           title="Settings"
-          description="Link WhatsApp first if you want phone alerts. Your X token stays on the server."
+          description="Your X token stays on the server. Link a phone on the WhatsApp tab for alerts."
         />
         <div className="mt-6 space-y-8 sm:mt-8">
           {error ? (
@@ -74,7 +73,23 @@ export function SettingsView() {
                   </p>
                 </div>
               ) : null}
-              <WhatsAppSettings />
+              <SettingsGroup title="WhatsApp" footer="Pairing, destination, and the agent live on the WhatsApp tab.">
+                <GroupedRow>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[17px] font-medium tracking-[-0.01em]">Phone alerts</div>
+                    <div className="mt-0.5 text-[13px] leading-snug text-muted-foreground">
+                      Link a number so you never miss a post.
+                    </div>
+                  </div>
+                  <Link
+                    href="/whatsapp"
+                    className="inline-flex shrink-0 items-center gap-0.5 text-[15px] text-amber-700 dark:text-amber-300"
+                  >
+                    Open
+                    <ChevronRight className="size-4 opacity-70" />
+                  </Link>
+                </GroupedRow>
+              </SettingsGroup>
               <AppearanceSettings />
               <SettingsGroup title="Brand">
                 <Row label="Logo">

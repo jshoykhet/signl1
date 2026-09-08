@@ -89,7 +89,7 @@ Caddy obtains a Let’s Encrypt certificate for `$DOMAIN` and proxies to `web:38
 
 ## 6. WhatsApp and data
 
-The `signal-data` volume holds `/data/signal.db` and `/data/whatsapp-auth`. Link WhatsApp from Settings after you can log in. **Do not** `docker compose down -v` on production — that wipes matches, rules, and the WhatsApp session.
+The `signal-data` volume holds `/data/signal.db` and `/data/whatsapp-auth`. Link WhatsApp from the WhatsApp tab after you can log in. **Do not** `docker compose down -v` on production — that wipes matches, rules, and the WhatsApp session.
 
 Back up the volume periodically:
 
@@ -104,7 +104,7 @@ Copy `whatsapp-auth` the same way if you need a cold spare.
 
 Open `https://YOUR_DOMAIN`, enroll your phone with Ente Auth or Aegis, and you land in the inbox with the seeded Fed / Mag 7 / crude rules. Nobody else can sign in.
 
-Link WhatsApp once on Settings. Alerts send from that linked WhatsApp to the destination number you save there.
+Link WhatsApp once on the WhatsApp tab. Alerts send from that linked WhatsApp to the destination number you save there.
 
 ## 8. Local vs production Compose
 

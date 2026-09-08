@@ -83,6 +83,7 @@ export type StatusSnapshot = {
   demoMode: boolean;
   bearerToken: "present" | "missing";
   grok: "present" | "missing";
+  whatsappLinked: boolean;
   poller: {
     healthy: boolean;
     startedAt: string | null;

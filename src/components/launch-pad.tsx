@@ -228,10 +228,15 @@ export function LaunchPad() {
         <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-3 sm:gap-4">
           <div className="flex items-end justify-between gap-3">
             <div className="min-w-0">
-              <h1 className="text-[32px] leading-none font-semibold tracking-[-0.045em] sm:text-[40px]">
-                Today
+              <h1 className="max-w-[11em] text-[28px] leading-[1.05] font-semibold tracking-[-0.045em] sm:max-w-none sm:text-[40px] sm:leading-none">
+                What matters on the Timeline
               </h1>
-              <p className="mt-1 hidden text-[15px] text-muted-foreground sm:block">What matters on X right now.</p>
+              <p className="mt-2 max-w-md text-[14px] leading-snug text-muted-foreground sm:text-[15px]">
+                <Link href="/whatsapp" className="font-medium text-amber-700 dark:text-amber-300">
+                  WhatsApp alerts
+                </Link>{" "}
+                so you never miss anything.
+              </p>
             </div>
             <div className="flex items-center gap-1">
               <Link

@@ -1580,6 +1580,7 @@ export function getStatus(
     demoMode: opts.demoMode,
     bearerToken: opts.bearerPresent ? "present" : "missing",
     grok: opts.grokPresent ? "present" : "missing",
+    whatsappLinked: getMeta("whatsapp_status", db) === "connected",
     poller: {
       healthy,
       startedAt,

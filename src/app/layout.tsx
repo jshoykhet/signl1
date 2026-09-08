@@ -20,7 +20,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Signl1",
-  description: "Signl1 watches X for what matters to you.",
+  description: "What matters on the Timeline. WhatsApp alerts so you never miss anything.",
 };
 
 export const viewport: Viewport = {
