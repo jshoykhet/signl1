@@ -13,7 +13,7 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Open [http://localhost:3847](http://localhost:3847). After skip-sign-in (or Google), you land on the **launch pad**. The full inbox is at `/inbox`. Link a phone on `/whatsapp`.
+Open [http://localhost:3847](http://localhost:3847). After skip-sign-in (or Google), you land on the **launch pad**. The full feed is at `/inbox` — scroll to load older posts. Link a phone on `/whatsapp`.
 
 Leave `X_BEARER_TOKEN` empty for **demo mode**. Signl1 shows sample posts so you can look around without paid X API access. The UI labels this clearly.
 
@@ -166,7 +166,7 @@ Every match lands in the in-app inbox.
 
 Webhook failures are logged on the poller; they do not drop the inbox row. WhatsApp send failures are the same.
 
-The inbox and rules pages are searchable. In the inbox, `/` or Ctrl/Cmd+K focuses search; tokens match tweet text, @handle, display name, rule name, and tweet id. **Re-poll** asks the worker to run the next packed search immediately (still rate-limited); in demo mode it injects the next fixture.
+The Feed and Rules pages are searchable. On Feed, `/` or Ctrl/Cmd+K focuses search; tokens match tweet text, @handle, display name, rule name, and tweet id. Scroll the list to load older posts. **Re-poll** asks the worker to run the next packed search immediately (still rate-limited); in demo mode it injects the next fixture.
 
 ## Launch pad
 

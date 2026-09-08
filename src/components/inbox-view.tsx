@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Filter, RefreshCw, Search, X } from "lucide-react";
 import { toast } from "sonner";
@@ -25,6 +25,27 @@ import { parseDeskMode, type DeskMode } from "@/lib/desk-mode";
 import { cn } from "@/lib/utils";
 import type { Match, Rule, StatusSnapshot, UserLabel } from "@/lib/types";
 import type { WhatsAppPublicStatus } from "@/lib/whatsapp-status";
+
+const PAGE_SIZE = 40;
+
+type MatchesPage = {
+  matches: Match[];
+  nextCursor: string | null;
+  hasMore: boolean;
+};
+
+function mergeHead(prev: Match[], incoming: Match[]): Match[] {
+  const seen = new Set(prev.map((match) => match.id));
+  const fresh = incoming.filter((match) => !seen.has(match.id));
+  const incomingById = new Map(incoming.map((match) => [match.id, match]));
+  const rest = prev.map((match) => incomingById.get(match.id) ?? match);
+  return [...fresh, ...rest];
+}
+
+function appendPage(prev: Match[], incoming: Match[]): Match[] {
+  const seen = new Set(prev.map((match) => match.id));
+  return [...prev, ...incoming.filter((match) => !seen.has(match.id))];
+}
 
 function SignalVote({
   match,
@@ -89,6 +110,16 @@ export function InboxView() {
   const [modeBusy, setModeBusy] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [waStatus, setWaStatus] = useState<WhatsAppPublicStatus["status"] | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLLIElement>(null);
+  const nextCursorRef = useRef<string | null>(null);
+  const hasMoreRef = useRef(false);
+  const loadingMoreRef = useRef(false);
+  const filtersRef = useRef({ ruleId, unreadOnly, query });
+  filtersRef.current = { ruleId, unreadOnly, query };
 
   const applyStatus = (statusJson: Partial<StatusSnapshot>) => {
     if (typeof statusJson.cadenceMinutes === "number") setCadenceMinutes(statusJson.cadenceMinutes);
@@ -96,37 +127,77 @@ export function InboxView() {
     if (statusJson.deskFilters?.deskMode) setDeskMode(parseDeskMode(statusJson.deskFilters.deskMode));
   };
 
+  const buildParams = (cursor?: string | null) => {
+    const { ruleId: rid, unreadOnly: unread, query: q } = filtersRef.current;
+    const params = new URLSearchParams();
+    if (rid !== "all") params.set("ruleId", rid);
+    if (unread) params.set("unread", "1");
+    const trimmed = q.trim();
+    if (trimmed) params.set("q", trimmed);
+    params.set("limit", String(PAGE_SIZE));
+    if (cursor) params.set("cursor", cursor);
+    return params;
+  };
+
+  const applyPage = (page: MatchesPage, mode: "reset" | "head" | "append") => {
+    if (mode === "reset") {
+      setMatches(page.matches);
+      setNextCursor(page.nextCursor);
+      setHasMore(page.hasMore);
+      return;
+    }
+    if (mode === "append") {
+      setMatches((prev) => appendPage(prev, page.matches));
+      setNextCursor(page.nextCursor);
+      setHasMore(page.hasMore);
+      return;
+    }
+    setMatches((prev) => {
+      const merged = mergeHead(prev, page.matches);
+      return filtersRef.current.unreadOnly ? merged.filter((match) => !match.read) : merged;
+    });
+  };
+
   const load = async () => {
     try {
-      const params = new URLSearchParams();
-      if (ruleId !== "all") params.set("ruleId", ruleId);
-      if (unreadOnly) params.set("unread", "1");
-      const trimmed = query.trim();
-      if (trimmed) {
-        params.set("q", trimmed);
-        params.set("limit", "500");
-      }
       const [matchRes, ruleRes, statusRes] = await Promise.all([
-        fetch(`/api/matches?${params.toString()}`, { cache: "no-store" }),
+        fetch(`/api/matches?${buildParams().toString()}`, { cache: "no-store" }),
         fetch("/api/rules", { cache: "no-store" }),
         fetch("/api/status", { cache: "no-store" }),
       ]);
-      if (!matchRes.ok) throw new Error("Failed to load inbox");
-      const matchJson = (await matchRes.json()) as { matches: Match[] };
+      if (!matchRes.ok) throw new Error("Failed to load feed");
+      const matchJson = (await matchRes.json()) as MatchesPage;
       const ruleJson = ruleRes.ok ? ((await ruleRes.json()) as { rules: Rule[] }) : { rules: [] };
       const statusJson = (
         statusRes.ok ? await statusRes.json() : {}
       ) as Partial<StatusSnapshot>;
-      setMatches(matchJson.matches);
+      applyPage(matchJson, "reset");
       setRules(ruleJson.rules);
       applyStatus(statusJson);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load inbox");
+      setError(err instanceof Error ? err.message : "Failed to load feed");
     } finally {
       setLoading(false);
     }
   };
+
+  const loadMore = useCallback(async () => {
+    if (loadingMoreRef.current || !hasMoreRef.current || !nextCursorRef.current) return;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    const cursor = nextCursorRef.current;
+    try {
+      const res = await fetch(`/api/matches?${buildParams(cursor).toString()}`, { cache: "no-store" });
+      if (!res.ok) throw new Error("Failed to load more");
+      applyPage((await res.json()) as MatchesPage, "append");
+    } catch {
+      /* keep pages already on screen */
+    } finally {
+      loadingMoreRef.current = false;
+      setLoadingMore(false);
+    }
+  }, []);
 
   const saveMode = async (id: DeskMode) => {
     setModeBusy(true);
@@ -204,44 +275,36 @@ export function InboxView() {
 
   useEffect(() => {
     let cancelled = false;
-    const run = async () => {
+    const run = async (reset: boolean) => {
       try {
-        const params = new URLSearchParams();
-        if (ruleId !== "all") params.set("ruleId", ruleId);
-        if (unreadOnly) params.set("unread", "1");
-        const trimmed = query.trim();
-        if (trimmed) {
-          params.set("q", trimmed);
-          params.set("limit", "500");
-        }
         const [matchRes, ruleRes, statusRes] = await Promise.all([
-          fetch(`/api/matches?${params.toString()}`, { cache: "no-store" }),
+          fetch(`/api/matches?${buildParams().toString()}`, { cache: "no-store" }),
           fetch("/api/rules", { cache: "no-store" }),
           fetch("/api/status", { cache: "no-store" }),
         ]);
-        if (!matchRes.ok) throw new Error("Failed to load inbox");
-        const matchJson = (await matchRes.json()) as { matches: Match[] };
+        if (!matchRes.ok) throw new Error("Failed to load feed");
+        const matchJson = (await matchRes.json()) as MatchesPage;
         const ruleJson = ruleRes.ok ? ((await ruleRes.json()) as { rules: Rule[] }) : { rules: [] };
         const statusJson = (
           statusRes.ok ? await statusRes.json() : {}
         ) as Partial<StatusSnapshot>;
         if (cancelled) return;
-        setMatches(matchJson.matches);
+        applyPage(matchJson, reset ? "reset" : "head");
         setRules(ruleJson.rules);
         applyStatus(statusJson);
         setError(null);
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load inbox");
+        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load feed");
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
     const delay = query.trim() ? 200 : 0;
     const kickoff = setTimeout(() => {
-      void run();
+      void run(true);
     }, delay);
     const timer = setInterval(() => {
-      void run();
+      void run(false);
     }, 3000);
     return () => {
       cancelled = true;
@@ -249,6 +312,25 @@ export function InboxView() {
       clearInterval(timer);
     };
   }, [ruleId, unreadOnly, query]);
+
+  useEffect(() => {
+    nextCursorRef.current = nextCursor;
+    hasMoreRef.current = hasMore;
+  }, [nextCursor, hasMore]);
+
+  useEffect(() => {
+    const root = listRef.current;
+    const sentinel = sentinelRef.current;
+    if (!root || !sentinel || loading) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) void loadMore();
+      },
+      { root, rootMargin: "240px 0px" },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, loadMore, loading, matches.length]);
 
   const selected = useMemo(
     () => matches.find((m) => m.id === selectedId) ?? matches[0] ?? null,
@@ -329,7 +411,6 @@ export function InboxView() {
     toast.success(
       next === "high" ? "Marked high signal" : next === "low" ? "Marked low signal" : "Cleared label",
     );
-    load();
   };
 
   const markAll = async () => {
@@ -383,7 +464,7 @@ export function InboxView() {
       <header className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:px-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-[28px] font-semibold leading-tight tracking-[-0.022em]">Inbox</h1>
+            <h1 className="text-[28px] font-semibold leading-tight tracking-[-0.022em]">Feed</h1>
             <p className="mt-0.5 text-[14px] leading-snug text-muted-foreground sm:text-[13px]">
               Tap a post to read it, or open it on X.
               {cadenceMinutes ? (
@@ -426,7 +507,7 @@ export function InboxView() {
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search posts, @handles, rules"
               className="h-11 rounded-full bg-muted pl-9 text-[16px] sm:h-9 sm:text-[15px]"
-              aria-label="Search inbox"
+              aria-label="Search feed"
             />
           </div>
           <div className="flex items-center gap-3">
@@ -465,7 +546,7 @@ export function InboxView() {
         </div>
       ) : null}
       <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-        <div className="min-h-0 overflow-y-auto lg:border-r lg:border-border">
+        <div ref={listRef} className="min-h-0 overflow-y-auto lg:border-r lg:border-border">
           {loading && matches.length === 0 ? (
             <EmptyState title="Loading" description="Just a moment." />
           ) : matches.length === 0 ? (
@@ -560,6 +641,18 @@ export function InboxView() {
                   </li>
                 );
               })}
+              {hasMore ? (
+                <li
+                  ref={sentinelRef}
+                  className="flex h-14 items-center justify-center text-[13px] text-muted-foreground"
+                >
+                  {loadingMore ? "Loading more…" : null}
+                </li>
+              ) : matches.length > 0 ? (
+                <li className="px-4 py-4 text-center text-[13px] text-muted-foreground">
+                  End of the feed
+                </li>
+              ) : null}
             </ul>
           )}
         </div>

@@ -21,6 +21,7 @@ import {
   listAuthorFollowerCounts,
   listEnabledRulesForUser,
   listMatches,
+  listMatchesPage,
   listRules,
   markRulePolled,
   migrateKolPacks,
@@ -539,6 +540,58 @@ describe("desk filters and KOL list persist in SQLite", () => {
     expect(tryInsertMatch(leaders, tweet, db).inserted).toBe(true);
     setDeskFilterSettings(U, { deskMode: "both", signalLevel: "high" }, db);
     expect(listMatches(U, { quality: true }, db).some((match) => match.text.includes("Cybercabs"))).toBe(true);
+  });
+
+  it("pages the inbox with a keyset cursor", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-"));
+    tmpDirs.push(dir);
+    const db = openDatabase(path.join(dir, "test.db"));
+    const rule = createRule(
+      U,
+      {
+        name: "A",
+        enabled: true,
+        queryInput: "FOMC",
+        accounts: [],
+        pollIntervalMs: 15_000,
+        slackWebhookUrl: null,
+        genericWebhookUrl: null,
+      },
+      db,
+    );
+    for (let i = 0; i < 5; i += 1) {
+      expect(
+        tryInsertMatch(
+          rule,
+          catalyst("middesk_tape", {
+            id: `tw-page-${i}`,
+            createdAt: `2026-09-08T12:00:0${i}.000Z`,
+            followersCount: 80_000,
+            likeCount: 40,
+            text: `JUST IN: CPI ${i} beats; FOMC-sensitive names bid as guidance is raised.`,
+          }),
+          db,
+        ).inserted,
+      ).toBe(true);
+    }
+    const all = listMatches(U, { quality: true }, db);
+    expect(all.length).toBeGreaterThanOrEqual(5);
+    const first = listMatchesPage(U, { quality: true, limit: 2 }, db);
+    expect(first.matches).toHaveLength(2);
+    expect(first.hasMore).toBe(true);
+    expect(first.nextCursor).toBeTruthy();
+    expect(first.matches.map((match) => match.id)).toEqual(all.slice(0, 2).map((match) => match.id));
+    const second = listMatchesPage(U, { quality: true, limit: 2, cursor: first.nextCursor }, db);
+    expect(second.matches).toHaveLength(2);
+    expect(second.matches.map((match) => match.id)).toEqual(all.slice(2, 4).map((match) => match.id));
+    const seen = new Set([...first.matches, ...second.matches].map((match) => match.id));
+    expect(seen.size).toBe(4);
+    const third = listMatchesPage(U, { quality: true, limit: 2, cursor: second.nextCursor }, db);
+    expect(third.matches.length).toBeGreaterThan(0);
+    expect(third.hasMore).toBe(false);
+    expect(third.nextCursor).toBeNull();
+    const fallback = listMatchesPage(U, { quality: true, limit: 2, cursor: "not-a-cursor" }, db);
+    expect(fallback.matches.map((match) => match.id)).toEqual(first.matches.map((match) => match.id));
   });
 
   it("copies legacy Key Network Node lists onto both packs once", () => {

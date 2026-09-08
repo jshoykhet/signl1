@@ -1195,12 +1195,55 @@ export function tryInsertMatch(
   }
 }
 
-export function listMatches(
+export type MatchListOpts = {
+  ruleId?: string;
+  unread?: boolean;
+  limit?: number;
+  quality?: boolean;
+  q?: string;
+  cursor?: string | null;
+};
+
+export type MatchPage = {
+  matches: Match[];
+  nextCursor: string | null;
+  hasMore: boolean;
+};
+
+type MatchCursor = {
+  matchedAt: string;
+  tweetCreatedAt: string;
+  id: string;
+};
+
+export function encodeMatchCursor(cursor: MatchCursor): string {
+  return Buffer.from(JSON.stringify(cursor), "utf8").toString("base64url");
+}
+
+export function decodeMatchCursor(raw: string): MatchCursor | null {
+  try {
+    const parsed = JSON.parse(Buffer.from(raw, "base64url").toString("utf8")) as Partial<MatchCursor>;
+    if (
+      typeof parsed.matchedAt === "string" &&
+      typeof parsed.tweetCreatedAt === "string" &&
+      typeof parsed.id === "string" &&
+      parsed.matchedAt &&
+      parsed.tweetCreatedAt &&
+      parsed.id
+    ) {
+      return { matchedAt: parsed.matchedAt, tweetCreatedAt: parsed.tweetCreatedAt, id: parsed.id };
+    }
+  } catch {
+    /* invalid */
+  }
+  return null;
+}
+
+function matchListWhere(
   userId: string,
-  opts: { ruleId?: string; unread?: boolean; limit?: number; quality?: boolean; q?: string } = {},
-  db = getDb(),
-): Match[] {
-  const limit = Math.min(Math.max(opts.limit ?? 200, 1), 500);
+  opts: MatchListOpts,
+  db: Database.Database,
+): { where: string; params: unknown[] } {
   const clauses: string[] = ["m.user_id = ?"];
   const params: unknown[] = [userId];
   if (opts.ruleId) {
@@ -1228,17 +1271,59 @@ export function listMatches(
     const pattern = likePattern(token);
     params.push(pattern, pattern, pattern, pattern, pattern);
   }
+  const cursor = opts.cursor ? decodeMatchCursor(opts.cursor) : null;
+  if (cursor) {
+    clauses.push("(m.matched_at, m.tweet_created_at, m.id) < (?, ?, ?)");
+    params.push(cursor.matchedAt, cursor.tweetCreatedAt, cursor.id);
+  }
   const extra = sqlFocusMode(parseDeskMode(getUserMeta(userId, "desk_mode", db)));
-  const where = `WHERE ${clauses.join(" AND ")}${extra.sql}`;
-  const rows = db.prepare(`
+  return { where: `WHERE ${clauses.join(" AND ")}${extra.sql}`, params: [...params, ...extra.params] };
+}
+
+export function listMatchesPage(
+  userId: string,
+  opts: MatchListOpts = {},
+  db = getDb(),
+): MatchPage {
+  const limit = Math.min(Math.max(opts.limit ?? 40, 1), 500);
+  const { where, params } = matchListWhere(userId, opts, db);
+  const rows = db
+    .prepare(
+      `
     SELECT m.*, r.name AS rule_name
     FROM matches m
     JOIN rules r ON r.id = m.rule_id
     ${where}
-    ORDER BY m.matched_at DESC, m.tweet_created_at DESC
+    ORDER BY m.matched_at DESC, m.tweet_created_at DESC, m.id DESC
     LIMIT ?
-  `).all(...params, ...extra.params, limit) as MatchRow[];
-  return attachPriors(rows.map((row) => mapMatch(row, db)), userId, db);
+  `,
+    )
+    .all(...params, limit + 1) as MatchRow[];
+  const hasMore = rows.length > limit;
+  const page = hasMore ? rows.slice(0, limit) : rows;
+  const matches = attachPriors(
+    page.map((row) => mapMatch(row, db)),
+    userId,
+    db,
+  );
+  const last = page[page.length - 1];
+  const nextCursor =
+    hasMore && last
+      ? encodeMatchCursor({
+          matchedAt: last.matched_at,
+          tweetCreatedAt: last.tweet_created_at,
+          id: last.id,
+        })
+      : null;
+  return { matches, nextCursor, hasMore };
+}
+
+export function listMatches(
+  userId: string,
+  opts: MatchListOpts = {},
+  db = getDb(),
+): Match[] {
+  return listMatchesPage(userId, { ...opts, limit: opts.limit ?? 200 }, db).matches;
 }
 
 export function listMatchesSince(userId: string, iso: string, limit = 400, db = getDb()): Match[] {
