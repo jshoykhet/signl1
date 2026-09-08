@@ -38,6 +38,9 @@ services:
       AUTH_TRUST_HOST: "true"
       AUTH_DEV_LOGIN: ${AUTH_DEV_LOGIN:-0}
       X_BEARER_TOKEN: ${X_BEARER_TOKEN:-}
+      XAI_API_KEY: ${XAI_API_KEY:-}
+      GROK_API_KEY: ${GROK_API_KEY:-}
+      GROK_MODEL: ${GROK_MODEL:-grok-4-fast}
       SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
       KOL_HANDLES: ${KOL_HANDLES:-}
       KOL_HANDLES_MODE: ${KOL_HANDLES_MODE:-append}

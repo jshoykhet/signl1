@@ -99,6 +99,19 @@ export function SettingsView() {
                     {status.bearerToken === "present" ? "Present" : "Missing"}
                   </span>
                 </Row>
+                <Row label="Grok">
+                  <span
+                    className={
+                      status.grok === "present"
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-amber-700 dark:text-amber-300"
+                    }
+                  >
+                    {status.grok === "present"
+                      ? "XAI_API_KEY present"
+                      : "Missing — asks still search X, without a written brief"}
+                  </span>
+                </Row>
                 <Row label="Mode">{status.demoMode ? "Sample posts" : "Live"}</Row>
               </SettingsGroup>
               <CadenceSettings />

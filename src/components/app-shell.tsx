@@ -3,19 +3,22 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Activity, BadgeDollarSign, Inbox, Settings2, SlidersHorizontal, Users } from "lucide-react";
+import { Activity, BadgeDollarSign, Inbox, LayoutDashboard, Settings2, SlidersHorizontal, Users } from "lucide-react";
 import { UserMenu } from "@/components/user-menu";
 import { cn } from "@/lib/utils";
 import { DESK_MODES } from "@/lib/desk-mode";
 import type { StatusSnapshot } from "@/lib/types";
 
 const NAV = [
-  { href: "/", label: "Inbox", icon: Inbox },
+  { href: "/", label: "Launch", icon: LayoutDashboard },
+  { href: "/inbox", label: "Inbox", icon: Inbox },
   { href: "/watchlist", label: "Watchlist", icon: BadgeDollarSign },
   { href: "/accounts", label: "Accounts", icon: Users },
   { href: "/rules", label: "Rules", icon: SlidersHorizontal },
   { href: "/settings", label: "Settings", icon: Settings2 },
 ];
+
+const MOBILE_NAV = NAV.filter((item) => item.href !== "/rules");
 
 function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -95,7 +98,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               >
                 <Icon className="size-4 opacity-80" />
                 <span className="flex-1">{item.label}</span>
-                {item.href === "/" && status && status.counts.unread > 0 ? (
+                {item.href === "/inbox" && status && status.counts.unread > 0 ? (
                   <span className="min-w-5 rounded-full bg-amber-400/90 px-1.5 text-center text-[11px] font-semibold text-amber-950">
                     {status.counts.unread}
                   </span>
@@ -154,7 +157,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <div className="grid h-[4.75rem] grid-cols-5">
-          {NAV.map((item) => {
+          {MOBILE_NAV.map((item) => {
             const active = isActive(pathname, item.href);
             const Icon = item.icon;
             return (
@@ -168,7 +171,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               >
                 <span className="relative">
                   <Icon className="size-6" />
-                  {item.href === "/" && status && status.counts.unread > 0 ? (
+                  {item.href === "/inbox" && status && status.counts.unread > 0 ? (
                     <span className="absolute -top-1.5 -right-2.5 min-w-4 rounded-full bg-amber-400 px-1 text-center text-[10px] font-semibold text-amber-950">
                       {status.counts.unread > 99 ? "99+" : status.counts.unread}
                     </span>

@@ -41,7 +41,8 @@ export function MarketingHome({
               What matters on X.
             </h1>
             <p className="mt-5 max-w-xl text-[17px] leading-relaxed text-muted-foreground">
-              Signl1 reads the timeline, keeps the useful posts, and can text you. There is nothing new to learn.
+              The launch pad ranks today&apos;s tape, surfaces developing themes, and lets you ask Grok to research X.
+              WhatsApp can still text you. There is nothing new to learn.
             </p>
           </div>
 

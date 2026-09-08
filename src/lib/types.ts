@@ -82,6 +82,7 @@ export type RuleInput = {
 export type StatusSnapshot = {
   demoMode: boolean;
   bearerToken: "present" | "missing";
+  grok: "present" | "missing";
   poller: {
     healthy: boolean;
     startedAt: string | null;

@@ -1519,7 +1519,11 @@ export function resetBlockedHandles(userId: string, db = getDb()): string[] {
   return after;
 }
 
-export function getStatus(userId: string, opts: { demoMode: boolean; bearerPresent: boolean }, db = getDb()): StatusSnapshot {
+export function getStatus(
+  userId: string,
+  opts: { demoMode: boolean; bearerPresent: boolean; grokPresent?: boolean },
+  db = getDb(),
+): StatusSnapshot {
   const lastHeartbeatAt = getMeta("poller_heartbeat_at", db);
   const startedAt = getMeta("poller_started_at", db);
   const lastPollAt = getMeta("poller_last_poll_at", db);
@@ -1575,6 +1579,7 @@ export function getStatus(userId: string, opts: { demoMode: boolean; bearerPrese
   return {
     demoMode: opts.demoMode,
     bearerToken: opts.bearerPresent ? "present" : "missing",
+    grok: opts.grokPresent ? "present" : "missing",
     poller: {
       healthy,
       startedAt,

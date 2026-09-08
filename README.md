@@ -1,6 +1,6 @@
 # Signl1
 
-Signl1 watches X for what matters to you. You choose what to follow. It keeps the useful posts and can text you on WhatsApp. Slack can fire on each match.
+Signl1 watches X for what matters to you. The homepage is a launch pad: the top posts worth looking at, developing themes from the day, high-engagement tweets, and a Grok-powered search box that researches X. You choose what to follow. The inbox keeps the rest. WhatsApp can text you. Slack can fire on each match.
 
 Sign in with your phone and a 6-digit code from an open-source authenticator ([Ente Auth](https://ente.io/auth/) on iOS/Android, or [Aegis](https://github.com/beemdevelopment/Aegis) on Android). The first number to enroll owns this Signl1. There is no team or invite list.
 
@@ -13,7 +13,7 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Open [http://localhost:3847](http://localhost:3847).
+Open [http://localhost:3847](http://localhost:3847). After skip-sign-in (or OTP), you land on the **launch pad**. The full inbox is at `/inbox`.
 
 Leave `X_BEARER_TOKEN` empty for **demo mode**. Signl1 shows sample posts so you can look around without paid X API access. The UI labels this clearly.
 
@@ -22,6 +22,8 @@ Leave `X_BEARER_TOKEN` empty for **demo mode**. Signl1 shows sample posts so you
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `X_BEARER_TOKEN` | No | X API v2 app bearer token. If unset, demo mode runs. Never pasted into the UI. |
+| `XAI_API_KEY` | No | xAI key for Grok on the launch pad. Without it, research still hits X (or sample posts) and returns raw hits. `GROK_API_KEY` is an alias. |
+| `GROK_MODEL` | No | Chat model. Defaults to `grok-4-fast`. |
 | `SLACK_WEBHOOK_URL` | No | Global Slack incoming webhook. Per-rule Slack URLs in the database override nothing — a rule-level URL is used when set, otherwise this fallback. |
 | `DATABASE_PATH` | No | SQLite file path. Defaults to `./data/signal.db`. Compose sets `/data/signal.db` on a named volume. |
 | `KOL_HANDLES` | No | Extra Key Account handles (comma, space, or newline; `@` optional). Unioned with the seeded list for the active Focus (markets, both, or venture). |
@@ -164,6 +166,17 @@ Webhook failures are logged on the poller; they do not drop the inbox row. Whats
 
 The inbox and rules pages are searchable. In the inbox, `/` or Ctrl/Cmd+K focuses search; tokens match tweet text, @handle, display name, rule name, and tweet id. **Re-poll** asks the worker to run the next packed search immediately (still rate-limited); in demo mode it injects the next fixture.
 
+## Launch pad
+
+Signed-in home (`/`) is a control panel, not the full inbox (that lives at `/inbox`).
+
+- **Worth a look** — top 20 posts from the last 24 hours, ranked by signal, Key Account, likes, and recency. If the last day is thin, Signl1 widens the window until the tape fills.
+- **Developing today** — cashtags, hashtags, and macro/venture clusters from that tape. Click a theme to research it.
+- **High engagement** — the most-liked posts in the same window.
+- **Research** — ask a question. Grok (xAI) writes one or two X recent-search queries, Signl1 runs them against the X API (or sample posts in demo), and Grok writes a short brief. Without `XAI_API_KEY`, the same search still runs and you get raw hits.
+
+Set `XAI_API_KEY` in `.env` and recreate the **web** container. The model defaults to `grok-4-fast`. Settings shows whether the Grok key is present; the secret is never displayed.
+
 ## Docker Compose
 
 `docker compose up --build` starts:
@@ -240,7 +253,7 @@ Do not lower every interval to 15s on a live token. Signl1 floors live polls at 
 npm test
 ```
 
-Covers query compilation (including the accounts helper), tweet/rule dedup against SQLite, demo fixture coverage of the sample rules, webhook payload shape, +/− training labels, watchlist cashtags, packed live-search query budgets, relevance scoring, Key Accounts, the blocked list, Focus floors, WhatsApp digest copy, WhatsApp JID formatting, solo OTP admission, and per-user isolation.
+Covers query compilation (including the accounts helper), tweet/rule dedup against SQLite, demo fixture coverage of the sample rules, webhook payload shape, +/− training labels, watchlist cashtags, packed live-search query budgets, relevance scoring, Key Accounts, the blocked list, Focus floors, WhatsApp digest copy, WhatsApp JID formatting, solo OTP admission, per-user isolation, launch-pad ranking/themes, and Grok research query fallback.
 
 ## Layout
 
