@@ -93,6 +93,29 @@ function TweetCard({ tweet, compact }: { tweet: LaunchTweet; compact?: boolean }
   );
 }
 
+function showStorySummary(story: LaunchStory): boolean {
+  const summary = story.summary.trim();
+  const headline = story.headline.trim();
+  if (!summary) return false;
+  if (summary.toLowerCase() === headline.toLowerCase()) return false;
+  if (/^\d+\s+sources? on the tape/i.test(summary)) return false;
+  return true;
+}
+
+function compactWhy(story: LaunchStory): string {
+  const sources = `${story.sourceCount} source${story.sourceCount === 1 ? "" : "s"}`;
+  const stripped = story.reason
+    .replace(/\s*[—-]\s*moving\s+[^.]+\.?/i, "")
+    .replace(/^moving\s+[^.]+\.?/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (story.tracked) return `Tracking · ${sources}`;
+  if (!stripped || /^on the desk/i.test(stripped) || /^you're seeing this/i.test(stripped)) {
+    return sources;
+  }
+  return stripped.replace(/\.$/, "");
+}
+
 function StoryActions({
   story,
   onAsk,
@@ -104,68 +127,60 @@ function StoryActions({
   onAction: (story: LaunchStory, action: "track" | "untrack" | "mute" | "unmute") => void;
   onSources: (story: LaunchStory) => void;
 }) {
+  const btn =
+    "h-11 min-h-11 w-full rounded-2xl px-3 text-[14px] font-medium lg:h-8 lg:min-h-8 lg:w-auto lg:rounded-full lg:px-2.5 lg:text-[12px]";
   return (
-    <div className="mt-3 flex flex-wrap gap-1">
+    <div className="mt-3 grid grid-cols-2 gap-2 lg:flex lg:flex-wrap lg:gap-1">
       <Button
         type="button"
         size="sm"
-        variant={story.tracked ? "secondary" : "ghost"}
-        className="h-8 min-h-8 rounded-full px-2.5 text-[12px]"
+        variant={story.tracked ? "secondary" : "outline"}
+        className={btn}
         onClick={() => onAction(story, story.tracked ? "untrack" : "track")}
       >
         {story.tracked ? "Tracking" : "Track"}
       </Button>
-      <Button
-        type="button"
-        size="sm"
-        variant="ghost"
-        className="h-8 min-h-8 rounded-full px-2.5 text-[12px]"
-        onClick={() => onAction(story, "mute")}
-      >
+      <Button type="button" size="sm" variant="outline" className={btn} onClick={() => onAction(story, "mute")}>
         Mute
       </Button>
-      <Button
-        type="button"
-        size="sm"
-        variant="ghost"
-        className="h-8 min-h-8 rounded-full px-2.5 text-[12px]"
-        onClick={() => onAsk(story.headline)}
-      >
+      <Button type="button" size="sm" variant="outline" className={btn} onClick={() => onAsk(story.headline)}>
         Ask
       </Button>
-      <Button
-        type="button"
-        size="sm"
-        variant="ghost"
-        className="h-8 min-h-8 rounded-full px-2.5 text-[12px]"
-        onClick={() => onSources(story)}
-      >
-        View sources
+      <Button type="button" size="sm" variant="outline" className={btn} onClick={() => onSources(story)}>
+        <span className="lg:hidden">Sources</span>
+        <span className="hidden lg:inline">View sources</span>
       </Button>
     </div>
   );
 }
 
 function StoryBody({ story }: { story: LaunchStory }) {
+  const why = compactWhy(story);
   return (
     <>
-      <div className="text-[12px] font-medium tracking-[0.01em] text-muted-foreground uppercase">
-        {story.themeLabel}
+      <div className="flex items-center gap-2">
+        <div className="min-w-0 truncate text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
+          {story.themeLabel}
+        </div>
+        <span className="ml-auto shrink-0 rounded-full bg-amber-500/14 px-2 py-0.5 text-[11px] font-medium tabular-nums text-amber-900 dark:text-amber-200">
+          {story.velocityLabel}
+        </span>
       </div>
-      <h3 className="mt-1 text-[17px] leading-[1.25] font-semibold tracking-[-0.03em] lg:text-[16px]">
+      <h3 className="mt-2 line-clamp-3 text-[17px] leading-[1.28] font-semibold tracking-[-0.03em] lg:line-clamp-none lg:text-[16px]">
         {story.headline}
       </h3>
-      <p className="mt-1.5 text-[14px] leading-snug text-foreground/85">{story.summary}</p>
-      <p className="mt-2 text-[12px] leading-snug text-muted-foreground">
-        <span className="font-medium text-foreground/70">Why you&apos;re seeing this. </span>
-        {story.reason}
+      {showStorySummary(story) ? (
+        <p className="mt-1.5 line-clamp-2 text-[14px] leading-snug text-foreground/80 lg:line-clamp-none">
+          {story.summary}
+        </p>
+      ) : null}
+      <p className="mt-2 line-clamp-2 text-[13px] leading-snug text-muted-foreground">
+        <span className="hidden font-medium text-foreground/70 lg:inline">Why you&apos;re seeing this. </span>
+        <span className="lg:hidden">{why}</span>
+        <span className="hidden lg:inline">{story.reason}</span>
       </p>
-      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] tabular-nums text-muted-foreground">
-        <span>{story.velocityLabel}</span>
-        <span className="text-foreground/20">·</span>
-        <span>
-          {story.sourceCount} source{story.sourceCount === 1 ? "" : "s"}
-        </span>
+      <div className="mt-1.5 hidden text-[12px] tabular-nums text-muted-foreground lg:block">
+        {story.sourceCount} source{story.sourceCount === 1 ? "" : "s"}
       </div>
     </>
   );
@@ -186,7 +201,7 @@ function StoryCard({
 }) {
   if (layout === "rail") {
     return (
-      <article className="flex w-[min(78vw,22rem)] shrink-0 snap-start flex-col rounded-[22px] bg-card p-4 shadow-[0_1px_0_rgba(0,0,0,0.04),0_10px_30px_rgba(0,0,0,0.05)] ring-1 ring-black/[0.04] lg:w-full lg:rounded-none lg:px-4 lg:py-4 lg:shadow-none lg:ring-0 dark:ring-white/[0.06]">
+      <article className="flex w-[min(88vw,21.5rem)] shrink-0 snap-start flex-col rounded-[22px] bg-card p-4 shadow-[0_1px_0_rgba(0,0,0,0.04),0_10px_30px_rgba(0,0,0,0.05)] ring-1 ring-black/[0.04] lg:w-full lg:rounded-none lg:px-4 lg:py-4 lg:shadow-none lg:ring-0 dark:ring-white/[0.06]">
         <StoryBody story={story} />
         <StoryActions story={story} onAsk={onAsk} onAction={onAction} onSources={onSources} />
       </article>
@@ -215,7 +230,7 @@ function Surface({ children, className }: { children: React.ReactNode; className
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="mb-2 px-1 text-[13px] font-semibold tracking-[0.01em] text-muted-foreground uppercase">
+    <h2 className="mb-2 scroll-mt-3 px-1 text-[13px] font-semibold tracking-[0.01em] text-muted-foreground uppercase">
       {children}
     </h2>
   );
@@ -457,7 +472,7 @@ export function LaunchPad() {
           description="Nothing on the desk yet. Re-poll from Inbox, or ask a question above."
         />
       ) : (
-        <div className="mx-auto grid w-full max-w-[1180px] gap-8 px-4 py-5 pb-8 sm:px-6 sm:py-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.25fr)_minmax(0,0.85fr)] lg:items-start">
+        <div className="mx-auto grid w-full max-w-[1180px] gap-6 px-4 py-5 pb-12 sm:px-6 sm:py-8 sm:pb-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.25fr)_minmax(0,0.85fr)] lg:items-start">
           <section className="min-w-0">
             <SectionLabel>Developing</SectionLabel>
             <div
