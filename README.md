@@ -1,6 +1,6 @@
 # Signl1
 
-Signl1 watches what matters on the Timeline. The homepage is a launch pad: the top posts worth looking at, developing themes from the day, high-engagement tweets, and a Grok-powered search box that researches X. Search X from WhatsApp. Slack can fire on each match.
+Signl1 lets you customize your feed so you get only high-signal information. The homepage is a launch pad: the top posts worth looking at, developing themes from the day, high-engagement tweets, and a Grok-powered search box that researches X. Search X from WhatsApp. Slack can fire on each match.
 
 Sign in with Google. Each verified account gets its own SignlHQ — Focus, rules, blocked list, and inbox stay separate. The X token and WhatsApp session are shared on the server.
 

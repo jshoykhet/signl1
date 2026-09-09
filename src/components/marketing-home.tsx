@@ -1,6 +1,7 @@
 import { LoginForm, SkipSignInButton } from "@/components/login-form";
 import { isDevLoginEnabled } from "@/lib/access";
 import { googleClientId, isGoogleAuthConfigured } from "@/lib/google-auth";
+import { SITE_TAGLINE } from "@/lib/site";
 
 export function MarketingHome({
   errorCode,
@@ -39,11 +40,10 @@ export function MarketingHome({
         <div className="grid items-start gap-12 lg:grid-cols-[1.15fr_0.85fr]">
           <div>
             <h1 className="max-w-xl text-[40px] leading-[1.08] font-semibold tracking-[-0.035em] md:text-[52px]">
-              What matters on the Timeline
+              {SITE_TAGLINE}
             </h1>
             <p className="mt-5 max-w-xl text-[17px] leading-relaxed text-muted-foreground">
-              WhatsApp agent so you can search the feed from chat. Signl1 ranks the feed, surfaces themes, and lets you
-              ask Grok to research X.
+              Set Focus and monitors. Signl1 keeps the high-signal posts and leaves the rest off your feed.
             </p>
           </div>
 

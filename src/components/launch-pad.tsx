@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import type { LaunchTweet } from "@/lib/launch-board";
 import type { LaunchStory } from "@/lib/launch-stories";
 import type { ResearchResult } from "@/lib/research";
+import { SITE_TAGLINE } from "@/lib/site";
 
 type LaunchPayload = {
   top: LaunchStory[];
@@ -363,14 +364,11 @@ export function LaunchPad() {
         <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-2.5 sm:gap-4">
           <div className="flex items-end justify-between gap-3">
             <div className="min-w-0">
-              <h1 className="max-w-[11em] text-[24px] leading-[1.08] font-semibold tracking-[-0.045em] sm:max-w-none sm:text-[40px] sm:leading-none">
-                What matters on the Timeline
+              <h1 className="max-w-[16em] text-[24px] leading-[1.08] font-semibold tracking-[-0.045em] sm:max-w-xl sm:text-[36px] sm:leading-[1.08]">
+                {SITE_TAGLINE}
               </h1>
               <p className="mt-2 hidden max-w-md text-[14px] leading-snug text-muted-foreground sm:block sm:text-[15px]">
-                <Link href="/whatsapp" className="font-medium text-amber-700 dark:text-amber-300">
-                  WhatsApp agent
-                </Link>{" "}
-                so you can search the feed from chat.
+                Set Focus and monitors. Keep the high-signal posts, leave the rest off your feed.
               </p>
             </div>
             <div className="flex items-center gap-1">

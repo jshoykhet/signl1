@@ -1,6 +1,7 @@
 export const SITE_NAME = "Signl1";
-export const SITE_TAGLINE = "What matters on the Timeline";
-export const SITE_DESCRIPTION = "What matters on the Timeline. Search X from WhatsApp.";
+export const SITE_TAGLINE = "Customize your feed so you get only high-signal information";
+export const SITE_DESCRIPTION =
+  "Customize your feed so you get only high-signal information.";
 
 export function siteUrl(): URL {
   const fromAuth = process.env.AUTH_URL?.trim();

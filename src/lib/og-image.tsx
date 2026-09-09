@@ -78,7 +78,7 @@ export async function generateOgImage() {
             {SITE_TAGLINE}
           </div>
           <div style={{ fontSize: 26, color: "#b8b8c0", letterSpacing: "-0.01em" }}>
-            Search X from WhatsApp · signl1.xyz
+            High-signal feed · signl1.xyz
           </div>
         </div>
         <div
