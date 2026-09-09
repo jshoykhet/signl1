@@ -17,6 +17,8 @@ Open [http://localhost:3847](http://localhost:3847). After skip-sign-in (or Goog
 
 The live tape is stored once and shared across SignlHQs that run the same compiled X query. Each person still has their own Focus, blocked list, labels, and unread state. Custom live monitors are capped at 8 per SignlHQ so one token can serve many people. The Feed refreshes every 20 seconds.
 
+**Diet** (`/diet`) reads an X handle for the last 7 days: what they posted, who they @, who mentioned them, and concrete reach tips. It is inferred from recent-search, not the full follower/following graph. Without an X token it shows a sample week. Each read is two X searches — wait a few seconds between handles.
+
 Leave `X_BEARER_TOKEN` empty for **demo mode**. Signl1 shows sample posts so you can look around without paid X API access. The UI labels this clearly.
 
 ## Environment

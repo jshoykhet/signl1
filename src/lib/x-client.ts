@@ -198,7 +198,7 @@ export async function recentSearch(opts: {
     query: opts.query,
     max_results: String(maxResults),
     "tweet.fields": "created_at,author_id,lang,public_metrics,in_reply_to_user_id",
-    expansions: "author_id",
+    expansions: "author_id,in_reply_to_user_id",
     "user.fields": "username,name,verified,public_metrics",
   });
   if (opts.sinceId) params.set("since_id", opts.sinceId);

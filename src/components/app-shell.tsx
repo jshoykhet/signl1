@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Activity, BadgeDollarSign, House, Inbox, MessageCircle, Settings2, SlidersHorizontal, Users } from "lucide-react";
+import { Activity, BadgeDollarSign, House, Inbox, MessageCircle, Radar, Settings2, SlidersHorizontal, Users } from "lucide-react";
 import { UserMenu } from "@/components/user-menu";
 import { cn } from "@/lib/utils";
 import { DESK_MODES } from "@/lib/desk-mode";
@@ -12,6 +12,7 @@ import type { StatusSnapshot } from "@/lib/types";
 const NAV = [
   { href: "/", label: "Launch", icon: House },
   { href: "/inbox", label: "Feed", icon: Inbox },
+  { href: "/diet", label: "Diet", icon: Radar },
   { href: "/whatsapp", label: "WhatsApp", icon: MessageCircle },
   { href: "/watchlist", label: "Watchlist", icon: BadgeDollarSign },
   { href: "/accounts", label: "Accounts", icon: Users },
@@ -171,9 +172,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         className="fixed inset-x-0 bottom-0 z-40 border-t border-black/[0.06] bg-background/80 backdrop-blur-2xl md:hidden dark:border-white/[0.08]"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        <div className={cn("grid h-16", navFor(status).filter((item) => item.href !== "/rules" && item.href !== "/accounts").length === 5 ? "grid-cols-5" : "grid-cols-4")}>
+        <div className="grid h-16 grid-cols-5">
           {navFor(status)
-            .filter((item) => item.href !== "/rules" && item.href !== "/accounts")
+            .filter((item) => item.href !== "/rules" && item.href !== "/accounts" && item.href !== "/watchlist")
             .map((item) => {
             const active = isActive(pathname, item.href);
             const Icon = item.icon;
