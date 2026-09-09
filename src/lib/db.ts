@@ -265,8 +265,8 @@ function migrate(db: Database.Database) {
   `);
   migrateTickersToDesk(db);
   backfillMatchUserIds(db);
-  backfillMatchQuality(db);
   migrateSharedTape(db);
+  backfillMatchQuality(db);
 }
 
 function stampRuleQueryHashes(db: Database.Database) {
@@ -1074,9 +1074,18 @@ export function openDatabase(dbPath = databasePath()): Database.Database {
   return db;
 }
 
+function hasTapeTables(db: Database.Database): boolean {
+  const row = db
+    .prepare("SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = 'posts'")
+    .get() as { ok: number } | undefined;
+  return Boolean(row);
+}
+
 export function getDb(): Database.Database {
   if (!globalForDb.signalDb) {
     globalForDb.signalDb = openDatabase();
+  } else if (!hasTapeTables(globalForDb.signalDb)) {
+    migrate(globalForDb.signalDb);
   }
   return globalForDb.signalDb;
 }
