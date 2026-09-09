@@ -1,7 +1,7 @@
 import { LoginForm, SkipSignInButton } from "@/components/login-form";
 import { isDevLoginEnabled } from "@/lib/access";
 import { googleClientId, isGoogleAuthConfigured } from "@/lib/google-auth";
-import { SITE_TAGLINE } from "@/lib/site";
+import { SITE_PITCH, SITE_TAGLINE } from "@/lib/site";
 
 export function MarketingHome({
   errorCode,
@@ -42,8 +42,8 @@ export function MarketingHome({
             <h1 className="max-w-xl text-[40px] leading-[1.08] font-semibold tracking-[-0.035em] md:text-[52px]">
               {SITE_TAGLINE}
             </h1>
-            <p className="mt-5 max-w-xl text-[17px] leading-relaxed text-muted-foreground">
-              Set Focus and monitors. Signl1 keeps the high-signal posts and leaves the rest off your feed.
+            <p className="mt-5 whitespace-nowrap text-[15px] leading-none tracking-[-0.015em] text-muted-foreground sm:text-[17px]">
+              {SITE_PITCH}
             </p>
           </div>
 
