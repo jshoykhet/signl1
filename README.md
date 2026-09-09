@@ -13,7 +13,9 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Open [http://localhost:3847](http://localhost:3847). After skip-sign-in (or Google), you land on the **launch pad**. The full feed is at `/inbox` — scroll to load older posts. Link a phone on `/whatsapp`.
+Open [http://localhost:3847](http://localhost:3847). After skip-sign-in (or Google), you land on the **launch pad**. The full feed is at `/inbox` — scroll to load older posts. Link a phone on `/whatsapp` (admin).
+
+The live tape is stored once and shared across SignlHQs that run the same compiled X query. Each person still has their own Focus, blocked list, labels, and unread state. Custom live monitors are capped at 8 per SignlHQ so one token can serve many people. The Feed refreshes every 20 seconds.
 
 Leave `X_BEARER_TOKEN` empty for **demo mode**. Signl1 shows sample posts so you can look around without paid X API access. The UI labels this clearly.
 

@@ -19,7 +19,12 @@ const NAV = [
   { href: "/settings", label: "Settings", icon: Settings2 },
 ];
 
-const MOBILE_NAV = NAV.filter((item) => item.href !== "/rules" && item.href !== "/accounts");
+function navFor(status: StatusSnapshot | null) {
+  if (status?.account?.role === "operator") {
+    return NAV.filter((item) => item.href !== "/whatsapp");
+  }
+  return NAV;
+}
 
 function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -85,7 +90,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         <nav className="flex flex-1 flex-col gap-0.5 px-3">
-          {NAV.map((item) => {
+          {navFor(status).map((item) => {
             const active = isActive(pathname, item.href);
             const Icon = item.icon;
             return (
@@ -166,8 +171,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         className="fixed inset-x-0 bottom-0 z-40 border-t border-black/[0.06] bg-background/80 backdrop-blur-2xl md:hidden dark:border-white/[0.08]"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        <div className="grid h-16 grid-cols-5">
-          {MOBILE_NAV.map((item) => {
+        <div className={cn("grid h-16", navFor(status).filter((item) => item.href !== "/rules" && item.href !== "/accounts").length === 5 ? "grid-cols-5" : "grid-cols-4")}>
+          {navFor(status)
+            .filter((item) => item.href !== "/rules" && item.href !== "/accounts")
+            .map((item) => {
             const active = isActive(pathname, item.href);
             const Icon = item.icon;
             return (

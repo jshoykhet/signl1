@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
-import { clampPollIntervalMs, databasePath, DEFAULT_POLL_INTERVAL_MS, isDemoMode, MAX_WATCHLIST_TICKERS, WATCHLIST_QUERY_BUDGET } from "./config";
+import { clampPollIntervalMs, databasePath, DEFAULT_POLL_INTERVAL_MS, isDemoMode, MAX_LIVE_CUSTOM_RULES, MAX_WATCHLIST_TICKERS, WATCHLIST_QUERY_BUDGET } from "./config";
+import { queryHash } from "./query-hash";
 import { chunkHandlesForFromQuery, compileKeyLeadersQuery, compileQuery, isWatchedAuthor, normalizeAccounts } from "./query";
 import { ruleFitsFocus, sqlFocusMode } from "./feed-scope";
 import { likePattern, tokenizeSearch } from "./search";
@@ -265,6 +266,77 @@ function migrate(db: Database.Database) {
   migrateTickersToDesk(db);
   backfillMatchUserIds(db);
   backfillMatchQuality(db);
+  migrateSharedTape(db);
+}
+
+function stampRuleQueryHashes(db: Database.Database) {
+  const rows = db.prepare("SELECT id, query FROM rules").all() as Array<{ id: string; query: string }>;
+  const update = db.prepare("UPDATE rules SET query_hash = ? WHERE id = ?");
+  for (const row of rows) {
+    update.run(queryHash(row.query ?? ""), row.id);
+  }
+}
+
+function migrateSharedTape(db: Database.Database) {
+  ensureColumn(db, "rules", "query_hash", "TEXT");
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS posts (
+      tweet_id TEXT PRIMARY KEY,
+      author_handle TEXT NOT NULL,
+      author_name TEXT NOT NULL,
+      text TEXT NOT NULL,
+      tweet_created_at TEXT NOT NULL,
+      permalink TEXT NOT NULL,
+      raw_json TEXT NOT NULL,
+      author_followers INTEGER,
+      like_count INTEGER,
+      first_seen_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS post_hits (
+      tweet_id TEXT NOT NULL,
+      query_hash TEXT NOT NULL,
+      rule_name TEXT NOT NULL,
+      rule_kind TEXT,
+      rule_mode TEXT,
+      matched_at TEXT NOT NULL,
+      PRIMARY KEY (tweet_id, query_hash)
+    );
+    CREATE TABLE IF NOT EXISTS user_post_state (
+      user_id TEXT NOT NULL,
+      tweet_id TEXT NOT NULL,
+      read INTEGER NOT NULL DEFAULT 0,
+      user_label TEXT,
+      PRIMARY KEY (user_id, tweet_id)
+    );
+    CREATE INDEX IF NOT EXISTS post_hits_hash_idx ON post_hits(query_hash, matched_at DESC);
+    CREATE INDEX IF NOT EXISTS rules_query_hash_idx ON rules(user_id, query_hash);
+    CREATE INDEX IF NOT EXISTS user_post_state_user_idx ON user_post_state(user_id, read);
+  `);
+  stampRuleQueryHashes(db);
+  db.exec(`
+    INSERT OR IGNORE INTO posts (
+      tweet_id, author_handle, author_name, text, tweet_created_at, permalink, raw_json,
+      author_followers, like_count, first_seen_at
+    )
+    SELECT tweet_id, author_handle, author_name, text, tweet_created_at, permalink, raw_json,
+      MAX(author_followers), MAX(like_count), MIN(matched_at)
+    FROM matches
+    GROUP BY tweet_id;
+
+    INSERT OR IGNORE INTO post_hits (tweet_id, query_hash, rule_name, rule_kind, rule_mode, matched_at)
+    SELECT m.tweet_id, r.query_hash, MIN(r.name), MIN(r.kind), MIN(r.mode), MIN(m.matched_at)
+    FROM matches m
+    JOIN rules r ON r.id = m.rule_id
+    WHERE r.query_hash IS NOT NULL AND r.query_hash != ''
+    GROUP BY m.tweet_id, r.query_hash;
+
+    INSERT OR IGNORE INTO user_post_state (user_id, tweet_id, read, user_label)
+    SELECT user_id, tweet_id, MAX(read),
+      MAX(CASE WHEN user_label IN ('high', 'low') THEN user_label END)
+    FROM matches
+    WHERE user_id IS NOT NULL AND user_id != ''
+    GROUP BY user_id, tweet_id;
+  `);
 }
 
 function ensureColumn(db: Database.Database, table: string, column: string, spec: string) {
@@ -482,12 +554,13 @@ function backfillMatchQuality(db: Database.Database, userId?: string) {
 
 export function listAuthorPriors(userId: string, db = getDb()): Map<string, AuthorPrior> {
   const rows = db.prepare(`
-    SELECT lower(author_handle) AS handle,
-      COUNT(DISTINCT CASE WHEN user_label = 'high' THEN tweet_id END) AS high,
-      COUNT(DISTINCT CASE WHEN user_label = 'low' THEN tweet_id END) AS low
-    FROM matches
-    WHERE user_id = ? AND user_label IN ('high', 'low')
-    GROUP BY lower(author_handle)
+    SELECT lower(p.author_handle) AS handle,
+      COUNT(DISTINCT CASE WHEN s.user_label = 'high' THEN s.tweet_id END) AS high,
+      COUNT(DISTINCT CASE WHEN s.user_label = 'low' THEN s.tweet_id END) AS low
+    FROM user_post_state s
+    JOIN posts p ON p.tweet_id = s.tweet_id
+    WHERE s.user_id = ? AND s.user_label IN ('high', 'low')
+    GROUP BY lower(p.author_handle)
   `).all(userId) as Array<{ handle: string; high: number; low: number }>;
   const map = new Map<string, AuthorPrior>();
   for (const row of rows) {
@@ -499,17 +572,18 @@ export function listAuthorPriors(userId: string, db = getDb()): Map<string, Auth
 export function getAuthorPrior(handle: string, userId: string, db = getDb()): AuthorPrior {
   const row = db.prepare(`
     SELECT
-      COUNT(DISTINCT CASE WHEN user_label = 'high' THEN tweet_id END) AS high,
-      COUNT(DISTINCT CASE WHEN user_label = 'low' THEN tweet_id END) AS low
-    FROM matches
-    WHERE user_id = ? AND lower(author_handle) = lower(?) AND user_label IN ('high', 'low')
+      COUNT(DISTINCT CASE WHEN s.user_label = 'high' THEN s.tweet_id END) AS high,
+      COUNT(DISTINCT CASE WHEN s.user_label = 'low' THEN s.tweet_id END) AS low
+    FROM user_post_state s
+    JOIN posts p ON p.tweet_id = s.tweet_id
+    WHERE s.user_id = ? AND lower(p.author_handle) = lower(?) AND s.user_label IN ('high', 'low')
   `).get(userId, handle) as { high: number; low: number };
   return { high: Number(row.high), low: Number(row.low) };
 }
 
 export function getTweetLabel(tweetId: string, userId: string, db = getDb()): UserLabel | null {
   const row = db.prepare(
-    "SELECT user_label FROM matches WHERE tweet_id = ? AND user_id = ? AND user_label IN ('high', 'low') LIMIT 1",
+    "SELECT user_label FROM user_post_state WHERE tweet_id = ? AND user_id = ? AND user_label IN ('high', 'low') LIMIT 1",
   ).get(tweetId, userId) as { user_label: string } | undefined;
   return parseUserLabel(row?.user_label);
 }
@@ -587,10 +661,12 @@ function authorSignalFlags(handle: string, userId: string, db: Database.Database
 
 export function listAuthorFollowerCounts(userId: string, db = getDb()): Map<string, number> {
   const rows = db.prepare(`
-    SELECT lower(author_handle) AS handle, MAX(author_followers) AS followers
-    FROM matches
-    WHERE user_id = ? AND author_followers IS NOT NULL
-    GROUP BY lower(author_handle)
+    SELECT lower(p.author_handle) AS handle, MAX(p.author_followers) AS followers
+    FROM posts p
+    JOIN post_hits h ON h.tweet_id = p.tweet_id
+    JOIN rules r ON r.user_id = ? AND r.query_hash = h.query_hash
+    WHERE p.author_followers IS NOT NULL
+    GROUP BY lower(p.author_handle)
   `).all(userId) as Array<{ handle: string; followers: number }>;
   const map = new Map<string, number>();
   for (const row of rows) {
@@ -655,15 +731,20 @@ function attachPriors(matches: Match[], userId: string, db: Database.Database): 
   }));
 }
 
+function resolveTweetId(id: string, userId: string, db: Database.Database): string | null {
+  const post = db.prepare("SELECT tweet_id FROM posts WHERE tweet_id = ?").get(id) as { tweet_id: string } | undefined;
+  if (post) return post.tweet_id;
+  const legacy = db
+    .prepare("SELECT tweet_id FROM matches WHERE id = ? AND user_id = ?")
+    .get(id, userId) as { tweet_id: string } | undefined;
+  return legacy?.tweet_id ?? null;
+}
+
 function getMatchById(id: string, userId: string, db: Database.Database): Match | null {
-  const row = db.prepare(`
-    SELECT m.*, r.name AS rule_name
-    FROM matches m
-    JOIN rules r ON r.id = m.rule_id
-    WHERE m.id = ? AND m.user_id = ?
-  `).get(id, userId) as MatchRow | undefined;
-  if (!row) return null;
-  return attachPriors([mapMatch(row, db)], userId, db)[0] ?? null;
+  const tweetId = resolveTweetId(id, userId, db);
+  if (!tweetId) return null;
+  const page = listMatchesPage(userId, { q: tweetId, quality: false, limit: 20 }, db);
+  return page.matches.find((match) => match.tweetId === tweetId) ?? null;
 }
 
 function recomputeAuthorQuality(handle: string, userId: string, db: Database.Database) {
@@ -967,6 +1048,7 @@ export function ensureUserDesk(userId: string, db = getDb()) {
   if (getUserMeta(userId, "desk_seeded", db)) {
     ensureMonitorPack(userId, db);
     migrateKolPacks(userId, db);
+    stampRuleQueryHashes(db);
     return;
   }
   const count = db.prepare("SELECT COUNT(*) AS n FROM rules WHERE user_id = ?").get(userId) as { n: number };
@@ -975,6 +1057,7 @@ export function ensureUserDesk(userId: string, db = getDb()) {
   }
   setUserMeta(userId, "desk_seeded", nowIso(), db);
   ensureMonitorPack(userId, db);
+  stampRuleQueryHashes(db);
 }
 
 export function listDeskUserIds(db = getDb()): string[] {
@@ -1042,20 +1125,43 @@ export function getRule(id: string, userId?: string, db = getDb()): Rule | null 
   return row ? mapRule(row) : null;
 }
 
+function countLiveCustomRules(userId: string, db: Database.Database, exceptId?: string): number {
+  const row = db
+    .prepare(
+      `
+    SELECT COUNT(*) AS n FROM rules
+    WHERE user_id = ? AND enabled = 1 AND TRIM(query) != ''
+      AND COALESCE(kind, 'custom') = 'custom'
+      AND (? IS NULL OR id != ?)
+  `,
+    )
+    .get(userId, exceptId ?? null, exceptId ?? null) as { n: number };
+  return Number(row.n);
+}
+
+function assertLiveCustomRuleCap(userId: string, enabling: boolean, db: Database.Database, exceptId?: string) {
+  if (!enabling) return;
+  if (countLiveCustomRules(userId, db, exceptId) < MAX_LIVE_CUSTOM_RULES) return;
+  throw new Error(
+    `Each SignlHQ can run ${MAX_LIVE_CUSTOM_RULES} custom live monitors. Pause one, or use the shared Markets/Venture tape.`,
+  );
+}
+
 export function createRule(userId: string, input: RuleInput, db = getDb()): Rule {
   const accounts = normalizeAccounts(input.accounts);
   const query = compileQuery({ query: input.queryInput, accounts });
   if (!query) {
     throw new Error("Rule needs a search query or at least one account.");
   }
+  assertLiveCustomRuleCap(userId, input.enabled, db);
   const ts = nowIso();
   const id = crypto.randomUUID();
   const mode = parseMonitorMode(input.mode ?? getMonitorMode(userId, db));
   db.prepare(`
     INSERT INTO rules (
       id, user_id, name, enabled, query, query_input, accounts_json, poll_interval_ms,
-      slack_webhook_url, generic_webhook_url, created_at, updated_at, mode
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      slack_webhook_url, generic_webhook_url, created_at, updated_at, mode, query_hash
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     userId,
@@ -1070,6 +1176,7 @@ export function createRule(userId: string, input: RuleInput, db = getDb()): Rule
     ts,
     ts,
     mode,
+    queryHash(query),
   );
   return getRule(id, userId, db)!;
 }
@@ -1102,11 +1209,15 @@ export function updateRule(id: string, input: Partial<RuleInput>, userId: string
   const accounts = normalizeAccounts(merged.accounts);
   const query = compileQuery({ query: merged.queryInput, accounts });
   if (!query) throw new Error("Rule needs a search query or at least one account.");
+  if (existing.kind === "custom" || !existing.kind) {
+    assertLiveCustomRuleCap(userId, merged.enabled, db, id);
+  }
   const ts = nowIso();
   db.prepare(`
     UPDATE rules SET
       name = ?, enabled = ?, query = ?, query_input = ?, accounts_json = ?,
-      poll_interval_ms = ?, slack_webhook_url = ?, generic_webhook_url = ?, mode = ?, updated_at = ?
+      poll_interval_ms = ?, slack_webhook_url = ?, generic_webhook_url = ?, mode = ?,
+      query_hash = ?, updated_at = ?
     WHERE id = ? AND user_id = ?
   `).run(
     merged.name.trim(),
@@ -1118,6 +1229,7 @@ export function updateRule(id: string, input: Partial<RuleInput>, userId: string
     merged.slackWebhookUrl,
     merged.genericWebhookUrl,
     parseMonitorMode(merged.mode),
+    queryHash(query),
     ts,
     id,
     userId,
@@ -1151,48 +1263,45 @@ export function markRulePolled(
 }
 
 export function tryInsertMatch(
-  rule: Pick<Rule, "id" | "name" | "userId"> & { accounts?: string[] },
+  rule: Pick<Rule, "id" | "name" | "userId" | "kind" | "mode" | "query"> & { accounts?: string[] },
   tweet: NormalizedTweet,
   db = getDb(),
 ): { inserted: boolean; matchId: string | null } {
-  const id = crypto.randomUUID();
-  const userId = rule.userId || "";
-  const verdict = evaluateTweetSignal(tweet, userId, db, {
-    watchedAuthor: isWatchedAuthor(rule.accounts, tweet.authorHandle),
-  });
-  try {
-    db.prepare(`
-      INSERT INTO matches (
-        id, user_id, tweet_id, rule_id, author_handle, author_name, text,
-        tweet_created_at, permalink, raw_json, read, matched_at,
-        author_followers, like_count, signal_score, signal_pass, user_label
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)
-    `).run(
-      id,
-      userId,
-      tweet.id,
-      rule.id,
-      tweet.authorHandle,
-      tweet.authorName,
-      tweet.text,
-      tweet.createdAt,
-      tweet.permalink,
-      JSON.stringify(tweet.raw ?? tweet),
-      nowIso(),
-      tweet.followersCount,
-      tweet.likeCount,
-      verdict.score,
-      verdict.pass ? 1 : 0,
-      verdict.userLabel,
-    );
-    return { inserted: true, matchId: id };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (message.includes("UNIQUE") || message.includes("unique")) {
-      return { inserted: false, matchId: null };
-    }
-    throw error;
+  const hash = queryHash(rule.query ?? "");
+  if (rule.id && hash) {
+    db.prepare("UPDATE rules SET query_hash = COALESCE(NULLIF(query_hash, ''), ?) WHERE id = ?").run(hash, rule.id);
   }
+  const seen = nowIso();
+  db.prepare(`
+    INSERT INTO posts (
+      tweet_id, author_handle, author_name, text, tweet_created_at, permalink, raw_json,
+      author_followers, like_count, first_seen_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(tweet_id) DO UPDATE SET
+      author_handle = excluded.author_handle,
+      author_name = excluded.author_name,
+      text = excluded.text,
+      permalink = excluded.permalink,
+      raw_json = excluded.raw_json,
+      author_followers = excluded.author_followers,
+      like_count = excluded.like_count
+  `).run(
+    tweet.id,
+    tweet.authorHandle,
+    tweet.authorName,
+    tweet.text,
+    tweet.createdAt,
+    tweet.permalink,
+    JSON.stringify(tweet.raw ?? tweet),
+    tweet.followersCount ?? null,
+    tweet.likeCount ?? null,
+    seen,
+  );
+  const hit = db.prepare(`
+    INSERT OR IGNORE INTO post_hits (tweet_id, query_hash, rule_name, rule_kind, rule_mode, matched_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(tweet.id, hash, rule.name, rule.kind ?? "custom", rule.mode ?? "markets", seen);
+  return { inserted: hit.changes > 0, matchId: hit.changes > 0 ? tweet.id : tweet.id };
 }
 
 export type MatchListOpts = {
@@ -1239,45 +1348,110 @@ export function decodeMatchCursor(raw: string): MatchCursor | null {
   return null;
 }
 
-function matchListWhere(
+type TapeRow = {
+  tweet_id: string;
+  author_handle: string;
+  author_name: string;
+  text: string;
+  tweet_created_at: string;
+  permalink: string;
+  raw_json: string;
+  author_followers: number | null;
+  like_count: number | null;
+  matched_at: string;
+  rule_id: string;
+  rule_name: string;
+  read: number;
+  user_label: string | null;
+};
+
+function tapeListWhere(
   userId: string,
   opts: MatchListOpts,
   db: Database.Database,
 ): { where: string; params: unknown[] } {
-  const clauses: string[] = ["m.user_id = ?"];
+  const clauses: string[] = ["r.user_id = ?", "r.enabled = 1", "TRIM(r.query) != ''"];
   const params: unknown[] = [userId];
   if (opts.ruleId) {
-    clauses.push("m.rule_id = ?");
+    clauses.push("r.id = ?");
     params.push(opts.ruleId);
   }
   if (opts.unread) {
-    clauses.push("m.read = 0");
+    clauses.push("COALESCE(s.read, 0) = 0");
   }
-  if (opts.quality !== false) {
-    clauses.push("(m.signal_pass IS NULL OR m.signal_pass = 1 OR m.user_label IN ('high', 'low'))");
-    if (!isDemoMode()) {
-      clauses.push("m.tweet_id NOT LIKE 'demo-%'");
-    }
+  if (opts.quality !== false && !isDemoMode()) {
+    clauses.push("p.tweet_id NOT LIKE 'demo-%'");
   }
   const blocked = listBlockedHandles(getBlockedSpec(userId, db));
   if (blocked.length > 0) {
-    clauses.push(`lower(m.author_handle) NOT IN (${blocked.map(() => "?").join(", ")})`);
+    clauses.push(`lower(p.author_handle) NOT IN (${blocked.map(() => "?").join(", ")})`);
     params.push(...blocked);
   }
   for (const token of tokenizeSearch(opts.q ?? "")) {
     clauses.push(
-      `(lower(m.text) LIKE ? ESCAPE char(92) OR lower(m.author_handle) LIKE ? ESCAPE char(92) OR lower(m.author_name) LIKE ? ESCAPE char(92) OR lower(r.name) LIKE ? ESCAPE char(92) OR lower(m.tweet_id) LIKE ? ESCAPE char(92))`,
+      `(lower(p.text) LIKE ? ESCAPE char(92) OR lower(p.author_handle) LIKE ? ESCAPE char(92) OR lower(p.author_name) LIKE ? ESCAPE char(92) OR lower(r.name) LIKE ? ESCAPE char(92) OR lower(p.tweet_id) LIKE ? ESCAPE char(92))`,
     );
     const pattern = likePattern(token);
     params.push(pattern, pattern, pattern, pattern, pattern);
   }
-  const cursor = opts.cursor ? decodeMatchCursor(opts.cursor) : null;
-  if (cursor) {
-    clauses.push("(m.matched_at, m.tweet_created_at, m.id) < (?, ?, ?)");
-    params.push(cursor.matchedAt, cursor.tweetCreatedAt, cursor.id);
-  }
   const extra = sqlFocusMode(parseDeskMode(getUserMeta(userId, "desk_mode", db)));
   return { where: `WHERE ${clauses.join(" AND ")}${extra.sql}`, params: [...params, ...extra.params] };
+}
+
+function mapTapeMatch(row: TapeRow, userId: string, db: Database.Database): Match {
+  return {
+    id: row.tweet_id,
+    tweetId: row.tweet_id,
+    ruleId: row.rule_id,
+    ruleName: row.rule_name,
+    authorHandle: row.author_handle,
+    authorName: row.author_name,
+    text: row.text,
+    tweetCreatedAt: row.tweet_created_at,
+    permalink: row.permalink,
+    rawJson: row.raw_json,
+    read: Boolean(row.read),
+    matchedAt: row.matched_at,
+    followersCount: row.author_followers,
+    likeCount: row.like_count,
+    signalScore: null,
+    userLabel: parseUserLabel(row.user_label),
+    authorPrior: { high: 0, low: 0 },
+    kol: getEffectiveKolHandleSet(userId, db).has(normalizeHandle(row.author_handle)),
+  };
+}
+
+function tapeRowPassesQuality(row: TapeRow, userId: string, db: Database.Database): boolean {
+  const metrics = metricsFromRaw(row.raw_json);
+  const tweet: NormalizedTweet = {
+    id: row.tweet_id,
+    authorHandle: row.author_handle,
+    authorName: row.author_name,
+    text: row.text,
+    createdAt: row.tweet_created_at,
+    lang: "en",
+    isRetweet: false,
+    isReply: metrics.isReply,
+    permalink: row.permalink,
+    raw: (() => {
+      try {
+        return JSON.parse(row.raw_json);
+      } catch {
+        return row.raw_json;
+      }
+    })(),
+    followersCount: row.author_followers ?? metrics.followersCount ?? 0,
+    likeCount: row.like_count ?? metrics.likeCount ?? 0,
+    retweetCount: metrics.retweetCount,
+    replyCount: metrics.replyCount,
+    quoteCount: metrics.quoteCount,
+    impressionCount: metrics.impressionCount,
+    verified: metrics.verified,
+  };
+  const rule = getRule(row.rule_id, userId, db);
+  return evaluateTweetSignal(tweet, userId, db, {
+    watchedAuthor: isWatchedAuthor(rule?.accounts, tweet.authorHandle),
+  }).pass;
 }
 
 export function listMatchesPage(
@@ -1286,23 +1460,51 @@ export function listMatchesPage(
   db = getDb(),
 ): MatchPage {
   const limit = Math.min(Math.max(opts.limit ?? 40, 1), 500);
-  const { where, params } = matchListWhere(userId, opts, db);
-  const rows = db
-    .prepare(
-      `
-    SELECT m.*, r.name AS rule_name
-    FROM matches m
-    JOIN rules r ON r.id = m.rule_id
-    ${where}
-    ORDER BY m.matched_at DESC, m.tweet_created_at DESC, m.id DESC
-    LIMIT ?
-  `,
-    )
-    .all(...params, limit + 1) as MatchRow[];
-  const hasMore = rows.length > limit;
-  const page = hasMore ? rows.slice(0, limit) : rows;
+  const { where, params } = tapeListWhere(userId, opts, db);
+  const collected: TapeRow[] = [];
+  let cursor = opts.cursor ? decodeMatchCursor(opts.cursor) : null;
+  let exhausted = false;
+  const batch = Math.max(limit * 4, 80);
+  while (collected.length < limit + 1 && !exhausted) {
+    const cursorSql = cursor
+      ? " AND (MAX(h.matched_at), p.tweet_created_at, p.tweet_id) < (?, ?, ?)"
+      : "";
+    const cursorParams = cursor ? [cursor.matchedAt, cursor.tweetCreatedAt, cursor.id] : [];
+    const rows = db
+      .prepare(
+        `
+      SELECT p.tweet_id, p.author_handle, p.author_name, p.text, p.tweet_created_at, p.permalink,
+        p.raw_json, p.author_followers, p.like_count, MAX(h.matched_at) AS matched_at,
+        MIN(r.id) AS rule_id, MIN(r.name) AS rule_name,
+        COALESCE(MAX(s.read), 0) AS read, MAX(s.user_label) AS user_label
+      FROM posts p
+      JOIN post_hits h ON h.tweet_id = p.tweet_id
+      JOIN rules r ON r.query_hash = h.query_hash
+      LEFT JOIN user_post_state s ON s.user_id = r.user_id AND s.tweet_id = p.tweet_id
+      ${where}
+      GROUP BY p.tweet_id
+      HAVING 1 = 1${cursorSql}
+      ORDER BY matched_at DESC, p.tweet_created_at DESC, p.tweet_id DESC
+      LIMIT ?
+    `,
+      )
+      .all(...params, ...cursorParams, batch) as TapeRow[];
+    if (rows.length < batch) exhausted = true;
+    for (const row of rows) {
+      if (opts.quality !== false && !tapeRowPassesQuality(row, userId, db) && !parseUserLabel(row.user_label)) {
+        continue;
+      }
+      collected.push(row);
+      if (collected.length >= limit + 1) break;
+    }
+    const last = rows[rows.length - 1];
+    if (!last) break;
+    cursor = { matchedAt: last.matched_at, tweetCreatedAt: last.tweet_created_at, id: last.tweet_id };
+  }
+  const hasMore = collected.length > limit;
+  const page = hasMore ? collected.slice(0, limit) : collected;
   const matches = attachPriors(
-    page.map((row) => mapMatch(row, db)),
+    page.map((row) => mapTapeMatch(row, userId, db)),
     userId,
     db,
   );
@@ -1312,7 +1514,7 @@ export function listMatchesPage(
       ? encodeMatchCursor({
           matchedAt: last.matched_at,
           tweetCreatedAt: last.tweet_created_at,
-          id: last.id,
+          id: last.tweet_id,
         })
       : null;
   return { matches, nextCursor, hasMore };
@@ -1329,49 +1531,78 @@ export function listMatches(
 export function listMatchesSince(userId: string, iso: string, limit = 400, db = getDb()): Match[] {
   const blocked = listBlockedHandles(getBlockedSpec(userId, db));
   const blockedSql =
-    blocked.length > 0 ? `AND lower(m.author_handle) NOT IN (${blocked.map(() => "?").join(", ")})` : "";
+    blocked.length > 0 ? `AND lower(p.author_handle) NOT IN (${blocked.map(() => "?").join(", ")})` : "";
   const extra = sqlFocusMode(parseDeskMode(getUserMeta(userId, "desk_mode", db)));
-  const rows = db.prepare(`
-    SELECT m.*, r.name AS rule_name
-    FROM matches m
-    JOIN rules r ON r.id = m.rule_id
-    WHERE m.user_id = ? AND m.matched_at > ?
-      AND (m.signal_pass IS NULL OR m.signal_pass = 1)
+  const fetched = db.prepare(`
+    SELECT p.tweet_id, p.author_handle, p.author_name, p.text, p.tweet_created_at, p.permalink,
+      p.raw_json, p.author_followers, p.like_count, MAX(h.matched_at) AS matched_at,
+      MIN(r.id) AS rule_id, MIN(r.name) AS rule_name,
+      COALESCE(MAX(s.read), 0) AS read, MAX(s.user_label) AS user_label
+    FROM posts p
+    JOIN post_hits h ON h.tweet_id = p.tweet_id
+    JOIN rules r ON r.user_id = ? AND r.query_hash = h.query_hash AND r.enabled = 1
+    LEFT JOIN user_post_state s ON s.user_id = r.user_id AND s.tweet_id = p.tweet_id
+    WHERE h.matched_at > ?
       ${blockedSql}${extra.sql}
-    ORDER BY m.matched_at ASC
+    GROUP BY p.tweet_id
+    ORDER BY matched_at ASC
     LIMIT ?
-  `).all(userId, iso, ...blocked, ...extra.params, Math.min(Math.max(limit, 1), 400)) as MatchRow[];
-  return attachPriors(rows.map((row) => mapMatch(row, db)), userId, db);
+  `).all(
+    userId,
+    iso,
+    ...blocked,
+    ...extra.params,
+    Math.min(Math.max(limit, 1), 400),
+  ) as TapeRow[];
+  const matches = fetched.filter((row) => tapeRowPassesQuality(row, userId, db) || parseUserLabel(row.user_label));
+  return attachPriors(
+    matches.map((row) => mapTapeMatch(row, userId, db)),
+    userId,
+    db,
+  );
 }
 
 export function setMatchRead(id: string, read: boolean, userId: string, db = getDb()): Match | null {
-  db.prepare("UPDATE matches SET read = ? WHERE id = ? AND user_id = ?").run(read ? 1 : 0, id, userId);
-  return getMatchById(id, userId, db);
+  const tweetId = resolveTweetId(id, userId, db);
+  if (!tweetId) return null;
+  db.prepare(`
+    INSERT INTO user_post_state (user_id, tweet_id, read, user_label)
+    VALUES (?, ?, ?, (SELECT user_label FROM user_post_state WHERE user_id = ? AND tweet_id = ?))
+    ON CONFLICT(user_id, tweet_id) DO UPDATE SET read = excluded.read
+  `).run(userId, tweetId, read ? 1 : 0, userId, tweetId);
+  return getMatchById(tweetId, userId, db);
 }
 
 export function setMatchLabel(id: string, label: UserLabel | null, userId: string, db = getDb()): Match | null {
-  const existing = db.prepare("SELECT id, tweet_id, author_handle FROM matches WHERE id = ? AND user_id = ?").get(
-    id,
-    userId,
-  ) as { id: string; tweet_id: string; author_handle: string } | undefined;
-  if (!existing) return null;
-  db.prepare("UPDATE matches SET user_label = ? WHERE tweet_id = ? AND user_id = ?").run(
-    label,
-    existing.tweet_id,
-    userId,
-  );
-  recomputeAuthorQuality(existing.author_handle, userId, db);
-  return getMatchById(id, userId, db);
+  const tweetId = resolveTweetId(id, userId, db);
+  if (!tweetId) return null;
+  const post = db.prepare("SELECT author_handle FROM posts WHERE tweet_id = ?").get(tweetId) as
+    | { author_handle: string }
+    | undefined;
+  if (!post) return null;
+  db.prepare(`
+    INSERT INTO user_post_state (user_id, tweet_id, read, user_label)
+    VALUES (?, ?, COALESCE((SELECT read FROM user_post_state WHERE user_id = ? AND tweet_id = ?), 0), ?)
+    ON CONFLICT(user_id, tweet_id) DO UPDATE SET user_label = excluded.user_label
+  `).run(userId, tweetId, userId, tweetId, label);
+  return getMatchById(tweetId, userId, db);
 }
 
 export function markAllMatchesRead(userId: string, ruleId?: string, db = getDb()): number {
-  if (ruleId) {
-    return db.prepare("UPDATE matches SET read = 1 WHERE read = 0 AND user_id = ? AND rule_id = ?").run(
-      userId,
-      ruleId,
-    ).changes;
-  }
-  return db.prepare("UPDATE matches SET read = 1 WHERE read = 0 AND user_id = ?").run(userId).changes;
+  const ruleClause = ruleId ? "AND r.id = ?" : "";
+  const params = ruleId ? [userId, userId, ruleId] : [userId, userId];
+  const result = db.prepare(`
+    INSERT INTO user_post_state (user_id, tweet_id, read, user_label)
+    SELECT ?, p.tweet_id, 1, s.user_label
+    FROM posts p
+    JOIN post_hits h ON h.tweet_id = p.tweet_id
+    JOIN rules r ON r.user_id = ? AND r.query_hash = h.query_hash AND r.enabled = 1
+    LEFT JOIN user_post_state s ON s.user_id = r.user_id AND s.tweet_id = p.tweet_id
+    WHERE COALESCE(s.read, 0) = 0 ${ruleClause}
+    GROUP BY p.tweet_id
+    ON CONFLICT(user_id, tweet_id) DO UPDATE SET read = 1
+  `).run(...params);
+  return result.changes;
 }
 
 export const ACCOUNT_WATCH_LOOKBACK_META = "account_watch_lookback_v3";
@@ -1621,13 +1852,20 @@ export function getStatus(
     ? Date.now() - new Date(lastHeartbeatAt).getTime() < 30_000
     : false;
   const extra = sqlFocusMode(parseDeskMode(getUserMeta(userId, "desk_mode", db)));
-  const liveClause = opts.demoMode ? "" : "AND m.tweet_id NOT LIKE 'demo-%'";
+  const liveClause = opts.demoMode ? "" : "AND p.tweet_id NOT LIKE 'demo-%'";
   const counts = db.prepare(`
     SELECT
       (SELECT COUNT(*) FROM rules WHERE user_id = ?) AS rules,
       (SELECT COUNT(*) FROM rules r WHERE r.user_id = ? AND r.enabled = 1 AND TRIM(r.query) != ''${extra.sql}) AS enabled_rules,
-      (SELECT COUNT(*) FROM matches m JOIN rules r ON r.id = m.rule_id WHERE m.user_id = ? AND (m.signal_pass IS NULL OR m.signal_pass = 1) ${liveClause}${extra.sql}) AS matches,
-      (SELECT COUNT(*) FROM matches m JOIN rules r ON r.id = m.rule_id WHERE m.user_id = ? AND m.read = 0 AND (m.signal_pass IS NULL OR m.signal_pass = 1) ${liveClause}${extra.sql}) AS unread,
+      (SELECT COUNT(DISTINCT p.tweet_id) FROM posts p
+        JOIN post_hits h ON h.tweet_id = p.tweet_id
+        JOIN rules r ON r.user_id = ? AND r.query_hash = h.query_hash AND r.enabled = 1
+        WHERE 1=1 ${liveClause}${extra.sql}) AS matches,
+      (SELECT COUNT(DISTINCT p.tweet_id) FROM posts p
+        JOIN post_hits h ON h.tweet_id = p.tweet_id
+        JOIN rules r ON r.user_id = ? AND r.query_hash = h.query_hash AND r.enabled = 1
+        LEFT JOIN user_post_state s ON s.user_id = r.user_id AND s.tweet_id = p.tweet_id
+        WHERE COALESCE(s.read, 0) = 0 ${liveClause}${extra.sql}) AS unread,
       (SELECT COUNT(*) FROM tickers WHERE user_id = ?) AS tickers
   `).get(userId, userId, ...extra.params, userId, ...extra.params, userId, ...extra.params, userId) as {
     rules: number;
@@ -1641,7 +1879,7 @@ export function getStatus(
     SELECT
       COUNT(DISTINCT CASE WHEN user_label = 'high' THEN tweet_id END) AS high,
       COUNT(DISTINCT CASE WHEN user_label = 'low' THEN tweet_id END) AS low
-    FROM matches
+    FROM user_post_state
     WHERE user_id = ?
   `).get(userId) as { high: number; low: number };
 

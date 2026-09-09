@@ -226,7 +226,7 @@ export function RuleForm({
 
         <SettingsGroup
           title="Alerts"
-          footer="Inbox always receives matches. WhatsApp uses the Settings interval, not one message per match."
+          footer="The Feed always receives matches. Each SignlHQ can run 8 custom live monitors; the shared Markets/Venture tape is uncapped. WhatsApp stays on the admin instance."
         >
           <GroupedRow>
             <div className="w-[4.5rem] shrink-0 text-[15px] text-muted-foreground">Slack</div>

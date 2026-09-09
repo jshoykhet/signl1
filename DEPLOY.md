@@ -85,7 +85,7 @@ docker compose -f docker-compose.prod.yml --env-file .env up -d --build
 docker compose -f docker-compose.prod.yml logs -f caddy web
 ```
 
-On a 2 GB VPS, add 2 GB of swap before the first `--build`. Only the `web` image runs `next build`; the poller image does not.
+On a 2 GB VPS, add 2 GB of swap before the first `--build`. Only the `web` image runs `next build`; the poller image does not. A handful of people are fine on 2 GB. For ~1000 SignlHQs on the shared tape, use a 4–8 GB box (or split `web` and `poller`) so Feed tabs and the poller are not swapping. The data model stores each tweet once; do not give every person their own live X query set.
 
 Caddy obtains a Let’s Encrypt certificate for `$DOMAIN` and proxies to `web:3847`. Confirm:
 

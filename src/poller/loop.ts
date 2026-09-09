@@ -66,12 +66,11 @@ function noteRateLimit(info: { remaining: number | null; limit: number | null; r
 }
 
 async function ingestTweet(rule: Rule, tweet: NormalizedTweet): Promise<boolean> {
+  const result = tryInsertMatch(rule, tweet);
   const verdict = evaluateTweetSignal(tweet, rule.userId || "", undefined, {
     watchedAuthor: isWatchedAuthor(rule.accounts, tweet.authorHandle),
   });
-  if (!verdict.pass) return false;
-  const result = tryInsertMatch(rule, tweet);
-  if (!result.inserted) return false;
+  if (!result.inserted || !verdict.pass) return result.inserted;
   const notifyErrors = await notifyMatch(rule, tweet);
   if (notifyErrors.length) {
     console.warn(`[poller] notify failed for ${rule.name}: ${notifyErrors.join("; ")}`);

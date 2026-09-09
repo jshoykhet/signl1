@@ -19,6 +19,7 @@ import { EmptyState } from "@/components/empty-state";
 import { MatchDetail } from "@/components/match-detail";
 import { OpenOnX } from "@/components/open-on-x";
 import { formatCompact, formatRelative } from "@/lib/format";
+import { FEED_POLL_MS } from "@/lib/config";
 import { cadenceLabel } from "@/lib/desk-settings";
 import { FocusControl } from "@/components/focus-control";
 import { parseDeskMode, type DeskMode } from "@/lib/desk-mode";
@@ -305,7 +306,7 @@ export function InboxView() {
     }, delay);
     const timer = setInterval(() => {
       void run(false);
-    }, 3000);
+    }, FEED_POLL_MS);
     return () => {
       cancelled = true;
       clearTimeout(kickoff);

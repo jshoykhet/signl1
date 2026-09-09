@@ -300,7 +300,7 @@ describe("desk filters and KOL list persist in SQLite", () => {
     expect(isBlockedHandle("DeItaone", getBlockedSpec(U, db))).toBe(false);
   });
 
-  it("keeps two desks' inboxes isolated", () => {
+  it("shares the tape for the same query and keeps per-user quality filters", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "signal-"));
     tmpDirs.push(dir);
     const db = openDatabase(path.join(dir, "test.db"));
@@ -340,9 +340,8 @@ describe("desk filters and KOL list persist in SQLite", () => {
     });
     expect(tryInsertMatch(ruleA, tweet, db).inserted).toBe(true);
     expect(listMatches(a, { quality: true }, db).some((m) => m.tweetId === "tw-iso")).toBe(true);
-    expect(listMatches(b, { quality: true }, db).some((m) => m.tweetId === "tw-iso")).toBe(false);
-    expect(tryInsertMatch(ruleB, tweet, db).inserted).toBe(true);
     expect(listMatches(b, { quality: true }, db).some((m) => m.tweetId === "tw-iso")).toBe(true);
+    expect(tryInsertMatch(ruleB, tweet, db).inserted).toBe(false);
     setDeskFilterSettings(a, { minLikes: 500, allowFresh: false }, db);
     expect(listMatches(a, { quality: true }, db).some((m) => m.tweetId === "tw-iso")).toBe(false);
     expect(listMatches(b, { quality: true }, db).some((m) => m.tweetId === "tw-iso")).toBe(true);

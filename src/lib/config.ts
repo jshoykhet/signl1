@@ -11,6 +11,10 @@ export const X_MAX_RESULTS = 100;
 export const X_MAX_QUERY_CHARS = 512;
 export const WATCHLIST_QUERY_BUDGET = 480;
 export const MAX_WATCHLIST_TICKERS = 400;
+/** Custom (non-seed) monitors the shared poller will run per SignlHQ. */
+export const MAX_LIVE_CUSTOM_RULES = 8;
+/** Feed live-refresh interval. Was 3s; too hot for many open tabs. */
+export const FEED_POLL_MS = 20_000;
 export const X_SEARCH_URL = "https://api.x.com/2/tweets/search/recent";
 export const X_SEARCH_URL_FALLBACK = "https://api.twitter.com/2/tweets/search/recent";
 
