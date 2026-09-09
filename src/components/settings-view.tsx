@@ -79,6 +79,23 @@ export function SettingsView() {
                         .join(", ")}
                     </Row>
                   ) : null}
+                  {status.account.role === "admin" ? (
+                    <GroupedRow>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[17px] font-medium tracking-[-0.01em]">Analytics</div>
+                        <div className="mt-0.5 text-[13px] leading-snug text-muted-foreground">
+                          People and how often they sign in.
+                        </div>
+                      </div>
+                      <Link
+                        href="/analytics"
+                        className="inline-flex shrink-0 items-center gap-0.5 text-[15px] text-amber-700 dark:text-amber-300"
+                      >
+                        Open
+                        <ChevronRight className="size-4 opacity-70" />
+                      </Link>
+                    </GroupedRow>
+                  ) : null}
                 </SettingsGroup>
               ) : null}
               {status.demoMode ? (

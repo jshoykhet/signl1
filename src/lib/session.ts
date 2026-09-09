@@ -16,3 +16,12 @@ export async function requireDeskUser() {
     image: session.user.image ?? null,
   };
 }
+
+export async function requireAdmin() {
+  const desk = await requireDeskUser();
+  if (!desk.ok) return desk;
+  if (desk.role !== "admin") {
+    return { ok: false as const, response: jsonError("Only the instance admin can open Analytics.", 403) };
+  }
+  return desk;
+}

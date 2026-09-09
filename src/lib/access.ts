@@ -2,6 +2,7 @@ import type Database from "better-sqlite3";
 import { ensureUserDesk, getDb } from "./db";
 import { emailLooksLikePhone } from "./phone";
 import { clearSoloPhone } from "./solo-auth";
+import { recordLoginEvent } from "./usage";
 
 export type DeskRole = "admin" | "operator";
 
@@ -218,13 +219,15 @@ function touchLogin(
   input: { name?: string | null; image?: string | null },
   db: Database.Database,
 ) {
+  const ts = nowIso();
   db.prepare(
     `UPDATE users SET
       last_login_at = ?,
       name = COALESCE(?, name),
       image = COALESCE(?, image)
      WHERE id = ?`,
-  ).run(nowIso(), input.name?.trim() || null, input.image?.trim() || null, id);
+  ).run(ts, input.name?.trim() || null, input.image?.trim() || null, id);
+  recordLoginEvent(id, ts, db);
 }
 
 /**
@@ -264,6 +267,7 @@ export function admitUser(
     )
     .run(id, email, input.name?.trim() || null, input.image?.trim() || null, role, ts, ts);
 
+  recordLoginEvent(id, ts, conn);
   ensureUserDesk(id, conn);
   return getUserByEmail(email, conn);
 }
@@ -305,6 +309,7 @@ function rebindPhoneOwner(
        WHERE id = ?`,
     )
     .run(input.email, ts, input.name?.trim() || null, input.image?.trim() || null, owner.id);
+  recordLoginEvent(owner.id, ts, conn);
 
   const hadAllow = conn.prepare("SELECT 1 AS ok FROM allowed_emails WHERE email = ?").get(owner.email) as
     | { ok: number }

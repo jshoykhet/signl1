@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Activity, BadgeDollarSign, House, Inbox, MessageCircle, Radar, Settings2, SlidersHorizontal, Users } from "lucide-react";
+import { Activity, BadgeDollarSign, ChartColumn, House, Inbox, MessageCircle, Radar, Settings2, SlidersHorizontal, Users } from "lucide-react";
 import { UserMenu } from "@/components/user-menu";
 import { cn } from "@/lib/utils";
 import { DESK_MODES } from "@/lib/desk-mode";
@@ -14,6 +14,7 @@ const NAV = [
   { href: "/inbox", label: "Feed", icon: Inbox },
   { href: "/analyze", label: "Analyze", icon: Radar },
   { href: "/whatsapp", label: "WhatsApp", icon: MessageCircle },
+  { href: "/analytics", label: "Analytics", icon: ChartColumn },
   { href: "/watchlist", label: "Watchlist", icon: BadgeDollarSign },
   { href: "/accounts", label: "Accounts", icon: Users },
   { href: "/rules", label: "Rules", icon: SlidersHorizontal },
@@ -21,10 +22,11 @@ const NAV = [
 ];
 
 function navFor(status: StatusSnapshot | null) {
-  if (status?.account?.role === "operator") {
-    return NAV.filter((item) => item.href !== "/whatsapp");
-  }
-  return NAV;
+  return NAV.filter((item) => {
+    if (item.href === "/whatsapp" && status?.account?.role === "operator") return false;
+    if (item.href === "/analytics") return status?.account?.role === "admin";
+    return true;
+  });
 }
 
 function isActive(pathname: string, href: string) {
@@ -174,7 +176,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       >
         <div className="grid h-16 grid-cols-5">
           {navFor(status)
-            .filter((item) => item.href !== "/rules" && item.href !== "/accounts" && item.href !== "/watchlist")
+            .filter(
+              (item) =>
+                item.href !== "/rules" &&
+                item.href !== "/accounts" &&
+                item.href !== "/watchlist" &&
+                item.href !== "/analytics",
+            )
             .map((item) => {
             const active = isActive(pathname, item.href);
             const Icon = item.icon;

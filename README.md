@@ -19,6 +19,8 @@ The live tape is stored once and shared across SignlHQs that run the same compil
 
 **Analyze** (`/analyze`) reads an X handle for the last 7 days: what they posted, who they @, who mentioned them, and concrete reach tips. The handle field autocompletes Key Accounts and authors from your feed. It is inferred from recent-search, not the full follower/following graph. Without an X token it shows a sample week. Each read is two X searches — wait a few seconds between handles.
 
+**Analytics** (`/analytics`) is a separate admin page: how many people have a SignlHQ, who signed in in the last 7 and 30 days, and a per-person login count. Members do not see it. Existing accounts get one backfilled login from their last sign-in; new sign-ins are recorded from then on.
+
 Leave `X_BEARER_TOKEN` empty for **demo mode**. Signl1 shows sample posts so you can look around without paid X API access. The UI labels this clearly.
 
 ## Environment

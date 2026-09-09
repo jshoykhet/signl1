@@ -244,6 +244,15 @@ function migrate(db: Database.Database) {
       value TEXT NOT NULL,
       PRIMARY KEY (user_id, key)
     );
+
+    CREATE TABLE IF NOT EXISTS login_events (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      logged_in_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS login_events_user_id_idx ON login_events(user_id);
+    CREATE INDEX IF NOT EXISTS login_events_logged_in_at_idx ON login_events(logged_in_at DESC);
   `);
 
   seedAllowedEmailsFromEnv(db);
@@ -267,6 +276,7 @@ function migrate(db: Database.Database) {
   backfillMatchUserIds(db);
   migrateSharedTape(db);
   backfillMatchQuality(db);
+  backfillLoginEvents(db);
 }
 
 function stampRuleQueryHashes(db: Database.Database) {
@@ -337,6 +347,16 @@ function migrateSharedTape(db: Database.Database) {
     WHERE user_id IS NOT NULL AND user_id != ''
     GROUP BY user_id, tweet_id;
   `);
+}
+
+function backfillLoginEvents(db: Database.Database) {
+  db.prepare(
+    `INSERT INTO login_events (id, user_id, logged_in_at)
+     SELECT lower(hex(randomblob(16))), id, COALESCE(last_login_at, created_at)
+     FROM users
+     WHERE COALESCE(last_login_at, created_at) IS NOT NULL
+       AND NOT EXISTS (SELECT 1 FROM login_events WHERE user_id = users.id)`,
+  ).run();
 }
 
 function ensureColumn(db: Database.Database, table: string, column: string, spec: string) {
@@ -1120,10 +1140,17 @@ function hasTapeTables(db: Database.Database): boolean {
   return Boolean(row);
 }
 
+function hasLoginEventsTable(db: Database.Database): boolean {
+  const row = db
+    .prepare("SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = 'login_events'")
+    .get() as { ok: number } | undefined;
+  return Boolean(row);
+}
+
 export function getDb(): Database.Database {
   if (!globalForDb.signalDb) {
     globalForDb.signalDb = openDatabase();
-  } else if (!hasTapeTables(globalForDb.signalDb)) {
+  } else if (!hasTapeTables(globalForDb.signalDb) || !hasLoginEventsTable(globalForDb.signalDb)) {
     migrate(globalForDb.signalDb);
   }
   return globalForDb.signalDb;

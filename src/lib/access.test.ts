@@ -10,6 +10,7 @@ import {
   listUsers,
 } from "./access";
 import { listRules, openDatabase } from "./db";
+import { getUsageSnapshot } from "./usage";
 
 const tmpDirs: string[] = [];
 
@@ -71,6 +72,7 @@ describe("admitUser personal desks", () => {
     expect(again.id).toBe(first.id);
     expect(again.name).toBe("Lead");
     expect(again.lastLoginAt).toBeTruthy();
+    expect(getUsageSnapshot(Date.now(), db).people[0]?.loginCount).toBe(1);
   });
 
   it("honors AUTH_GOOGLE_EMAIL as an allowlist", () => {
