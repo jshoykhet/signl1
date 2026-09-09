@@ -12,7 +12,7 @@ import type { StatusSnapshot } from "@/lib/types";
 const NAV = [
   { href: "/", label: "Launch", icon: House },
   { href: "/inbox", label: "Feed", icon: Inbox },
-  { href: "/diet", label: "Diet", icon: Radar },
+  { href: "/analyze", label: "Analyze", icon: Radar },
   { href: "/whatsapp", label: "WhatsApp", icon: MessageCircle },
   { href: "/watchlist", label: "Watchlist", icon: BadgeDollarSign },
   { href: "/accounts", label: "Accounts", icon: Users },

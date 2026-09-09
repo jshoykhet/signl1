@@ -1,7 +1,5 @@
-import { DietView } from "@/components/diet-view";
+import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
-export default function DietPage() {
-  return <DietView />;
+export default function DietRedirectPage() {
+  redirect("/analyze");
 }

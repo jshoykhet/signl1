@@ -659,6 +659,45 @@ function authorSignalFlags(handle: string, userId: string, db: Database.Database
   };
 }
 
+export type HandleSuggestion = {
+  handle: string;
+  source: "key" | "feed";
+  followers: number | null;
+};
+
+export function listHandleSuggestions(userId: string, db = getDb()): HandleSuggestion[] {
+  const kol = getEffectiveKolHandleSet(userId, db);
+  const followers = listAuthorFollowerCounts(userId, db);
+  const feed = db
+    .prepare(
+      `
+    SELECT lower(p.author_handle) AS handle, MAX(p.author_followers) AS followers
+    FROM posts p
+    JOIN post_hits h ON h.tweet_id = p.tweet_id
+    JOIN rules r ON r.user_id = ? AND r.query_hash = h.query_hash
+    GROUP BY lower(p.author_handle)
+    ORDER BY MAX(h.matched_at) DESC
+    LIMIT 120
+  `,
+    )
+    .all(userId) as Array<{ handle: string; followers: number | null }>;
+  const seen = new Set<string>();
+  const out: HandleSuggestion[] = [];
+  const push = (handle: string, source: "key" | "feed", fol: number | null) => {
+    const key = handle.replace(/^@/, "").trim().toLowerCase();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    out.push({
+      handle: key,
+      source,
+      followers: fol != null && Number.isFinite(fol) && fol > 0 ? Number(fol) : null,
+    });
+  };
+  for (const handle of kol) push(handle, "key", followers.get(handle) ?? null);
+  for (const row of feed) push(row.handle, "feed", row.followers);
+  return out;
+}
+
 export function listAuthorFollowerCounts(userId: string, db = getDb()): Map<string, number> {
   const rows = db.prepare(`
     SELECT lower(p.author_handle) AS handle, MAX(p.author_followers) AS followers

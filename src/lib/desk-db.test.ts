@@ -19,6 +19,7 @@ import {
   getUserMeta,
   getWatchlist,
   listAuthorFollowerCounts,
+  listHandleSuggestions,
   listEnabledRulesForUser,
   listMatches,
   listMatchesPage,
@@ -267,6 +268,9 @@ describe("desk filters and KOL list persist in SQLite", () => {
       db,
     );
     expect(listAuthorFollowerCounts(U, db).get("reuters")).toBe(25_000_000);
+    const suggestions = listHandleSuggestions(U, db);
+    expect(suggestions.some((item) => item.handle === "reuters")).toBe(true);
+    expect(suggestions.some((item) => item.handle === "deitaone")).toBe(true);
   });
 
   it("blocks an account from the inbox even when it is a node", () => {
