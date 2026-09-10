@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import { ensureUserDesk, getDb } from "./db";
+import { DEV_PREVIEW_NAME, isDevPreviewEmail } from "./dev-preview";
 import { emailLooksLikePhone } from "./phone";
 import { clearSoloPhone } from "./solo-auth";
 import { recordLoginEvent } from "./usage";
@@ -89,6 +90,7 @@ export function signupAllowlist(): string[] {
 export function canCreateDesk(email: string, db?: Database.Database): boolean {
   const normalized = normalizeEmail(email);
   if (!normalized) return false;
+  if (isDevLoginEnabled() && isDevPreviewEmail(normalized)) return true;
   const allow = signupAllowlist();
   if (allow.length === 0 && countAllowedEmails(db) === 0) return true;
   if (allow.includes(normalized)) return true;
@@ -214,9 +216,13 @@ export function getTeamSnapshot(db?: Database.Database): TeamSnapshot {
   };
 }
 
+function stampPreviewIdentity(id: string, db: Database.Database) {
+  db.prepare(`UPDATE users SET name = ?, image = NULL WHERE id = ?`).run(DEV_PREVIEW_NAME, id);
+}
+
 function touchLogin(
   id: string,
-  input: { name?: string | null; image?: string | null },
+  input: { name?: string | null; image?: string | null; email?: string },
   db: Database.Database,
 ) {
   const ts = nowIso();
@@ -227,6 +233,7 @@ function touchLogin(
       image = COALESCE(?, image)
      WHERE id = ?`,
   ).run(ts, input.name?.trim() || null, input.image?.trim() || null, id);
+  if (isDevPreviewEmail(input.email)) stampPreviewIdentity(id, db);
   recordLoginEvent(id, ts, db);
 }
 
@@ -246,7 +253,7 @@ export function admitUser(
   const existing = getUserByEmail(email, conn);
   if (existing) {
     if (existing.disabled) return null;
-    touchLogin(existing.id, input, conn);
+    touchLogin(existing.id, { ...input, email }, conn);
     ensureUserDesk(existing.id, conn);
     return getUserByEmail(email, conn);
   }
@@ -267,6 +274,7 @@ export function admitUser(
     )
     .run(id, email, input.name?.trim() || null, input.image?.trim() || null, role, ts, ts);
 
+  if (isDevPreviewEmail(email)) stampPreviewIdentity(id, conn);
   recordLoginEvent(id, ts, conn);
   ensureUserDesk(id, conn);
   return getUserByEmail(email, conn);

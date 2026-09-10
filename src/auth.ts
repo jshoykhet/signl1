@@ -3,6 +3,7 @@ import type { NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { authConfig } from "./auth.config";
 import { admitGoogleUser, admitUser, getUserByEmail, isDevLoginEnabled } from "./lib/access";
+import { DEV_PREVIEW_NAME, isDevPreviewEmail } from "./lib/dev-preview";
 import { verifyGoogleIdToken } from "./lib/google-id-token";
 
 function buildProviders(): NextAuthConfig["providers"] {
@@ -38,7 +39,11 @@ function buildProviders(): NextAuthConfig["providers"] {
         },
         authorize: async (credentials) => {
           const email = typeof credentials?.email === "string" ? credentials.email : "";
-          const user = admitUser({ email, name: email.split("@")[0] ?? email });
+          const user = admitUser({
+            email,
+            name: isDevPreviewEmail(email) ? DEV_PREVIEW_NAME : (email.split("@")[0] ?? email),
+            image: isDevPreviewEmail(email) ? null : undefined,
+          });
           if (!user) return null;
           return { id: user.id, email: user.email, name: user.name, image: user.image };
         },

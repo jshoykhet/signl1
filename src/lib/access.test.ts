@@ -6,9 +6,11 @@ import {
   admitGoogleUser,
   admitUser,
   allowedGoogleEmail,
+  canCreateDesk,
   isDevLoginEnabled,
   listUsers,
 } from "./access";
+import { DEV_PREVIEW_EMAIL, DEV_PREVIEW_NAME } from "./dev-preview";
 import { listRules, openDatabase } from "./db";
 import { getUsageSnapshot } from "./usage";
 
@@ -84,6 +86,42 @@ describe("admitUser personal desks", () => {
     expect(admitGoogleUser({ email: "owner@gmail.com" }, db)?.email).toBe("owner@gmail.com");
     expect(admitGoogleUser({ email: "other@gmail.com" }, db)).toBeNull();
     restoreEnv("AUTH_GOOGLE_EMAIL", prev);
+  });
+
+  it("keeps Skip sign-in on the generic preview account", () => {
+    const db = tempDb();
+    admitUser({ email: "jeremy@example.com", name: "Jeremy Shoykhet", image: "https://example.com/j.png" }, db);
+    const preview = admitUser(
+      { email: DEV_PREVIEW_EMAIL, name: "Should be replaced", image: "https://example.com/no.png" },
+      db,
+    )!;
+    expect(preview.email).toBe(DEV_PREVIEW_EMAIL);
+    expect(preview.name).toBe(DEV_PREVIEW_NAME);
+    expect(preview.image).toBeNull();
+    expect(preview.role).toBe("operator");
+    db.prepare("UPDATE users SET name = ?, image = ? WHERE id = ?").run(
+      "Jeremy Shoykhet",
+      "https://example.com/j.png",
+      preview.id,
+    );
+    const again = admitUser({ email: DEV_PREVIEW_EMAIL }, db)!;
+    expect(again.id).toBe(preview.id);
+    expect(again.name).toBe(DEV_PREVIEW_NAME);
+    expect(again.image).toBeNull();
+    expect(listUsers(db).find((user) => user.email === "jeremy@example.com")?.name).toBe("Jeremy Shoykhet");
+  });
+
+  it("lets Skip create the preview account when AUTH_DEV_LOGIN is on", () => {
+    const prevLogin = process.env.AUTH_DEV_LOGIN;
+    const prevGoogle = process.env.AUTH_GOOGLE_EMAIL;
+    process.env.AUTH_DEV_LOGIN = "1";
+    process.env.AUTH_GOOGLE_EMAIL = "owner@gmail.com";
+    const db = tempDb();
+    expect(canCreateDesk(DEV_PREVIEW_EMAIL, db)).toBe(true);
+    expect(admitUser({ email: DEV_PREVIEW_EMAIL }, db)?.email).toBe(DEV_PREVIEW_EMAIL);
+    expect(admitUser({ email: "stranger@desk.com" }, db)).toBeNull();
+    restoreEnv("AUTH_DEV_LOGIN", prevLogin);
+    restoreEnv("AUTH_GOOGLE_EMAIL", prevGoogle);
   });
 
   it("lets AUTH_ALLOWED_EMAILS admit more than one desk", () => {

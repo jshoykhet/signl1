@@ -56,7 +56,7 @@ DATABASE_PATH=./data/signal.db
 
 Do not commit `.env`. Per-rule Slack and generic webhook URLs live in SQLite so different instances can fan out without extra env vars.
 
-On first visit, sign in with Google. That account becomes admin and gets a seeded SignlHQ. The next person who signs in gets their own member HQ with the same default monitors, then customizes Focus and rules independently. If an allowlist is set (`AUTH_GOOGLE_EMAIL` or `AUTH_ALLOWED_EMAILS`), only those emails can open a SignlHQ. A leftover phone owner is rebound to the first Google sign-in. Local preview can still **Skip sign-in** when `AUTH_DEV_LOGIN=1`.
+On first visit, sign in with Google. That account becomes admin and gets a seeded SignlHQ. The next person who signs in gets their own member HQ with the same default monitors, then customizes Focus and rules independently. If an allowlist is set (`AUTH_GOOGLE_EMAIL` or `AUTH_ALLOWED_EMAILS`), only those emails can open a SignlHQ. A leftover phone owner is rebound to the first Google sign-in. Local preview can still **Skip sign-in** when `AUTH_DEV_LOGIN=1`. Skip always opens the generic `lead@desk.com` preview account — it does not sign in as the first Google user on the instance.
 
 ## X bearer token (live mode)
 
